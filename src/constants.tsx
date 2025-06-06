@@ -1,0 +1,1 @@
+export const secretKey: string = process.env.REACT_APP_SECRET_KEY || '';

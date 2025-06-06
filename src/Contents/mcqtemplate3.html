@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Question Template</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .question-container {
+            margin-bottom: 30px;
+        }
+        .question {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .options {
+            display: flex;
+            flex-wrap: wrap; /* Allows the options to wrap to the next line */
+            justify-content: space-evenly; /* Distribute space evenly across rows */
+            margin-top: 10px;
+        }
+        .option {
+            width: 45%; /* Make each option take up about 45% of the width */
+            padding: 10px;
+            margin: 5px 0; /* Vertical spacing between options */
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .option:hover {
+            background-color: #f1f1f1;
+        }
+        .correct-option {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .explanation {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 10px;
+        }
+        .explanation p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="question-container">
+        <div class="question">
+            <p><strong id="que">{question}</strong> </p>
+        </div>
+        <div class="options">
+            <div class="option" id="option1">
+                 {optionA}
+            </div>
+            <div class="option" id="option2">
+                {optionB}
+            </div>
+            <div class="option" id="option3">
+                 {optionC}
+            </div>
+            <div class="option" id="option4">
+                {optionD}
+            </div>
+        </div>
+        <div class="explanation">
+            <p><strong>Explanation:</strong> <p id="exp">{explanation}</p></p>
+        </div>
+    </div>
+
+</body>
+</html>

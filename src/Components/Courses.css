@@ -1,0 +1,67 @@
+.open-course {
+    /* box-shadow: 8px 8px 8px rgba(0, 0, 0, 0.2); */
+    /* hover {
+      transform: scale(1.1);
+    } */
+  }
+  
+  .open-course:hover {
+    transform: scale(1.03);
+    transition-duration: 0.5s;
+  }
+  
+  /* .open-course {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .open-course::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 2px solid transparent;
+    border-radius: 1px;
+    box-sizing: border-box;
+    pointer-events: none;
+    animation: draw-border 10s linear infinite;
+  }
+  
+  @keyframes draw-border {
+    0% {
+      border-top: 2px solid transparent;
+      border-right: 2px solid transparent;
+      border-bottom: 2px solid transparent;
+      border-left: 2px solid transparent;
+    }
+    10% {
+      border-top: 2px solid limegreen;
+      border-right: 2px solid transparent;
+      border-bottom: 2px solid transparent;
+      border-left: 2px solid transparent;
+    }
+    20% {
+      border-top: 2px solid limegreen;
+      border-right: 2px solid limegreen;
+    }
+    40% {
+      border-bottom: 2px solid limegreen;
+    }
+    60% {
+      border-left: 2px solid limegreen;
+    }
+    80% {
+      border-top: 2px solid limegreen;
+      border-right: 2px solid transparent;
+      border-bottom: 2px solid transparent;
+      border-left: 2px solid transparent;
+    }
+    90% {
+      border-top: 2px solid limegreen;
+      border-right: 2px solid limegreen;
+    }
+    100% {
+      border-bottom: 2px solid limegreen;
+    }
+  }
+   */

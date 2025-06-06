@@ -1,0 +1,72 @@
+
+.login {
+    background: linear-gradient(45deg, #5399c2, #d4a5e7, #6ab5e7, #b065ce);
+    min-height: 100vh;
+    height: auto; 
+    background-size: cover; 
+    margin: 0; 
+    font-family: 'Poppins', sans-serif; 
+    padding-top: 10px;
+    padding-bottom:10px;
+}
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+}
+
+.loginCard {
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    background-image: url('https://img.freepik.com/free-vector/purple-watercolour-background-2_78370-1872.jpg?t=st=1727787562~exp=1727791162~hmac=5f04f5ddade14f2ab3cfb527f7e0f1605955988d4112de35e800587441fb2f74&w=1380');
+    transition: transform 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; 
+    height: 100%; 
+}
+    
+.loginCardBody {
+    padding: 30px;
+    display: flex;
+    flex-direction: column; 
+    justify-content: space-between; 
+    height: 100%; 
+}
+
+
+
+
+button.btn-primary {
+    background: linear-gradient(135deg, #7335B7, #9b59b6); 
+    border: none;
+    color: white;
+    font-weight: bold;
+    border-radius: 25px;
+    padding: 12px 30px;
+    transition: background 0.2s ease-in-out;
+}
+
+button.btn-primary:hover {
+    background: linear-gradient(135deg, #9b59b6, #7335B7); 
+}
+
+.card-title {
+    font-size: 1.5rem;
+    /* color: #4a148c; */
+    font-weight: bold;
+}
+
+.text-center p {
+    /* color: #4a148c; */
+}
+
+.modal-header.bg-primary {
+    background: linear-gradient(135deg, #8e44ad, #9b59b6); 
+}
+
+.modal-footer button {
+    /* background-color: #8e44ad; */
+    color: white;
+    border: none;
+}

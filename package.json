@@ -1,0 +1,92 @@
+{
+  "name": "tsapp1",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@fortawesome/fontawesome-svg-core": "^6.7.2",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
+    "@mui/icons-material": "^6.3.1",
+    "@mui/material": "^6.3.1",
+    "@mui/x-date-pickers": "^7.23.3",
+    "@react-oauth/google": "^0.12.1",
+    "@react-pdf-viewer/core": "^3.12.0",
+    "@react-pdf-viewer/default-layout": "^3.4.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/codemirror": "^5.60.15",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.123",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@uiw/react-codemirror": "^4.23.7",
+    "ace-builds": "^1.37.5",
+    "ajv": "^8.17.1",
+    "ajv-keywords": "^5.1.0",
+    "axios": "^1.7.9",
+    "bootstrap": "^5.3.3",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^4.1.0",
+    "html2canvas": "^1.4.1",
+    "install": "^0.13.0",
+    "lucide-react": "^0.471.1",
+    "material-react-table": "^3.0.1",
+    "pdfjs-dist": "^3.4.120",
+    "react": "^19.0.0",
+    "react-ace": "^13.0.0",
+    "react-bootstrap": "^2.10.8",
+    "react-date-range": "^2.0.1",
+    "react-detect-offline": "^2.4.5",
+    "react-dom": "^19.0.0",
+    "react-error-boundary": "^5.0.0",
+    "react-icons": "^5.4.0",
+    "react-loading-skeleton": "^3.5.0",
+    "react-pdf": "^9.2.1",
+    "react-router-dom": "^7.1.1",
+    "react-spinners": "^0.15.0",
+    "recharts": "^2.15.0",
+    "skulpt": "^1.2.0",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "start:staging": "env-cmd -f .env.staging react-scripts start",
+    "start:prod": "env-cmd -f .env.prod react-scripts start",
+    "build": "react-scripts build",
+    "build:staging": "env-cmd -f .env.staging react-scripts build",
+    "build:prod": "env-cmd -f .env.prod react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
+    "@types/react-date-range": "^1.4.10",
+    "@types/react-detect-offline": "^2.4.5",
+    "react-scripts": "^5.0.1"
+  }
+}
