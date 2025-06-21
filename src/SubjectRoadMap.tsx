@@ -6,8 +6,7 @@ import MCQSkeletonCode from "./Components/MCQSkeletonCode";
 import CodingSkeletonCode from "./Components/CodingSkeletonCode";
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
-import { Worker, Viewer } from '@react-pdf-viewer/core';
-import '@react-pdf-viewer/core/lib/styles/index.css';
+// import '@react-pdf-viewer/core/lib/styles/index.css';
 import { Modal, Accordion, Spinner } from 'react-bootstrap';
 import { TfiMenuAlt } from "react-icons/tfi";
 import { PiMonitorPlayBold } from "react-icons/pi";
@@ -975,21 +974,12 @@ useEffect(() => {
             );
         } else if (notesUrl.endsWith('.pdf')) {
             return (
-                <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
-                    {pdfLoading ? (
-                        <div className="d-flex justify-content-center align-items-center h-100">
-                            <div>Loading PDF...</div>
-                        </div>
-                    ) : pdfError ? (
-                        <div style={{ color: 'red', textAlign: 'center', paddingTop: '20px' }}>
-                            Failed to load PDF
-                        </div>
-                    ) : (
-                        <div className="w-100 h-100" style={{ overflow: 'auto' }}>
-                            <Viewer fileUrl={pdfUrl}  />
-                        </div>
-                    )}
-                </Worker>
+                <iframe 
+                    src={pdfUrl} 
+                    className="w-100 h-100" 
+                    title="PDF Viewer" 
+                    style={{ border: 'none' }} 
+                />
             );
         }
 
