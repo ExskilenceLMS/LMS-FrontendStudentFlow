@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Detector } from "react-detect-offline";
 import axios from "axios";
 import { Modal } from "react-bootstrap";
@@ -26,7 +26,18 @@ function App() {
   // const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 console.log(process.env.REACT_APP_PROJECT_NAME)
 console.log(process.env.REACT_APP_BACKEND_URL)
+
+  // Check if user is on login page
+  const isOnLoginPage = () => {
+    return window.location.pathname === '/' ;
+  };
+
   const resetTimer = useCallback(() => {
+    // Don't start timer if user is on login page
+    if (isOnLoginPage()) {
+      return;
+    }
+
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
@@ -46,6 +57,11 @@ console.log(process.env.REACT_APP_BACKEND_URL)
   }, []);
 
   const startCountdown = useCallback(() => {
+    // Don't start countdown if user is on login page
+    if (isOnLoginPage()) {
+      return;
+    }
+
     if (countdownTimerRef.current) {
       clearInterval(countdownTimerRef.current);
     }
@@ -77,6 +93,11 @@ console.log(process.env.REACT_APP_BACKEND_URL)
   }, [studentId]);
 
   useEffect(() => {
+    // Don't set up timer events if user is on login page
+    if (isOnLoginPage()) {
+      return;
+    }
+
     const events = ['mousemove', 'keypress', 'scroll', 'click'];
     const handleActivity = () => {
       resetTimer();
@@ -107,7 +128,7 @@ console.log(process.env.REACT_APP_BACKEND_URL)
   return (
     <Detector
       polling={{
-        url: '/varun',
+        url: '/internet_info',
         enabled: true,
         timeout: 2000,
         interval: 10000

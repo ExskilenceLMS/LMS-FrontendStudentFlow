@@ -210,7 +210,7 @@ const fetchRoadmapData = async () => {
         setDisablePreviousBtn(true);
 
         const response = await axios.get(url);
-        const responseData = response.data;
+        const responseData = response.data.modules;
 
         setChapters(responseData);
         const variable = responseData[0].day_completed;
@@ -278,7 +278,7 @@ const fetchRoadmapData = async () => {
             }
         }
 
-        await axios.put(url1, {
+        await axios.post(url1, {
             student_id: studentId,
             subject: subject,
             subject_id: subjectId,
@@ -331,7 +331,7 @@ const fetchRoadmapData = async () => {
             setLoading(true);
             setDisablePreviousBtn(true);
             const response = await axios.get(url);
-            setMcqQuestions(response.data);
+            setMcqQuestions(response.data.questions);
             setCurrentMCQIndex(0);
             setLoading(false);
             setDisablePreviousBtn(false);
@@ -371,7 +371,7 @@ const fetchRoadmapData = async () => {
             setLoading(true);
             setDisablePreviousBtn(true);
             const response = await axios.get(url);
-            const codingQuestionsData = response.data.map((question: any, index: number) => ({
+            const codingQuestionsData = response.data.questions.map((question: any, index: number) => ({
                 id: index + 1,
                 question: question.Qn,
                 score: question.score,
@@ -435,7 +435,7 @@ const fetchRoadmapData = async () => {
             setDisablePreviousBtn(true);
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                await axios.put(url, {
+                await axios.post(url, {
                     "student_id": studentId,
                     "subject": subject,
                     "subject_id": subjectId,
@@ -503,12 +503,18 @@ const fetchRoadmapData = async () => {
                 setSelectedContent(subTopic.notes[currentNotesIndex]);
                 setContentType('notes');
             } else if (view === 'mcq') {
-                fetchMCQQuestions(currentSubTopicIndex);
+                // Only fetch if not already fetched
+                if (!hasFetched || mcqQuestions.length === 0) {
+                    fetchMCQQuestions(currentSubTopicIndex);
+                }
             } else if (view === 'coding') {
-                fetchCodingQuestions(currentSubTopicIndex);
+                // Only fetch if not already fetched
+                if (!hasFetched || codingQuestions.length === 0) {
+                    fetchCodingQuestions(currentSubTopicIndex);
+                }
             }
         }
-    }, [chapters, currentSubTopicIndex, currentLessonIndex, currentNotesIndex, fetchMCQQuestions, fetchCodingQuestions, expandedSections]);
+    }, [chapters, currentSubTopicIndex, currentLessonIndex, currentNotesIndex, fetchMCQQuestions, fetchCodingQuestions, expandedSections, hasFetched, mcqQuestions.length, codingQuestions.length]);
     
     const handleNextLesson = useCallback(() => {
         if (chapters.length > 0 && chapters[0].sub_topic_data.length > currentSubTopicIndex) {
@@ -773,8 +779,8 @@ useEffect(() => {
             setPdfLoading(true);
             setPdfError(false);
             setLoading(true);
-            const url = 'https://live-exskilence-be.azurewebsites.net/media/';
-
+            const url = `${process.env.REACT_APP_BACKEND_URL}api/media/`;
+            console.log('url',url);
             try {
                 const response = await fetch(url, {
                     method: 'POST',
@@ -829,7 +835,7 @@ useEffect(() => {
             setVideoUrl('');
 
             try {
-                const response = await fetch('https://live-exskilence-be.azurewebsites.net/media/', {
+                const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}api/media/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ file_url: lessonVideoUrl })
@@ -1242,7 +1248,7 @@ const handleNext = useCallback(async () => {
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
-                        const response3 = await axios.put(url, {
+                        const response3 = await axios.post(url, {
                             "student_id": studentId,
                             "subject": subject,
                             "subject_id": subjectId,
@@ -1319,7 +1325,7 @@ const handleNext = useCallback(async () => {
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
-                        const response3 = await axios.put(url, {
+                        const response3 = await axios.post(url, {
                             "student_id": studentId,
                             "subject": subject,
                             "subject_id": subjectId,
@@ -1407,7 +1413,7 @@ const handleNext = useCallback(async () => {
                         if (isLastContent) {
                             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                             try {
-                                const response3 = await axios.put(url, {
+                                const response3 = await axios.post(url, {
                                     "student_id": studentId,
                                     "subject": subject,
                                     "subject_id": subjectId,
@@ -1490,7 +1496,7 @@ const handleNext = useCallback(async () => {
         if (isLastContent) {
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                const response3 = await axios.put(url, {
+                const response3 = await axios.post(url, {
                     "student_id": studentId,
                     "subject": subject,
                     "subject_id": subjectId,
@@ -1839,38 +1845,40 @@ const handlePrevious = useCallback(() => {
         setContentType('notes');
         setCurrentNotesIndex(0);
     } else if (contentType === 'mcq') {
-        if (!hasFetched) {
+        // Only fetch if not already fetched or if switching to a different subtopic
+        if (!hasFetched || mcqQuestions.length === 0 || currentSubTopicIndex !== index) {
             await fetchMCQQuestions(index);
             setCurrentMCQIndex(0);
             setHasFetched(true);
         }
     } else if (contentType === 'coding') {
-        if (!hasFetched) {
+        // Only fetch if not already fetched or if switching to a different subtopic
+        if (!hasFetched || codingQuestions.length === 0 || currentSubTopicIndex !== index) {
             await fetchCodingQuestions(index);
             setHasFetched(true);
         }
     }
 
     handleViewChange(contentType);
-}, [chapters, fetchMCQQuestions, fetchCodingQuestions, hasFetched]);
+}, [chapters, fetchMCQQuestions, fetchCodingQuestions, hasFetched, mcqQuestions.length, codingQuestions.length, currentSubTopicIndex]);
 
 const [requestedContent, setRequestedContent] = useState<string[]>([]); 
 
 useEffect(() => {
     const requestedContentTypes = sessionStorage.getItem('lastContentType') ||'';
     // console.log('123',requestedContentTypes);
-    if ( sessionStorage.getItem('currentSubTopicId') != null) {
-        if (requestedContentTypes.includes('mcq')) {
+    if ( sessionStorage.getItem('currentSubTopicId') != null && !hasFetched) {
+        if (requestedContentTypes.includes('mcq') && mcqQuestions.length === 0) {
             fetchMCQQuestions(0);
         }
 
-        if (requestedContentTypes.includes('coding')) {
+        if (requestedContentTypes.includes('coding') && codingQuestions.length === 0) {
             fetchCodingQuestions(0);
         }
 
         setHasFetched(true);
     }
-}, [ studentId, subject, dayNumber, requestedContent]);
+}, [ studentId, subject, dayNumber, requestedContent, hasFetched, mcqQuestions.length, codingQuestions.length, fetchMCQQuestions, fetchCodingQuestions]);
 
 
 return (

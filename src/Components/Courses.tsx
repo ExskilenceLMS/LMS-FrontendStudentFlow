@@ -95,7 +95,7 @@ const Courses: React.FC = () => {
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const url = `${process.env.REACT_APP_BACKEND_URL}/api/studentdashboard/mycourses/${studentId}/`;
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}/`;
       try {
         const response = await axios.get(url);
 
@@ -110,7 +110,7 @@ const Courses: React.FC = () => {
           "SQL8": "#FFB5B5",
         };
 
-        const courseData = response.data.map((course: any) => ({
+        const courseData = (response.data.subjects || []).map((course: any) => ({
           ...course,
           color: colorMapping[course.title] || "#D3D3D3",
         }));

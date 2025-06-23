@@ -41,7 +41,7 @@ const Upcoming: React.FC = () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}/`
       try {
         const response = await axios.get(url);
-        setDiscussions(response.data.map((item: any) => ({
+        setDiscussions(response.data.sessions.map((item: any) => ({
           title: item.title,
           week: item.title,
           date: item.date,
@@ -88,7 +88,7 @@ const Upcoming: React.FC = () => {
         })));
       } 
 catch (innerError: any) {
-            const errorData = innerError.response?.data || {
+            const errorData = innerError.response?.data.events || {
                 message: innerError.message,
                 stack: innerError.stack
             };
