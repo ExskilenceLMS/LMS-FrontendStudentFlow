@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import apiClient from "../utils/apiAuth";
 import { secretKey } from "../constants";
+import CryptoJS from "crypto-js";
+
 interface FAQData {
   FAQ: {
     [category: string]: { question: string; answer: string }[];
@@ -49,7 +51,7 @@ const FAQ: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

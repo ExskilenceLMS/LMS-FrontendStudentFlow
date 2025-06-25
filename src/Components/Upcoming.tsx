@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { Card } from "react-bootstrap";
 import Skeleton from "react-loading-skeleton";
+import apiClient from "../utils/apiAuth";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 
@@ -40,7 +41,7 @@ const Upcoming: React.FC = () => {
     const fetchDiscussions = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}/`
       try {
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
         setDiscussions(response.data.sessions.map((item: any) => ({
           title: item.title,
           week: item.title,
@@ -62,7 +63,7 @@ const Upcoming: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -80,7 +81,7 @@ const Upcoming: React.FC = () => {
     const fetchEvents = async () => {
         const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}/`
       try {
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
         setEvents(response.data.map((event: any) => ({
           title: event.title,
           date: event.date,
@@ -102,7 +103,7 @@ catch (innerError: any) {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import axios from "axios";
+import { Card } from "react-bootstrap";
+import Skeleton from "react-loading-skeleton";
+import apiClient from "../utils/apiAuth";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
+
 interface SpecialDates {
   [key: string]: { title: string; subject: string }[];
 }
@@ -24,7 +27,7 @@ const Calendar: React.FC = () => {
     const fetchData = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/event/calender/${studentId}/`
       try {
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
         setData(response.data);
         setYear(parseInt(response.data.year));
         setMonth(parseInt(response.data.month)); 
@@ -57,7 +60,7 @@ const Calendar: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

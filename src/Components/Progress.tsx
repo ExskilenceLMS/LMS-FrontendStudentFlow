@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { Card, Dropdown } from "react-bootstrap";
+import Skeleton from "react-loading-skeleton";
+import apiClient from "../utils/apiAuth";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 
@@ -73,7 +75,7 @@ function Progress() {
     const fetchData = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}/`
       try {
-        const response = await axios.get<ApiResponse>(
+        const response = await apiClient.get<ApiResponse>(
           url
         );
         const data = response.data;
@@ -109,7 +111,7 @@ function Progress() {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

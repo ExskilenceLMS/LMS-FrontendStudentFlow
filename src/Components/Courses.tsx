@@ -1,11 +1,11 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import { Card, ProgressBar } from "react-bootstrap";
 import { FaClock } from "react-icons/fa";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleRight } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
-import axios, { AxiosError } from "axios";
+import apiClient from "../utils/apiAuth";
+import { AxiosError } from "axios";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
@@ -97,7 +97,7 @@ const Courses: React.FC = () => {
     const fetchCourses = async () => {
       const url = `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}/`;
       try {
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
 
         const colorMapping: { [key: string]: string } = {
           "HTML CSS": "#B6BAFE",
@@ -133,7 +133,7 @@ const Courses: React.FC = () => {
         };
 
         try {
-          await axios.post(
+          await apiClient.post(
             `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
             body
           );

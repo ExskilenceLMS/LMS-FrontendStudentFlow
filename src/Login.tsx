@@ -125,6 +125,11 @@ const Login: React.FC = () => {
             sessionStorage.setItem("CourseId", encryptedCourseId);
 
             sessionStorage.setItem("BatchId", encryptedBatchId);
+
+            // Store access token for API authentication
+            if (response.data.access_token) {
+                sessionStorage.setItem("access_token", response.data.access_token);
+            }
  
             if (response.data.message === "Successfully Logged In") {
 

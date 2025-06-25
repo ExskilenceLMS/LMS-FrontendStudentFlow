@@ -10,7 +10,7 @@ import {
   TooltipProps
 } from "recharts";
 import Skeleton from "react-loading-skeleton";
-import axios from "axios";
+import apiClient from "../utils/apiAuth";
 import './Activity.css';
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
@@ -62,7 +62,7 @@ const Activity: React.FC = () => {
     const fetchData = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/n/`
       try {
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
         setData(response.data.hours);
         setWeeklyLimit(response.data.weekly_limit);
         setMinThreshold(response.data.daily_limit);
@@ -86,7 +86,7 @@ const Activity: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -111,7 +111,7 @@ const Activity: React.FC = () => {
   const fetchHoursSpentForWeek = async (weekNumber: number) => {
     const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/${weekNumber}/`
     try {
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       setData(response.data.hours);
       setMinThreshold(response.data.daily_limit);
       const maxHourValue = Math.max(...response.data.hours.map((hour: { hours: number }) => hour.hours));
@@ -133,7 +133,7 @@ const Activity: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

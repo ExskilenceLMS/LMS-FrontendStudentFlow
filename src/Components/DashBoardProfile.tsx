@@ -5,7 +5,7 @@ import ProgressMeter from "./images/ProgressMeter.png";
 import Badge from "./images/Badge.png";
 import Hourglass from "./images/Hourglass.png";
 import Skeleton from "react-loading-skeleton";
-import axios from "axios";
+import apiClient from "../utils/apiAuth";
 import ph_star from "./images/ph_star-four-fill.png";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
@@ -36,7 +36,7 @@ const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!
     const fetchData = async () => {
       const url =`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/summary/${studentId}/`
       try {
-        const response = await axios.get(
+        const response = await apiClient.get(
           url
         );
         setData(response.data);
@@ -58,7 +58,7 @@ const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

@@ -123,11 +123,7 @@ const SubjectRoadMap: React.FC = () => {
     const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
     const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
     const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
-    const VideoEmbed =['https://player.vdocipher.com/v2/?otp=20160313versASE323itYNtHlXu9YYIoKt2END5H9pee2bNFtO6bMKsT0dv9OQ1L&playbackInfo=eyJ2aWRlb0lkIjoiYjQ5Yjc4NjhkNTU1NGYzZGFmZDk3MDQ4MjlkYzEzYjcifQ==',
-        'https://player.vdocipher.com/v2/?otp=20160313versASE323AP9tnPSWgTG4UeQwPrb76fi0F8lzGOagTYWcsUlzcwbmf1&playbackInfo=eyJ2aWRlb0lkIjoiYzIwNjY1YzFjYzE4NDUyN2FlYmQxNDhiMDY3YTYxMjIifQ==',
-        'https://player.vdocipher.com/v2/?otp=20160313versASE323bPpxt1sNlsoRmneMlqq5ZxL8LRjItAdGDfseFwCUe2srVa&playbackInfo=eyJ2aWRlb0lkIjoiMGY0YzNhOWYyYTM5NDdjNTgwMzE2NTQ2ZGM5NTY4NTAifQ==',
-        'https://player.vdocipher.com/v2/?otp=20160313versASE323vo8nwfo5NtF20u9BlWtA0tUqthMIQgiFyk2TZlYT5h1581&playbackInfo=eyJ2aWRlb0lkIjoiMDI4ODA4NjFlMGExNDRkYTlmODQxNWFlZmJkNzM1MjQifQ=='
-    ]
+ 
     const handleToggle = () => {
         setIsActive(prevIsActive => !prevIsActive);
     };
@@ -477,16 +473,16 @@ const fetchRoadmapData = async () => {
             }
         }
 
-        if (currentView === 'lesson' && VideoEmbed.length > 0) {
-            // No need to set selectedContent for hardcoded videos
+        if (currentView === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
+            setSelectedContent(subTopic.lesson[0]);
         } else if (currentView === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
-            setSelectedContent(subTopic.notes[currentNotesIndex]);
+            setSelectedContent(subTopic.notes[0]);
             setContentType('notes');
         }
     }
 
     setDisablePreviousBtn(false);
-}, [chapters, currentView, expandedSections, currentSubTopicIndex, currentNotesIndex]);
+}, [chapters, currentView, expandedSections]);
 
     
     const handleViewChange = useCallback((view: 'lesson' | 'mcq' | 'coding'  | 'notes') => {
@@ -501,8 +497,8 @@ const fetchRoadmapData = async () => {
         if (chapters.length > 0 && chapters[0].sub_topic_data.length > currentSubTopicIndex) {
             const subTopic = chapters[0].sub_topic_data[currentSubTopicIndex];
     
-            if (view === 'lesson' && VideoEmbed.length > 0) {
-                // No need to set selectedContent for hardcoded videos
+            if (view === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
+                setSelectedContent(subTopic.lesson[currentLessonIndex]);
             } else if (view === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
                 setSelectedContent(subTopic.notes[currentNotesIndex]);
                 setContentType('notes');
@@ -523,15 +519,19 @@ const fetchRoadmapData = async () => {
     const handleNextLesson = useCallback(() => {
         if (chapters.length > 0 && chapters[0].sub_topic_data.length > currentSubTopicIndex) {
             const subTopic = chapters[0].sub_topic_data[currentSubTopicIndex];
-            // Check if there are more videos in the hardcoded array or more subtopics
-            if (currentLessonIndex < VideoEmbed.length - 1) {
+            if (subTopic.lesson && currentLessonIndex < subTopic.lesson.length - 1) {
                 const nextIndex = currentLessonIndex + 1;
                 setCurrentLessonIndex(nextIndex);
+                setSelectedContent(subTopic.lesson[nextIndex]);
             } else if (chapters[0].sub_topic_data.length > currentSubTopicIndex + 1) {
                 const nextSubTopicIndex = currentSubTopicIndex + 1;
                 setCurrentSubTopicIndex(nextSubTopicIndex);
                 setCurrentLessonIndex(0);
 
+                const nextSubTopic = chapters[0].sub_topic_data[nextSubTopicIndex];
+                if (nextSubTopic.lesson && nextSubTopic.lesson.length > 0) {
+                    setSelectedContent(nextSubTopic.lesson[0]);
+                }
                 if (currentView === 'mcq') {
                     fetchMCQQuestions(nextSubTopicIndex);
                 } else if (currentView === 'coding') {
@@ -545,11 +545,16 @@ const fetchRoadmapData = async () => {
         if (currentLessonIndex > 0) {
             const prevIndex = currentLessonIndex - 1;
             setCurrentLessonIndex(prevIndex);
+            setSelectedContent(chapters[0].sub_topic_data[currentSubTopicIndex].lesson[prevIndex]);
         } else if (currentSubTopicIndex > 0) {
             const prevSubTopicIndex = currentSubTopicIndex - 1;
-            setCurrentSubTopicIndex(prevSubTopicIndex);
-            setCurrentLessonIndex(VideoEmbed.length - 1);
-            
+            const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
+
+            if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
+                setCurrentSubTopicIndex(prevSubTopicIndex);
+                setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
+                setSelectedContent(prevSubTopic.lesson[prevSubTopic.lesson.length - 1]);
+            }
             if (currentView === 'mcq') {
                 fetchMCQQuestions(prevSubTopicIndex);
             } else if (currentView === 'coding') {
@@ -623,7 +628,7 @@ const fetchRoadmapData = async () => {
         if (!chapters.length) return true;
 
         if (currentView === 'lesson') {
-            const hasMoreLessons = currentLessonIndex < VideoEmbed.length - 1;
+            const hasMoreLessons = currentLessonIndex < chapters[0].sub_topic_data[currentSubTopicIndex].lesson.length - 1;
             const hasNotes = chapters[0].sub_topic_data[currentSubTopicIndex].notes &&
                             chapters[0].sub_topic_data[currentSubTopicIndex].notes.length > 0;
             const hasCodingQuestions = chapters[0].sub_topic_data[currentSubTopicIndex].codingQuestions > 0;
@@ -765,9 +770,7 @@ useEffect(() => {
         if (sessionStorage.getItem("lastContentType") === "notes") {
             await fetchNotes(notesUrl);
         } else {
-            // Only fetch video if we're not using hardcoded VideoEmbed URLs
-            // Since the current implementation uses hardcoded VideoEmbed, we skip video fetching
-            // await fetchVideo(lessonVideoUrl);
+            await fetchVideo(lessonVideoUrl);
         }
     };
 
@@ -878,8 +881,7 @@ useEffect(() => {
     };
 
     let lastContent = sessionStorage.getItem("lastContentType");
-    // Only fetch media for notes, not for lessons since we use hardcoded VideoEmbed URLs
-    if (lastContent === "notes") {
+    if (lastContent === "lesson" || lastContent === "" || lastContent === null || lastContent === "notes") {
         fetchMedia();
     }
 }, [chapters, currentSubTopicIndex, currentNotesIndex, currentLessonIndex, sessionStorage.getItem('lastContentType')]);
@@ -905,24 +907,54 @@ useEffect(() => {
             );
         }
 
-        // Use hardcoded VideoEmbed array instead of lesson URLs
-        const videoIndex = currentLessonIndex % VideoEmbed.length;
-        const videoUrl = VideoEmbed[videoIndex];
+        const rawVideoUrl = chapters[0]?.sub_topic_data[currentSubTopicIndex]?.lesson?.[currentLessonIndex] || '';
+        const isYouTube = rawVideoUrl.includes('youtube.com') || rawVideoUrl.includes('youtu.be');
 
-        return (
-            <div className="h-100 overflow-hidden p-0">
-                <iframe
-                    className="w-100 h-100"
-                    src={videoUrl}
-                    title="Video Player"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                    style={{ boxShadow: "#00000033 0px 0px 5px 0px inset" }}
-                />
-            </div>
-        );
+        if (isYouTube) {
+            let embedUrl = rawVideoUrl;
+            if (rawVideoUrl.includes('watch?v=')) {
+                const videoId = rawVideoUrl.split('watch?v=')[1].split('&')[0];
+                embedUrl = `https://www.youtube.com/embed/${videoId}`;
+            } else if (!rawVideoUrl.includes('/embed/')) {
+                const videoIdMatch = rawVideoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+                const videoId = videoIdMatch ? videoIdMatch[1] : '';
+                embedUrl = `https://www.youtube.com/embed/${videoId}`;
+            }
+
+            return (
+                <div className="h-100 overflow-hidden p-0">
+                    <iframe
+                        className="w-100 h-100"
+                        src={embedUrl}
+                        title="Video Player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
+                        style={{ boxShadow: "#00000033 0px 0px 5px 0px inset" }}
+                    />
+                </div>
+            );
+        } else if (rawVideoUrl.endsWith('.mp4') && videoUrl) {
+            return (
+                <div className="h-100 overflow-hidden p-0">
+                    <video
+                        controlsList="nodownload"
+                        disablePictureInPicture
+                        controls
+                        className="w-100 h-100"
+                        src={videoUrl}
+                        style={{ boxShadow: "#00000033 0px 0px 5px 0px inset" }}
+                    />
+                </div>
+            );
+        } else {
+            return (
+                <div className="d-flex justify-content-center align-items-center h-100">
+                    Loading video...
+                </div>
+            );
+        }
     };
 
     const renderNotesContent = () => {
@@ -1200,7 +1232,7 @@ const handleNext = useCallback(async () => {
     }
 
     if (currentView === 'lesson') {
-        if (currentLessonIndex < VideoEmbed.length - 1) {
+        if (currentLessonIndex < currentChapter.sub_topic_data[currentSubTopicIndex].lesson.length - 1) {
             handleNextLesson();
         } else {
             if (currentChapter.sub_topic_data[currentSubTopicIndex].notes && currentChapter.sub_topic_data[currentSubTopicIndex].notes.length > 0) {
@@ -1212,7 +1244,7 @@ const handleNext = useCallback(async () => {
             } else if (currentChapter.sub_topic_data[currentSubTopicIndex].codingQuestions > 0) {
                 handleViewChange('coding');
             } else {
-                const isLastContent = currentLessonIndex === VideoEmbed.length - 1;
+                const isLastContent = currentLessonIndex === currentChapter.sub_topic_data[currentSubTopicIndex].lesson.length - 1;
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
