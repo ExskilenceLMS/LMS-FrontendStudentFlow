@@ -105,12 +105,17 @@ const Login: React.FC = () => {
         sessionStorage.setItem("Email", encryptedEmail);
 
         sessionStorage.setItem("Picture", encryptedPicture);
-
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/login/${email}/`;
+        // console.log(data);
+        const json={
+            "email": CryptoJS.enc.Utf8.parse(email).toString(),
+            "access_token": CryptoJS.enc.Utf8.parse(user.access_token).toString(),
+        }
+        // const url = `${process.env.REACT_APP_BACKEND_URL}api/new-login/`;
+        const url = 'http://localhost:8000/api/new-login/'
  
         try {
 
-            const response = await axios.get(url);
+            const response = await axios.post(url,json);
 
             console.log("Response Status:", response);
  
@@ -130,6 +135,12 @@ const Login: React.FC = () => {
             if (response.data.access_token) {
                 sessionStorage.setItem("access_token", response.data.access_token);
             }
+
+            // Store in localStorage for auto-login functionality
+            localStorage.setItem("access_token", response.data.access_token);
+            localStorage.setItem("StudentId", encryptedStudentId);
+            localStorage.setItem("CourseId", encryptedCourseId);
+            localStorage.setItem("BatchId", encryptedBatchId);
  
             if (response.data.message === "Successfully Logged In") {
 
@@ -232,6 +243,50 @@ const Login: React.FC = () => {
     fetchUserProfile();
 
     }, [user, navigate]);
+
+  // Auto-login functionality
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      const existingAccessToken = localStorage.getItem('access_token');
+      const existingStudentId = localStorage.getItem('StudentId');
+      const existingCourseId = localStorage.getItem('CourseId');
+      const existingBatchId = localStorage.getItem('BatchId');
+    console.log(existingAccessToken, existingStudentId, existingCourseId, existingBatchId,'existing');
+      if (existingAccessToken && existingStudentId && existingCourseId && existingBatchId) {
+        try {
+          // Call calendar API to validate the access token
+          const calendarUrl = `${process.env.REACT_APP_BACKEND_URL}api/calendar/`;
+          const response = await axios.get(calendarUrl, {
+            headers: {
+              'Authorization': `Bearer ${existingAccessToken}`
+            }
+          });
+
+          // If calendar API call is successful, user is authenticated
+          if (response.status === 200) {
+            // Store the data in sessionStorage for current session
+            sessionStorage.setItem("access_token", existingAccessToken);
+            sessionStorage.setItem("StudentId", existingStudentId);
+            sessionStorage.setItem("CourseId", existingCourseId);
+            sessionStorage.setItem("BatchId", existingBatchId);
+
+            // Navigate to dashboard
+            navigate("/Dashboard");
+            return;
+          }
+        } catch (error) {
+          // If calendar API call fails, clear localStorage and continue with normal login
+          console.log("Auto-login failed, proceeding with normal login flow");
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('StudentId');
+          localStorage.removeItem('CourseId');
+          localStorage.removeItem('BatchId');
+        }
+      }
+    };
+
+    checkExistingSession();
+  }, [navigate]);
  
   return (
 <div className='login'>

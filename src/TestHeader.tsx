@@ -232,11 +232,22 @@ useEffect(() => {
     setShowUserMenu(false);
   }, [navigate]);
 
-  const handleLogout = useCallback(() => {
-    sessionStorage.clear();
-    navigate('/');
-    setShowUserMenu(false);
-  }, [navigate]);
+  const handleLogout = useCallback(async (isInactivityLogout: boolean = false) => {
+    const url=`${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}/${isInactivityLogout}/`
+    try{
+      await axios.get(url);
+      sessionStorage.clear();
+      navigate('/');
+      setShowUserMenu(false);
+    }
+    catch (error){
+      console.error("Logout error:", error);
+      // Still clear session and navigate even if API call fails
+      sessionStorage.clear();
+      navigate('/');
+      setShowUserMenu(false);
+    }
+  }, [navigate, studentId]);
 
   const handleMouseEnter = useCallback(() => {
     if (hoverTimeoutRef.current) {
@@ -312,7 +323,7 @@ useEffect(() => {
                     <hr className="my-1 mx-2" style={{ backgroundColor: '#e0e0e0' }} />
                     <button
                       className="btn w-100 text-start ps-3 py-2 border-0"
-                      onClick={handleLogout}
+                      onClick={() => handleLogout(false)}
                       style={{
                         transition: 'background-color 0.2s',
                         backgroundColor: 'transparent'

@@ -44,8 +44,8 @@ const Header: React.FC = () => {
     setShowUserMenu(false);
   }, [navigate]);
 
-  const handleLogout = useCallback(async () => {
-    const url=`${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}/`
+  const handleLogout = useCallback(async (isInactivityLogout: boolean = false) => {
+    const url=`${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}/${isInactivityLogout}/`
     try{
       axios.get(url)
     sessionStorage.clear();
@@ -163,7 +163,7 @@ const Header: React.FC = () => {
                     <hr className="my-1 mx-2" style={{ backgroundColor: '#e0e0e0' }} />
                     <button
                       className="btn w-100 text-start ps-3 py-2 border-0"
-                      onClick={handleLogout}
+                      onClick={() => handleLogout(false)}
                       style={{
                         transition: 'background-color 0.2s',
                         backgroundColor: 'transparent'

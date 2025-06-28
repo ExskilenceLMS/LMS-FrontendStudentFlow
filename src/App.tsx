@@ -53,7 +53,7 @@ console.log(process.env.REACT_APP_BACKEND_URL)
       setShowLogoutWarning(true);
       setCountdown(60);
       startCountdown();
-    }, 4 * 60 * 1000); 
+    }, (Number(process.env.REACT_APP_SESSION_TIMEOUT_MINUTES) || 5) * 60 * 1000); 
   }, []);
 
   const startCountdown = useCallback(() => {
@@ -72,7 +72,7 @@ console.log(process.env.REACT_APP_BACKEND_URL)
           if (countdownTimerRef.current) {
             clearInterval(countdownTimerRef.current);
           }
-          handleLogout();
+          handleLogout(true);
           return 0;
         }
         return prevCountdown - 1;
@@ -80,8 +80,8 @@ console.log(process.env.REACT_APP_BACKEND_URL)
     }, 1000);
   }, []);
 
-  const handleLogout = useCallback(async () => {
-    const url=`${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}/`
+  const handleLogout = useCallback(async (isInactivityLogout: boolean = false) => {
+    const url=`${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}/${isInactivityLogout}/`
     try{
       axios.get(url);
     sessionStorage.clear();
