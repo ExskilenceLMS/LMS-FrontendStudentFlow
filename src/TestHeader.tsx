@@ -6,10 +6,10 @@ import { HiOutlineBellAlert } from "react-icons/hi2";
 import { PiUserCircleLight } from "react-icons/pi";
 import { RiUserSharedLine } from "react-icons/ri";
 import { CiLogout } from "react-icons/ci";
-import axios from 'axios';
-import 'bootstrap/dist/css/bootstrap.min.css';
 import { Modal, Button } from 'react-bootstrap';
-import { format } from 'date-fns';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { getApiClient } from './utils/apiAuth';
+import { performLogout } from './utils/apiAuth';
 
 const TestHeader: React.FC = () => {
   const location = useLocation();
@@ -29,15 +29,6 @@ const TestHeader: React.FC = () => {
   const encryptedTestId = sessionStorage.getItem("TestId") || "";
   const decryptedTestId = useMemo(() => CryptoJS.AES.decrypt(encryptedTestId!, secretKey).toString(CryptoJS.enc.Utf8), [encryptedTestId]);
   const testId = decryptedTestId;
-  const encryptedSubject = sessionStorage.getItem("Subject") || "";
-  const decryptedSubject = useMemo(() => CryptoJS.AES.decrypt(encryptedSubject!, secretKey).toString(CryptoJS.enc.Utf8), [encryptedSubject]);
-  const subject = decryptedSubject;
-  const encryptedSubjectId = sessionStorage.getItem("SubjectId") || "";
-  const decryptedSubjectId = useMemo(() => CryptoJS.AES.decrypt(encryptedSubjectId!, secretKey).toString(CryptoJS.enc.Utf8), [encryptedSubjectId]);
-  const subjectId = decryptedSubjectId;
-  const encryptedDayNumber = sessionStorage.getItem('DayNumber') || "";
-  const decryptedDayNumber = useMemo(() => CryptoJS.AES.decrypt(encryptedDayNumber!, secretKey).toString(CryptoJS.enc.Utf8), [encryptedDayNumber]);
-  const dayNumber = decryptedDayNumber;
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
@@ -92,7 +83,7 @@ useEffect(() => {
   const url = `${process.env.REACT_APP_BACKEND_URL}api/student/duration/${studentId}/${testId}/`;
 
   try {
-    const response = await axios.get(url);
+            const response = await getApiClient().get(url);
     const { time_left } = response.data;
     setTimeInSeconds(time_left);
     sessionStorage.setItem("timer", time_left);
@@ -111,7 +102,7 @@ useEffect(() => {
     };
 
     try {
-      await axios.post(
+                      await getApiClient().post(
         `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
         body
       );
@@ -162,7 +153,7 @@ useEffect(() => {
           const submitTest = async () => {
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/submit/${studentId}/${testId}/`
             try {
-              await axios.get(
+              await getApiClient().get(
                 url
               );
               sessionStorage.removeItem("timer");
@@ -181,7 +172,7 @@ useEffect(() => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -233,17 +224,15 @@ useEffect(() => {
   }, [navigate]);
 
   const handleLogout = useCallback(async (isInactivityLogout: boolean = false) => {
-    const url=`${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}/${isInactivityLogout}/`
-    try{
-      await axios.get(url);
-      sessionStorage.clear();
+    try {
+      // Call logout function (session will be cleared immediately)
+      performLogout(studentId, isInactivityLogout, false);
+      // Navigate immediately without waiting for API call
       navigate('/');
       setShowUserMenu(false);
-    }
-    catch (error){
+    } catch (error) {
       console.error("Logout error:", error);
-      // Still clear session and navigate even if API call fails
-      sessionStorage.clear();
+      // Still navigate even if logout fails
       navigate('/');
       setShowUserMenu(false);
     }

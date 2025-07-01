@@ -37,11 +37,11 @@ const Courses: React.FC = () => {
   });
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const encryptedStudentId = sessionStorage.getItem('StudentId');
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
+  const decryptedStudentId = encryptedStudentId ? CryptoJS.AES.decrypt(encryptedStudentId, secretKey).toString(CryptoJS.enc.Utf8) : '';
   const studentId = decryptedStudentId;
-  const actualStudentId = CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualEmail = CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualName = CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
+  const actualStudentId = sessionStorage.getItem('StudentId') ? CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8) : '';
+  const actualEmail = sessionStorage.getItem('Email') ? CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8) : '';
+  const actualName = sessionStorage.getItem('Name') ? CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8) : '';
 
   const dummyCourses = [
     {

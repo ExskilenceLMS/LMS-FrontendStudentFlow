@@ -3,7 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import Skeleton from "react-loading-skeleton";
 import Footer from "./Components/Footer";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { getApiClient } from './utils/apiAuth';
 import { IoMdInformationCircleOutline } from "react-icons/io";
 import { CiSquareChevUp, CiSquareChevDown } from "react-icons/ci";
 import { secretKey } from "./constants";
@@ -59,7 +59,7 @@ const SubjectOverview: React.FC = () => {
       const url = `${process.env.REACT_APP_BACKEND_URL}api/roadmap/${studentId}/${courseId}/${subjectId}/`;
       try {
         setLoading(true);
-        const response = await axios.get(url);
+        const response = await getApiClient().get(url);
         const weeks = response.data.weeks;
  
         const transformedData = weeks.map((week: { week: any; startDate: any; endDate: any; totalHours: any; topics: any; days: any[]; }) => ({
@@ -97,7 +97,7 @@ const SubjectOverview: React.FC = () => {
         };
  
         try {
-          await axios.post(
+          await getApiClient().post(
             `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
             body
           );
@@ -164,7 +164,7 @@ const SubjectOverview: React.FC = () => {
     const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/add/days/`;
     try {
       if (topics && topics.includes("Weekly Test")) {
-        const response = await axios.get(url);
+        const response = await getApiClient().get(url);
  
         if (response.data.test_id) {
           const encryptedTestId = CryptoJS.AES.encrypt(response.data.test_id, secretKey).toString();
@@ -174,7 +174,7 @@ const SubjectOverview: React.FC = () => {
         navigate("/test-introduction");
       } else {
         if (day_status === "Start") {
-          await axios.post(url1, {
+          await getApiClient().post(url1, {
             student_id: studentId,
             subject: subject,
             subject_id: subjectId,
@@ -200,7 +200,7 @@ const SubjectOverview: React.FC = () => {
       };
  
       try {
-        await axios.post(
+        await getApiClient().post(
           `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
           body
         );
@@ -230,7 +230,7 @@ const SubjectOverview: React.FC = () => {
     const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/add/days/`;
     try {
       if (topics && topics.includes("Weekly Test")) {
-        const response = await axios.get(url);
+        const response = await getApiClient().get(url);
  
         if (response.data.test_id) {
           const encryptedTestId = CryptoJS.AES.encrypt(response.data.test_id, secretKey).toString();
@@ -240,7 +240,7 @@ const SubjectOverview: React.FC = () => {
         navigate("/test-introduction");
       } else {
         if (day_status === "Start") {
-          await axios.post(url1, {
+          await getApiClient().post(url1, {
             student_id: studentId,
             subject: subject,
             subject_id: subjectId,
@@ -266,7 +266,7 @@ const SubjectOverview: React.FC = () => {
       };
  
       try {
-        await axios.post(
+        await getApiClient().post(
           `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
           body
         );

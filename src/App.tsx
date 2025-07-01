@@ -9,10 +9,39 @@ import "./App.css";
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
 import AppRoutes from "./AppRoutes";
+import { performLogout } from './utils/apiAuth';
 import Layout from "./Components/Layout";
 import InternetInfo from "./Components/InternetInfo";
 
 function App() {
+  return (
+    <Detector
+      polling={{
+        url: '/internet_info',
+        enabled: true,
+        timeout: 2000,
+        interval: 10000
+      }}
+      render={({ online }) =>
+        online ? (
+          <Router>
+            <AppContent />
+          </Router>
+        ) : (
+          <Router>
+            <Routes>
+              <Route path="/InternetInfo" element={<Layout><InternetInfo /></Layout>} />
+              <Route path="*" element={<Layout><InternetInfo /></Layout>} />
+            </Routes>
+          </Router>
+        )
+      }
+    />
+  );
+}
+
+function AppContent() {
+  const location = useLocation();
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -24,37 +53,26 @@ function App() {
   // const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   // const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   // const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
-console.log(process.env.REACT_APP_PROJECT_NAME)
-console.log(process.env.REACT_APP_BACKEND_URL)
 
   // Check if user is on login page
   const isOnLoginPage = () => {
-    return window.location.pathname === '/' ;
+    const currentPath = location.pathname;
+    const isLogin = currentPath === '/' 
+    return isLogin;
   };
 
-  const resetTimer = useCallback(() => {
-    // Don't start timer if user is on login page
-    if (isOnLoginPage()) {
-      return;
+  const handleLogout = useCallback(async (isInactivityLogout: boolean = false) => {
+    try {
+      // Use the standardized performLogout function
+      await performLogout(studentId, isInactivityLogout, false);
+      window.location.href = '/'; 
     }
-
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
+    catch (error){
+      console.error("Logout error:", error);
+      // Still redirect even if API call fails
+      window.location.href = '/';
     }
-    if (warningTimerRef.current) {
-      clearTimeout(warningTimerRef.current);
-    }
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-    }
-
-    setShowLogoutWarning(false); 
-    timerRef.current = setTimeout(() => {
-      setShowLogoutWarning(true);
-      setCountdown(60);
-      startCountdown();
-    }, (Number(process.env.REACT_APP_SESSION_TIMEOUT_MINUTES) || 5) * 60 * 1000); 
-  }, []);
+  }, [studentId]);
 
   const startCountdown = useCallback(() => {
     // Don't start countdown if user is on login page
@@ -78,41 +96,23 @@ console.log(process.env.REACT_APP_BACKEND_URL)
         return prevCountdown - 1;
       });
     }, 1000);
-  }, []);
+  }, [handleLogout, location.pathname]);
 
-  const handleLogout = useCallback(async (isInactivityLogout: boolean = false) => {
-    const url=`${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}/${isInactivityLogout}/`
-    try{
-      axios.get(url);
-    sessionStorage.clear();
-    window.location.href = '/'; 
-    }
-    catch (error){
-      console.error("Login error")
-    }
-  }, [studentId]);
-
-  useEffect(() => {
-    // Don't set up timer events if user is on login page
+  const resetTimer = useCallback(async () => {
+    // Don't start timer if user is on login page
     if (isOnLoginPage()) {
       return;
     }
 
-    const events = ['mousemove', 'keypress', 'scroll', 'click'];
-    const handleActivity = () => {
-      resetTimer();
-    };
+    // Check if user has valid session data from localStorage
+    try {
+      const accessToken = localStorage.getItem('LMS_access_token');
+      const hasSessionData = accessToken && studentId;
+    
+      if (!hasSessionData) {
+        return;
+      }
 
-    events.forEach((event) => {
-      window.addEventListener(event, handleActivity);
-    });
-
-    resetTimer();
-
-    return () => {
-      events.forEach((event) => {
-        window.removeEventListener(event, handleActivity);
-      });
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
@@ -122,40 +122,99 @@ console.log(process.env.REACT_APP_BACKEND_URL)
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
       }
+
+      setShowLogoutWarning(false); 
+      timerRef.current = setTimeout(() => {
+        // Final check before showing warning
+        if (isOnLoginPage()) {
+          return;
+        }
+        setShowLogoutWarning(true);
+        setCountdown(60);
+        startCountdown();
+      }, 30000); // Temporarily set to 30 seconds for testing
+    } catch (error) {
+      console.error("Error checking session data from localStorage:", error);
+    }
+  }, [startCountdown, location.pathname]);
+
+  useEffect(() => {
+    // Don't set up timer events if user is on login page
+    if (isOnLoginPage()) {
+      // Clear any existing timers if we're on login page
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+      setShowLogoutWarning(false);
+      return;
+    }
+
+    // Check if user has valid session data from localStorage
+    const checkSessionAndSetupTimer = async () => {
+      try {
+        const accessToken = localStorage.getItem('LMS_access_token');
+        const hasSessionData = accessToken && studentId;
+        
+        if (!hasSessionData) {
+          return;
+        }
+
+        const events = ['mousemove', 'keypress', 'scroll', 'click'];
+        const handleActivity = () => {
+          // Double-check we're not on login page before resetting timer
+          if (isOnLoginPage()) {
+            return;
+          }
+          resetTimer();
+        };
+
+        events.forEach((event) => {
+          window.addEventListener(event, handleActivity);
+        });
+
+        resetTimer();
+
+        return () => {
+          events.forEach((event) => {
+            window.removeEventListener(event, handleActivity);
+          });
+          if (timerRef.current) {
+            clearTimeout(timerRef.current);
+          }
+          if (warningTimerRef.current) {
+            clearTimeout(warningTimerRef.current);
+          }
+          if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+          }
+        };
+      } catch (error) {
+        console.error("Error checking session data from localStorage:", error);
+      }
     };
-  }, [resetTimer]);
+
+    checkSessionAndSetupTimer();
+  }, [resetTimer, location.pathname]);
 
   return (
-    <Detector
-      polling={{
-        url: '/internet_info',
-        enabled: true,
-        timeout: 2000,
-        interval: 10000
-      }}
-      render={({ online }) =>
-        online ? (
-          <Router>
-            <AppRoutes />
-            <Modal show={showLogoutWarning} onHide={resetTimer}>
-              <Modal.Header closeButton>
-                <Modal.Title>Session Timeout Warning</Modal.Title>
-              </Modal.Header>
-              <Modal.Body>
-                You will be logged out in {countdown} seconds due to in-active.
-              </Modal.Body>
-            </Modal>
-          </Router>
-        ) : (
-          <Router>
-            <Routes>
-              <Route path="/InternetInfo" element={<Layout><InternetInfo /></Layout>} />
-              <Route path="*" element={<Layout><InternetInfo /></Layout>} />
-            </Routes>
-          </Router>
-        )
-      }
-    />
+    <>
+      <AppRoutes />
+   
+      <Modal show={showLogoutWarning} onHide={resetTimer}>
+        <Modal.Header closeButton>
+          <Modal.Title>Session Timeout Warning</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          You will be logged out in {countdown} seconds due to in-active.
+        </Modal.Body>
+      </Modal>
+    </>
   );
 }
 

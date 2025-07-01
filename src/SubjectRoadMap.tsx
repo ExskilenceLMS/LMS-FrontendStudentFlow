@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { getApiClient } from './utils/apiAuth';
 import './SubjectRoadMap.css';
 import Skeleton from 'react-loading-skeleton';
 import MCQSkeletonCode from "./Components/MCQSkeletonCode";
@@ -213,7 +213,7 @@ const fetchRoadmapData = async () => {
         setLoading(true);
         setDisablePreviousBtn(true);
 
-        const response = await axios.get(url);
+        const response = await getApiClient().get(url);
         const responseData = response.data.modules;
 
         setChapters(responseData);
@@ -224,7 +224,7 @@ const fetchRoadmapData = async () => {
         );
 
         allSubtopicIdsList = allSubtopicIds;
-        // console.log("All Subtopic IDs:", allSubtopicIdsList);
+        // // console.log("All Subtopic IDs:", allSubtopicIdsList);
 
         if (responseData.length > 0) {
             const chapter = responseData[0];
@@ -257,10 +257,10 @@ const fetchRoadmapData = async () => {
             let currentSubTopicId = sessionStorage.getItem("currentSubTopicId");
 
             if (currentSubTopicId && unlockSubTopicId.length) {
-                // console.log('xyz');
-                // console.log(currentSubTopicId, unlockSubTopicId);
+                // // console.log('xyz');
+                // // console.log(currentSubTopicId, unlockSubTopicId);
                 let index = unlockSubTopicId.indexOf(currentSubTopicId);
-                // console.log(index);
+                // // console.log(index);
                 sessionStorage.setItem("lastSubTopicIndex", index.toString());
             }
 
@@ -282,7 +282,7 @@ const fetchRoadmapData = async () => {
             }
         }
 
-        await axios.post(url1, {
+        await getApiClient().post(url1, {
             student_id: studentId,
             subject: subject,
             subject_id: subjectId,
@@ -313,7 +313,7 @@ const fetchRoadmapData = async () => {
         };
 
         try {
-            await axios.post(
+            await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
             );
@@ -334,7 +334,7 @@ const fetchRoadmapData = async () => {
         try {
             setLoading(true);
             setDisablePreviousBtn(true);
-            const response = await axios.get(url);
+            const response = await getApiClient().get(url);
             setMcqQuestions(response.data.questions);
             setCurrentMCQIndex(0);
             setLoading(false);
@@ -357,7 +357,7 @@ const fetchRoadmapData = async () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -374,7 +374,7 @@ const fetchRoadmapData = async () => {
         try {
             setLoading(true);
             setDisablePreviousBtn(true);
-            const response = await axios.get(url);
+            const response = await getApiClient().get(url);
             const codingQuestionsData = response.data.questions.map((question: any, index: number) => ({
                 id: index + 1,
                 question: question.Qn,
@@ -403,7 +403,7 @@ const fetchRoadmapData = async () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -439,7 +439,7 @@ const fetchRoadmapData = async () => {
             setDisablePreviousBtn(true);
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                await axios.post(url, {
+                await getApiClient().post(url, {
                     "student_id": studentId,
                     "subject": subject,
                     "subject_id": subjectId,
@@ -463,7 +463,7 @@ const fetchRoadmapData = async () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -707,7 +707,7 @@ const fetchRoadmapData = async () => {
             setDisablePreviousBtn(true);
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/practicemcq/submit/`
             try {
-                const response = await axios.post(
+                const response = await getApiClient().post(
                     url,
                     submissionData
                 );
@@ -734,7 +734,7 @@ const fetchRoadmapData = async () => {
                 };
     
                 try {
-                    await axios.post(
+                    await getApiClient().post(
                     `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                     body
                     );
@@ -777,7 +777,7 @@ useEffect(() => {
             setPdfError(false);
             setLoading(true);
             const url = `${process.env.REACT_APP_BACKEND_URL}api/media/`;
-            console.log('url',url);
+            // console.log('url',url);
             try {
                 const response = await fetch(url, {
                     method: 'POST',
@@ -808,7 +808,7 @@ useEffect(() => {
                 };
 
                 try {
-                    await axios.post(
+                    await getApiClient().post(
                         `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                         body
                     );
@@ -861,7 +861,7 @@ useEffect(() => {
                 };
 
                 try {
-                    await axios.post(
+                    await getApiClient().post(
                         `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                         body
                     );
@@ -1216,7 +1216,7 @@ const handleNext = useCallback(async () => {
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
-                        const response3 = await axios.post(url, {
+                        const response3 = await getApiClient().post(url, {
                             "student_id": studentId,
                             "subject": subject,
                             "subject_id": subjectId,
@@ -1245,7 +1245,7 @@ const handleNext = useCallback(async () => {
                             }
                         } else if (response3.data.message === "Day Completed") {
                             navigate("/SubjectOverview");
-                            // console.log(allSubtopicIdsList);
+                            // // console.log(allSubtopicIdsList);
                         } else {
                             setShowUpdateModal(true);
                             setModalMessage(response3.data.qns_status);
@@ -1266,7 +1266,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1293,7 +1293,7 @@ const handleNext = useCallback(async () => {
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
-                        const response3 = await axios.post(url, {
+                        const response3 = await getApiClient().post(url, {
                             "student_id": studentId,
                             "subject": subject,
                             "subject_id": subjectId,
@@ -1322,7 +1322,7 @@ const handleNext = useCallback(async () => {
                             }
                         } else if (response3.data.message === "Day Completed") {
                             navigate("/SubjectOverview");
-                            // console.log(allSubtopicIdsList);
+                            // // console.log(allSubtopicIdsList);
                         } else {
                             setShowUpdateModal(true);
                             setModalMessage(response3.data.qns_status);
@@ -1343,7 +1343,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1381,7 +1381,7 @@ const handleNext = useCallback(async () => {
                         if (isLastContent) {
                             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                             try {
-                                const response3 = await axios.post(url, {
+                                const response3 = await getApiClient().post(url, {
                                     "student_id": studentId,
                                     "subject": subject,
                                     "subject_id": subjectId,
@@ -1410,7 +1410,7 @@ const handleNext = useCallback(async () => {
                                     }
                                 } else if (response3.data.message === "Day Completed") {
                                     navigate("/SubjectOverview");
-                                    // console.log(allSubtopicIdsList);
+                                    // // console.log(allSubtopicIdsList);
                                 } else {
                                     setShowUpdateModal(true);
                                     setModalMessage(response3.data.qns_status);
@@ -1431,7 +1431,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1464,7 +1464,7 @@ const handleNext = useCallback(async () => {
         if (isLastContent) {
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                const response3 = await axios.post(url, {
+                const response3 = await getApiClient().post(url, {
                     "student_id": studentId,
                     "subject": subject,
                     "subject_id": subjectId,
@@ -1493,7 +1493,7 @@ const handleNext = useCallback(async () => {
                     }
                 } else if (response3.data.message === "Day Completed") {
                     navigate("/SubjectOverview");
-                    // console.log(allSubtopicIdsList);
+                    // // console.log(allSubtopicIdsList);
                 } else {
                     setShowUpdateModal(true);
                     setModalMessage(response3.data.qns_status);
@@ -1514,7 +1514,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1529,7 +1529,7 @@ const handleNext = useCallback(async () => {
             setDisablePreviousBtn(true);
             const url = `${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                const response3 = await axios.put(url, {
+                const response3 = await getApiClient().put(url, {
                     "student_id": studentId,
                     "subject": subject,
                     "subject_id": subjectId,
@@ -1542,7 +1542,7 @@ const handleNext = useCallback(async () => {
                     setDisablePreviousBtn(false);
                 } else if (response3.data.message === "Day Completed") {
                     navigate("/SubjectOverview");
-                    // console.log(allSubtopicIdsList);
+                    // // console.log(allSubtopicIdsList);
                 } else {
                     setShowUpdateModal(true);
                     setModalMessage(response3.data.qns_status);
@@ -1563,7 +1563,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1580,11 +1580,11 @@ const handleNext = useCallback(async () => {
  
 
 const handlePrevious = useCallback(() => {
-    // console.log('handleprevious')
+    // // console.log('handleprevious')
     if (currentView === 'lesson') {
-        // console.log('lesson')
+        // // console.log('lesson')
         if (currentLessonIndex > 0) {
-            // console.log('.0')
+            // // console.log('.0')
              handlePreviousLesson();
 
         } else if (currentSubTopicIndex > 0) {
@@ -1597,10 +1597,10 @@ const handlePrevious = useCallback(() => {
         let currentSubTopicId = sessionStorage.getItem("currentSubTopicId");
 
         if (currentSubTopicId && unlockSubTopicId.length) {
-            // console.log('xyz');
-            // console.log(currentSubTopicId, unlockSubTopicId);
+            // // console.log('xyz');
+            // // console.log(currentSubTopicId, unlockSubTopicId);
             let index = unlockSubTopicId.indexOf(currentSubTopicId);
-            // console.log(index); 
+            // // console.log(index); 
             sessionStorage.setItem("lastSubTopicIndex", Number(index-1).toString());
             sessionStorage.setItem("currentSubTopicId", unlockSubTopicId[index-1]);
         }
@@ -1834,7 +1834,7 @@ const [requestedContent, setRequestedContent] = useState<string[]>([]);
 
 useEffect(() => {
     const requestedContentTypes = sessionStorage.getItem('lastContentType') ||'';
-    // console.log('123',requestedContentTypes);
+    // // console.log('123',requestedContentTypes);
     if ( sessionStorage.getItem('currentSubTopicId') != null && !hasFetched) {
         if (requestedContentTypes.includes('mcq') && mcqQuestions.length === 0) {
             fetchMCQQuestions(0);

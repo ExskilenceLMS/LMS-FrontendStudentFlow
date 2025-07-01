@@ -1,396 +1,470 @@
-import React, { useState, useEffect } from 'react';
-
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
-
 import { useNavigate } from 'react-router-dom';
-
 import { useGoogleLogin } from '@react-oauth/google';
-
 import axios from 'axios';
-
 import './Login.css';
-
 import GoogleLogo from './Components/images/search.png';
-
 import Loginpic from './Components/images/img9 1.png';
-
 import CryptoJS from 'crypto-js';
-
 import { secretKey } from './constants';
- 
+
+import { createAxiosWithActivityTracking, performLogout } from './utils/apiAuth';
+
 interface UserData {
-
   access_token: string;
-
 }
- 
+
 interface GoogleUserInfo {
-
   name: string;
-
   email: string;
-
   picture: string;
-
 }
- 
+
+interface LoginResponse {
+  student_id: string;
+  course_id: string;
+  batch_id: string;
+  access_token: string;
+  token_type: string;
+}
+
 const Login: React.FC = () => {
-
   const navigate = useNavigate();
-
   const [user, setUser] = useState<UserData | null>(null);
-
   const [email] = useState<string>('');
-
   const [loading, setLoading] = useState<boolean>(false);
-
   const [showAlert, setShowAlert] = useState<boolean>(false);
-
   const [alertMessage, setAlertMessage] = useState<string>('');
- 
+  const sessionCheckExecuted = useRef<boolean>(false);
+
   const handleCloseAlert = (): void => setShowAlert(false);
- 
+
   const handleLogin = useGoogleLogin({
-
     onSuccess: (codeResponse: UserData) => setUser(codeResponse),
-
     onError: (error: any) => {
-
       console.error('Login Failed:', error);
-
       setAlertMessage('Login Failed');
-
       setShowAlert(true);
-
     }
-
   });
- 
-    useEffect(() => {
 
+  useEffect(() => {
     if (!user) return;
 
     const fetchUserProfile = async (): Promise<void> => {
-
-        setLoading(true);
-
-        try {
-
+      setLoading(true);
+      try {
+        // console.log("🔍 Fetching Google profile data...");
         const { data } = await axios.get<GoogleUserInfo>(
-
-            `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${user.access_token}`,
-
-            {
-
+          `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${user.access_token}`,
+          {
             headers: {
-
-                Authorization: `Bearer ${user.access_token}`,
-
+              Authorization: `Bearer ${user.access_token}`,
             },
-
-            }
-
+          }
         );
- 
+
+
         const { name, email, picture } = data;
- 
+
         const encryptedName = CryptoJS.AES.encrypt(name, secretKey).toString();
-
         const encryptedEmail = CryptoJS.AES.encrypt(email, secretKey).toString();
-
         const encryptedPicture = CryptoJS.AES.encrypt(picture, secretKey).toString();
- 
+
+
         sessionStorage.setItem("Name", encryptedName);
-
         sessionStorage.setItem("Email", encryptedEmail);
-
         sessionStorage.setItem("Picture", encryptedPicture);
-        // console.log(data);
-        const json={
-            "email": CryptoJS.enc.Utf8.parse(email).toString(),
-            "access_token": CryptoJS.enc.Utf8.parse(user.access_token).toString(),
+        
+        const json = {
+          "email": CryptoJS.enc.Utf8.parse(email).toString(),
+          "access_token": CryptoJS.enc.Utf8.parse(user.access_token).toString(),
         }
-        // const url = `${process.env.REACT_APP_BACKEND_URL}api/new-login/`;
-        const url = 'http://localhost:8000/api/new-login/'
- 
+        
+        // console.log("📤 Sending login request to backend...");
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/new-login/`
+        
+        // Create axios instance with activity tracking
+        const axiosWithTracking = createAxiosWithActivityTracking();
+
         try {
+          const response = await axiosWithTracking.post<LoginResponse>(url, json);
 
-            const response = await axios.post(url,json);
+          const encryptedStudentId = CryptoJS.AES.encrypt(response.data.student_id, secretKey).toString();
+          const encryptedCourseId = CryptoJS.AES.encrypt(response.data.course_id, secretKey).toString();
+          const encryptedBatchId = CryptoJS.AES.encrypt(response.data.batch_id, secretKey).toString();
 
-            console.log("Response Status:", response);
- 
-            const encryptedStudentId = CryptoJS.AES.encrypt(response.data.student_id, secretKey).toString();
+          sessionStorage.setItem("StudentId", encryptedStudentId);
+          sessionStorage.setItem("CourseId", encryptedCourseId);
+          sessionStorage.setItem("BatchId", encryptedBatchId);
 
-            const encryptedCourseId = CryptoJS.AES.encrypt(response.data.course_id, secretKey).toString();
+          // Store access token for API authentication
+          if (response.data.access_token) {
+            sessionStorage.setItem("access_token", response.data.access_token);
+          }
+          console.log("from login", response.data.access_token);
+          // console.log("💾 Preparing session data for IndexedDB...");
+          // Store session data in localStorage for auto-login functionality
+          
+          
+          // Store session data using simple localStorage operations
+          try {
+            localStorage.setItem("LMS_access_token", response.data.access_token);
+            localStorage.setItem("LMS_StudentId", encryptedStudentId);
+            localStorage.setItem("LMS_CourseId", encryptedCourseId);
+            localStorage.setItem("LMS_BatchId", encryptedBatchId);
+            localStorage.setItem("LMS_Email", encryptedEmail);
+            localStorage.setItem("LMS_Name", encryptedName);
+            localStorage.setItem("LMS_Picture", encryptedPicture);
+            localStorage.setItem("LMS_timestamp", Date.now().toString());
+            localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
+            console.log("🎉 localStorage update completed successfully!");
+          } catch (error) {
+            console.error("❌ localStorage update failed:", error);
+            // Continue with login even if localStorage fails
+          }
 
-            const encryptedBatchId = CryptoJS.AES.encrypt(response.data.batch_id, secretKey).toString();
- 
-            sessionStorage.setItem("StudentId", encryptedStudentId);
-
-            sessionStorage.setItem("CourseId", encryptedCourseId);
-
-            sessionStorage.setItem("BatchId", encryptedBatchId);
-
-            // Store access token for API authentication
-            if (response.data.access_token) {
-                sessionStorage.setItem("access_token", response.data.access_token);
-            }
-
-            // Store in localStorage for auto-login functionality
-            localStorage.setItem("access_token", response.data.access_token);
-            localStorage.setItem("StudentId", encryptedStudentId);
-            localStorage.setItem("CourseId", encryptedCourseId);
-            localStorage.setItem("BatchId", encryptedBatchId);
- 
-            if (response.data.message === "Successfully Logged In") {
-
+          // Check if login was successful by checking if we have the required data
+          if (response.data.student_id && response.data.course_id && response.data.batch_id) {
             navigate("/Dashboard");
-
-            } else {
-
+          } else {
             setAlertMessage("User not found");
-
             setShowAlert(true);
+          }
+        } catch (innerError: any) {
+          const decryptedStudentId = CryptoJS.AES.decrypt(
+            sessionStorage.getItem("StudentId") || "",
+            secretKey
+          ).toString(CryptoJS.enc.Utf8);
 
-            }
-
-        }
-
-            catch (innerError: any) {
-
-            const decryptedStudentId = CryptoJS.AES.decrypt(
-
-                sessionStorage.getItem("StudentId") || "",
-
-                secretKey
-
-            ).toString(CryptoJS.enc.Utf8);
- 
-            const errorData = innerError.response?.data || {
-
-                message: innerError.message,
-
-                stack: innerError.stack
-
-            };
- 
-            const body = {
-
-                student_id: decryptedStudentId,
-
-                Email: email,
-
-                Name: name,
-
-                URL_and_Body: `${url}\n + ""`,
-
-                error: errorData.error,
-
-            };
- 
-            try {
-
-                await axios.post(
-
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-
-                body
-
-                );
-
-            } catch (loggingError) {
-
-                console.error("Error logging the login error:", loggingError);
-
-            }
- 
-            console.error("Error fetching login data:", innerError);
-
+          if (innerError.response?.status === 401) {
+            setAlertMessage("Invalid credentials");
+          } else if (innerError.response?.status === 404) {
             setAlertMessage("User not found");
-
-            setShowAlert(true);
-
-            }
- 
-        } catch (error: any) {
-
-        if (error.response?.status === 504) {
-
-            navigate("/Error504");
-
-        } else {
-
-            console.error("Error fetching Google user info:", error);
-
-            setAlertMessage(
-
-            `User not found with this Email "${user || "unknown"}". Please try again with another email.`
-
-            );
-
-            setShowAlert(true);
-
+          } else {
+            setAlertMessage("Login failed. Please try again.");
+          }
+          setShowAlert(true);
         }
-
-        } finally {
-
+      } catch (error: any) {
+        setAlertMessage("Failed to fetch user profile");
+        setShowAlert(true);
+      } finally {
         setLoading(false);
+      }
+    };
 
+    fetchUserProfile();
+  }, [user, navigate]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkExistingSession = async () => {
+      const executionId = Math.random().toString(36).substr(2, 9);
+      console.log(`🚀 Session check execution started - ID: ${executionId}`);
+      
+      try {
+        sessionCheckExecuted.current = true;
+        
+        const sessionData = {
+          access_token: localStorage.getItem("LMS_access_token") || "",
+          StudentId: localStorage.getItem("LMS_StudentId") || "",
+          CourseId: localStorage.getItem("LMS_CourseId") || "",
+          BatchId: localStorage.getItem("LMS_BatchId") || "",
+          Email: localStorage.getItem("LMS_Email") || "",
+          Name: localStorage.getItem("LMS_Name") || "",
+          Picture: localStorage.getItem("LMS_Picture") || "",
+          timestamp: parseInt(localStorage.getItem("LMS_timestamp") || "0") || 0,
+          lastActivityTime: parseInt(localStorage.getItem("LMS_lastActivityTime") || "0") || 0
+        };
+        
+        if (sessionData.access_token) {
+          // Check if session is not too old (e.g., 24 hours)
+          const sessionAge = Date.now() - sessionData.timestamp;
+          const maxSessionAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+          
+          if (sessionAge < maxSessionAge) {
+            // First check last activity time before making API call
+            const lastActivityTime = parseInt(localStorage.getItem("LMS_lastActivityTime") || "0");
+            const currentTime = Date.now();
+            const rawSessionTimeout = process.env.REACT_APP_SESSION_TIMEOUT_MINUTES;
+            const sessionTimeoutMinutes = parseInt(rawSessionTimeout || "2");
+            const sessionTimeoutMs = sessionTimeoutMinutes * 60 * 1000; // Convert to milliseconds
+            
+            const timeSinceLastActivity = currentTime - lastActivityTime;
+            
+            console.log(`🔍 Session check - Raw env var: "${rawSessionTimeout}"`);
+            console.log(`🔍 Session check - Last activity: ${new Date(lastActivityTime).toLocaleString()}`);
+            console.log(`🔍 Session check - Current time: ${new Date(currentTime).toLocaleString()}`);
+            console.log(`🔍 Session check - Time since last activity: ${Math.round(timeSinceLastActivity / 1000 / 60)} minutes`);
+            console.log(`🔍 Session check - Session timeout: ${sessionTimeoutMinutes} minutes`);
+            console.log(`🔍 Session check - Time since last activity (ms): ${timeSinceLastActivity}`);
+            console.log(`🔍 Session check - Session timeout (ms): ${sessionTimeoutMs}`);
+            console.log(`🔍 Session check - Is within timeout: ${timeSinceLastActivity <= sessionTimeoutMs}`);
+            
+            // If time since last activity is within session timeout, make API call
+            if (timeSinceLastActivity <= sessionTimeoutMs && lastActivityTime > 0) {
+              console.log("✅ Session is within timeout limit, making API validation");
+              
+              // Validate with backend since session is within timeout
+              try {
+                const axiosWithTracking = createAxiosWithActivityTracking();
+                const response = await axiosWithTracking.get(`${process.env.REACT_APP_BACKEND_URL}api/validate-session/`);
+                
+                if (response.status === 200 && isMounted) {
+                  // Check if the response has the authorized field and it's true
+                  const responseData = response.data;
+                  console.log("🔍 Session validation response:", responseData);
+                  
+                  if (responseData.authorized === true) {
+                    console.log("✅ Session is authorized, proceeding to dashboard");
+                    // Session is valid and authorized, restore session data
+                    sessionStorage.setItem("access_token", sessionData.access_token);
+                    sessionStorage.setItem("StudentId", sessionData.StudentId);
+                    sessionStorage.setItem("CourseId", sessionData.CourseId);
+                    sessionStorage.setItem("BatchId", sessionData.BatchId);
+                    sessionStorage.setItem("Email", sessionData.Email);
+                    sessionStorage.setItem("Name", sessionData.Name);
+                    sessionStorage.setItem("Picture", sessionData.Picture);
+
+                    // Update last activity time
+                    localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
+
+                    // Navigate to dashboard
+                    try {
+                      navigate("/Dashboard");
+                    } catch (navError) {
+                      console.error("Navigation failed:", navError);
+                    }
+                    
+                    return;
+                  } else {
+                    console.log("❌ Session is not authorized:", responseData.message || "No authorization");
+                    // Session is not authorized, clear the data and stay on login page
+                    const existingSessionData = {
+                      access_token: localStorage.getItem("LMS_access_token") || "",
+                      StudentId: localStorage.getItem("LMS_StudentId") || "",
+                      CourseId: localStorage.getItem("LMS_CourseId") || "",
+                      BatchId: localStorage.getItem("LMS_BatchId") || "",
+                      Email: localStorage.getItem("LMS_Email") || "",
+                      Name: localStorage.getItem("LMS_Name") || "",
+                      Picture: localStorage.getItem("LMS_Picture") || "",
+                      timestamp: parseInt(localStorage.getItem("LMS_timestamp") || "0") || 0,
+                      lastActivityTime: parseInt(localStorage.getItem("LMS_lastActivityTime") || "0") || 0
+                    };
+                    if (existingSessionData.access_token && isMounted) {
+                      try {
+                        const decryptedStudentId = CryptoJS.AES.decrypt(existingSessionData.StudentId, secretKey).toString(CryptoJS.enc.Utf8);
+                        const axiosWithTracking = createAxiosWithActivityTracking();
+                        await performLogout(decryptedStudentId, false, true); // Force logout for unauthorized session
+                      } catch (logoutError) {
+                        console.error("Session logout API call failed:", logoutError);
+                      }
+                    }
+                    localStorage.removeItem("LMS_access_token");
+                    localStorage.removeItem("LMS_StudentId");
+                    localStorage.removeItem("LMS_CourseId");
+                    localStorage.removeItem("LMS_BatchId");
+                    localStorage.removeItem("LMS_Email");
+                    localStorage.removeItem("LMS_Name");
+                    localStorage.removeItem("LMS_Picture");
+                    localStorage.removeItem("LMS_timestamp");
+                    localStorage.removeItem("LMS_lastActivityTime");
+                    return;
+                  }
+                } else if (isMounted) {
+                  // API call returned non-200 status
+                  console.log("⚠️ Session validation returned non-200 status:", response.status);
+                }
+              } catch (error: any) {
+                if (isMounted) {
+                  // Backend validation failed, but don't clear data immediately
+                  // Only clear if it's a specific error that indicates session is truly invalid
+                  // console.log("⚠️ Session validation failed:", error.message);
+                  
+                  // Check if it's a network error or 401/403 error
+                  if (error.response?.status === 401 || error.response?.status === 403) {
+                    // console.log("🚫 Session is invalid (401/403), clearing data");
+                    // Only clear data for authentication errors
+                    const existingSessionData = {
+                      access_token: localStorage.getItem("LMS_access_token") || "",
+                      StudentId: localStorage.getItem("LMS_StudentId") || "",
+                      CourseId: localStorage.getItem("LMS_CourseId") || "",
+                      BatchId: localStorage.getItem("LMS_BatchId") || "",
+                      Email: localStorage.getItem("LMS_Email") || "",
+                      Name: localStorage.getItem("LMS_Name") || "",
+                      Picture: localStorage.getItem("LMS_Picture") || "",
+                      timestamp: parseInt(localStorage.getItem("LMS_timestamp") || "0") || 0,
+                      lastActivityTime: parseInt(localStorage.getItem("LMS_lastActivityTime") || "0") || 0
+                    };
+                    if (existingSessionData.access_token && isMounted) {
+                      try {
+                        const decryptedStudentId = CryptoJS.AES.decrypt(existingSessionData.StudentId, secretKey).toString(CryptoJS.enc.Utf8);
+                        const axiosWithTracking = createAxiosWithActivityTracking();
+                        await performLogout(decryptedStudentId, false, true); // Force logout for session check failure
+                      } catch (logoutError) {
+                        console.error("Session timeout API call failed:", logoutError);
+                      }
+                    }
+                    localStorage.removeItem("LMS_access_token");
+                    localStorage.removeItem("LMS_StudentId");
+                    localStorage.removeItem("LMS_CourseId");
+                    localStorage.removeItem("LMS_BatchId");
+                    localStorage.removeItem("LMS_Email");
+                    localStorage.removeItem("LMS_Name");
+                    localStorage.removeItem("LMS_Picture");
+                    localStorage.removeItem("LMS_timestamp");
+                    localStorage.removeItem("LMS_lastActivityTime");
+                  } else {
+                    // console.log("⚠️ Session validation failed due to network/backend issue, keeping data");
+                    // For other errors (network, 404, 500, etc.), keep the data
+                    return;
+                  }
+                }
+              }
+            }
+            
+            // If session timeout exceeded, skip API call
+            console.log("⏰ Session timeout exceeded, skipping API validation");
+            // Session timeout exceeded, clear the data and stay on login page
+            localStorage.removeItem("LMS_access_token");
+            localStorage.removeItem("LMS_StudentId");
+            localStorage.removeItem("LMS_CourseId");
+            localStorage.removeItem("LMS_BatchId");
+            localStorage.removeItem("LMS_Email");
+            localStorage.removeItem("LMS_Name");
+            localStorage.removeItem("LMS_Picture");
+            localStorage.removeItem("LMS_timestamp");
+            localStorage.removeItem("LMS_lastActivityTime");
+            return;
+          } else if (isMounted) {
+            // Session is too old, proceeding with timeout
+            // console.log("⏰ Session is too old, clearing data");
+            localStorage.removeItem("LMS_access_token");
+            localStorage.removeItem("LMS_StudentId");
+            localStorage.removeItem("LMS_CourseId");
+            localStorage.removeItem("LMS_BatchId");
+            localStorage.removeItem("LMS_Email");
+            localStorage.removeItem("LMS_Name");
+            localStorage.removeItem("LMS_Picture");
+            localStorage.removeItem("LMS_timestamp");
+            localStorage.removeItem("LMS_lastActivityTime");
+          }
+        } else if (isMounted) {
+          // No session data found
+          // console.log("📊 No session data found in localStorage");
         }
 
-    };
- 
-    fetchUserProfile();
-
-    }, [user, navigate]);
-
-  // Auto-login functionality
-  useEffect(() => {
-    const checkExistingSession = async () => {
-      const existingAccessToken = localStorage.getItem('access_token');
-      const existingStudentId = localStorage.getItem('StudentId');
-      const existingCourseId = localStorage.getItem('CourseId');
-      const existingBatchId = localStorage.getItem('BatchId');
-    console.log(existingAccessToken, existingStudentId, existingCourseId, existingBatchId,'existing');
-      if (existingAccessToken && existingStudentId && existingCourseId && existingBatchId) {
-        try {
-          // Call calendar API to validate the access token
-          const calendarUrl = `${process.env.REACT_APP_BACKEND_URL}api/calendar/`;
-          const response = await axios.get(calendarUrl, {
-            headers: {
-              'Authorization': `Bearer ${existingAccessToken}`
-            }
-          });
-
-          // If calendar API call is successful, user is authenticated
-          if (response.status === 200) {
-            // Store the data in sessionStorage for current session
-            sessionStorage.setItem("access_token", existingAccessToken);
-            sessionStorage.setItem("StudentId", existingStudentId);
-            sessionStorage.setItem("CourseId", existingCourseId);
-            sessionStorage.setItem("BatchId", existingBatchId);
-
-            // Navigate to dashboard
-            navigate("/Dashboard");
+        // Note: Removed redundant clearSessionData calls here
+        // Data is only cleared for specific authentication errors (401/403) or when session is too old
+        
+      } catch (error:any) {
+        if (isMounted) {
+          console.error("Error checking existing session:", error);
+          // Only clear session data on critical errors
+          if (error.message?.includes('network') || error.message?.includes('timeout')) {
+            // console.log("⚠️ Network/timeout error, keeping session data");
             return;
           }
-        } catch (error) {
-          // If calendar API call fails, clear localStorage and continue with normal login
-          console.log("Auto-login failed, proceeding with normal login flow");
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('StudentId');
-          localStorage.removeItem('CourseId');
-          localStorage.removeItem('BatchId');
+          // console.log("🚫 Critical error, clearing session data");
+          localStorage.removeItem("LMS_access_token");
+          localStorage.removeItem("LMS_StudentId");
+          localStorage.removeItem("LMS_CourseId");
+          localStorage.removeItem("LMS_BatchId");
+          localStorage.removeItem("LMS_Email");
+          localStorage.removeItem("LMS_Name");
+          localStorage.removeItem("LMS_Picture");
+          localStorage.removeItem("LMS_timestamp");
+          localStorage.removeItem("LMS_lastActivityTime");
         }
       }
     };
 
-    checkExistingSession();
-  }, [navigate]);
+    if (!sessionCheckExecuted.current) {
+      checkExistingSession();
+    }
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Remove navigate dependency
  
   return (
-<div className='login'>
-<div className="container-fluid h-100 d-flex align-items-center justify-content-center">
-<div className="row w-100">
-<div className="col-12 col-md-12 col-lg-7 d-flex align-items-center justify-content-center">
-<div className="p-4 text-center" style={{ borderRadius: '15px', color: '#003e80', backgroundColor: 'transparent' }}>
-<h2 className="font-weight-bold  mb-4">Welcome to Exskilence Upskilling Program</h2>
-<p style={{ fontSize: '1.25rem', lineHeight: '1.8', textAlign:'justify' }}>
-
-                        Upskilling refers to the process of acquiring new skills or enhancing existing ones to stay relevant in the ever-evolving job market. As industries rapidly change due to technological advancements and shifting economic landscapes, continuous learning has become essential for career growth and adaptability. By engaging in upskilling, individuals can improve their expertise, increase job opportunities, and remain competitive in their field. For organizations, investing in employee upskilling fosters innovation, boosts productivity, and helps retain top talent, ensuring that the workforce remains agile and future-ready.
-</p>
-</div>
-</div>
-<div className="col-12 col-md-10 col-lg-4 mt-5 d-flex flex-column justify-content-center align-items-center p-4">
-<div className="loginCard glow card">
-<div className="loginCardBody card-body d-flex flex-column align-items-center">
-<h3 className="card-title text-center pb-3 mx-1">Login with your Google account</h3>
-<div style={{ position: 'relative', width: '100%', height: '400px', marginBottom: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-<img src={Loginpic} alt="Login" style={{ width: '100%', height: '100%' }} />
-</div>
-<div className="text-center">
-
-                            {loading ? (
-<div className="d-flex justify-content-center text-center align-items-center">
-<Spinner color="#0d6efd" size="sm" className='me-2' /> Signing in...
-</div>
-
-                            ) : (
-<button 
-
-                                onClick={() => handleLogin()} 
-
-                                    className="btn d-flex justify-content-center align-items-center" 
-
-                                    style={{ 
-
-                                        color: 'white', 
-
-                                        fontWeight: 'bold', 
-
-                                        borderRadius: '100%', 
-
-                                        cursor: 'pointer', 
-
-                                        display: 'flex', 
-
-                                        alignItems: 'center', 
-
-                                        padding: '10px',
-
-                                    }}
->
-<div style={{ display: 'flex', alignItems: 'center' }}>
-<span style={{ 
-
-                                            backgroundColor: '#6f42c1', 
-
-                                            color: 'white', 
-
-                                            padding: '20px', 
-
-                                            textAlign: 'center', 
-
-                                            borderRadius: '20px',
-
-                                            height: '40px',
-
-                                            display: 'flex',
-
-                                            alignItems: 'center',
-
-                                            width: '250px' 
-
-                                        }}>
-<img className='me-3' src={GoogleLogo} alt="Google Logo" height={32} width={32} style={{backgroundColor:'white',borderRadius:'0px',padding:"5px"}} />
-
-                                            Sign in with Google
-</span>
-</div>
-</button>
-
-                            )}
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<Modal show={showAlert} onHide={handleCloseAlert}  aria-labelledby="contained-modal-title-vcenter" centered>
-<Modal.Header closeButton className='bg-primary'>
-<Modal.Title>Alert</Modal.Title>
-</Modal.Header>
-<Modal.Body>{alertMessage}</Modal.Body>
-<Modal.Footer>
-<Button variant="primary" onClick={handleCloseAlert}>Okay</Button>
-</Modal.Footer>
-</Modal>
-</div>
-
+    <div className='login'>
+      <div className="container-fluid h-100 d-flex align-items-center justify-content-center">
+        <div className="row w-100">
+          <div className="col-12 col-md-12 col-lg-7 d-flex align-items-center justify-content-center">
+            <div className="p-4 text-center" style={{ borderRadius: '15px', color: '#003e80', backgroundColor: 'transparent' }}>
+              <h2 className="font-weight-bold mb-4">Welcome to Exskilence Upskilling Program</h2>
+              <p style={{ fontSize: '1.25rem', lineHeight: '1.8', textAlign:'justify' }}>
+                Upskilling refers to the process of acquiring new skills or enhancing existing ones to stay relevant in the ever-evolving job market. As industries rapidly change due to technological advancements and shifting economic landscapes, continuous learning has become essential for career growth and adaptability. By engaging in upskilling, individuals can improve their expertise, increase job opportunities, and remain competitive in their field. For organizations, investing in employee upskilling fosters innovation, boosts productivity, and helps retain top talent, ensuring that the workforce remains agile and future-ready.
+              </p>
+            </div>
+          </div>
+          <div className="col-12 col-md-10 col-lg-4 mt-5 d-flex flex-column justify-content-center align-items-center p-4">
+            <div className="loginCard glow card">
+              <div className="loginCardBody card-body d-flex flex-column align-items-center">
+                <h3 className="card-title text-center pb-3 mx-1">Login with your Google account</h3>
+                <div style={{ position: 'relative', width: '100%', height: '400px', marginBottom: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <img src={Loginpic} alt="Login" style={{ width: '100%', height: '100%' }} />
+                </div>
+                <div className="text-center">
+                  {loading ? (
+                    <div className="d-flex justify-content-center text-center align-items-center">
+                      <Spinner color="#0d6efd" size="sm" className='me-2' /> Signing in...
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => handleLogin()} 
+                      className="btn d-flex justify-content-center align-items-center" 
+                      style={{ 
+                        color: 'white', 
+                        fontWeight: 'bold', 
+                        borderRadius: '100%', 
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        padding: '10px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ 
+                          backgroundColor: '#6f42c1', 
+                          color: 'white', 
+                          padding: '20px', 
+                          textAlign: 'center', 
+                          borderRadius: '20px',
+                          height: '40px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          width: '250px' 
+                        }}>
+                          <img className='me-3' src={GoogleLogo} alt="Google Logo" height={32} width={32} style={{backgroundColor:'white',borderRadius:'0px',padding:"5px"}} />
+                          Sign in with Google
+                        </span>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <Modal show={showAlert} onHide={handleCloseAlert} aria-labelledby="contained-modal-title-vcenter" centered>
+        <Modal.Header closeButton className='bg-primary'>
+          <Modal.Title>Alert</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>{alertMessage}</Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={handleCloseAlert}>Okay</Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
   );
-
 };
- 
-export default Login;
 
- 
+export default Login; 

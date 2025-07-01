@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { getApiClient } from './utils/apiAuth';
 import AceEditor from "react-ace";
 import { useNavigate, useLocation } from "react-router-dom";
 import "ace-builds/src-noconflict/mode-sql";
@@ -95,9 +95,7 @@ const TestSQLCoding: React.FC = () => {
     const fetchQuestions = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/${studentId}/${testId}/coding/`
       try {
-        const response = await axios.get(
-          url
-        );
+        const response = await getApiClient().get(url);
 
         const questionsWithSavedCode = response.data.qns_data.coding.map((q: Question) => {
           const savedCodeKey = getUserCodeKey(q.Qn_name);
@@ -144,7 +142,7 @@ const TestSQLCoding: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -341,14 +339,8 @@ const TestSQLCoding: React.FC = () => {
       };
       if (updatedSqlQuery) {
         setExecutingQuery(true);
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(sendData),
-        });
-        const responseData = await response.json();
+        const response = await getApiClient().post(url, sendData);
+        const responseData = await response.data;
         setRunResponse(responseData);
 
         setRunResponseTable(responseData.data);
@@ -384,7 +376,7 @@ const TestSQLCoding: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -418,10 +410,7 @@ const TestSQLCoding: React.FC = () => {
       Result: runResponseTestCases,
     };
 
-    const response = await axios.put(
-      url,
-      postData
-    );
+    const response = await getApiClient().put(url, postData);
 
     const responseData = response.data;
     const codeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
@@ -451,7 +440,7 @@ const TestSQLCoding: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

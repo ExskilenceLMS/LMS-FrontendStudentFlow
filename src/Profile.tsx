@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FaLinkedin, FaCode, FaHackerrank } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { getApiClient } from "./utils/apiAuth";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import CryptoJS from "crypto-js";
@@ -61,7 +61,7 @@ const Profile: React.FC = () => {
       setLoading(true);
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/profile/${studentId}/`
       try {
-        const response = await axios.get<ProfileType>(
+        const response = await getApiClient().get<ProfileType>(
           url
         );
         setProfile(response.data);
@@ -80,7 +80,7 @@ const Profile: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await getApiClient().post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

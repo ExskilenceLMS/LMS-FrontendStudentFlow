@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from "react-router-dom";
 import { secretKey } from '../constants';
 import CryptoJS from 'crypto-js';
@@ -9,6 +9,7 @@ import { RiUserSharedLine } from "react-icons/ri";
 import { CiLogout } from "react-icons/ci";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
+import { performLogout } from '../utils/apiAuth';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -45,40 +46,41 @@ const Header: React.FC = () => {
   }, [navigate]);
 
   const handleLogout = useCallback(async (isInactivityLogout: boolean = false) => {
-    const url=`${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}/${isInactivityLogout}/`
-    try{
-      axios.get(url)
-    sessionStorage.clear();
-    navigate('/');
-    setShowUserMenu(false);
-    }
-    catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await axios.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the logout error:", loggingError);
-            }
- 
-            console.error("Error fetching logout data:", innerError);
-            }
+    try {
+      // Call logout function (session will be cleared immediately)
+      performLogout(studentId, isInactivityLogout, false);
+      // Navigate immediately without waiting for API call
+      navigate('/');
+      setShowUserMenu(false);
+    } catch (innerError: any) {
+      const errorData = innerError.response?.data || {
+        message: innerError.message,
+        stack: innerError.stack
+      };
 
-  }, [navigate]);
+      const body = {
+        student_id: actualStudentId,
+        Email: actualEmail,
+        Name: actualName,
+        URL_and_Body: `Logout API call\n + ""`,
+        error: errorData.error,
+      };
+
+      try {
+        await axios.post(
+          `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
+          body
+        );
+      } catch (loggingError) {
+        console.error("Error logging the logout error:", loggingError);
+      }
+
+      console.error("Error during logout:", innerError);
+      // Still navigate even if error logging fails
+      navigate('/');
+      setShowUserMenu(false);
+    }
+  }, [navigate, studentId, actualStudentId, actualEmail, actualName]);
 
   const handleMouseEnter = useCallback(() => {
     if (hoverTimeoutRef.current) {
