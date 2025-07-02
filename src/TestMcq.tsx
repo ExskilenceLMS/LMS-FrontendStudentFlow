@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
@@ -55,7 +55,7 @@ const TestMcq: React.FC = () => {
     const fetchQuestions = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/${studentId}/${testId}/mcq/`
       try {
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
         const shuffledQuestions = response.data.qns_data.mcq.map((q: Question) => ({
           ...q,
           options: shuffleArray(q.options)
@@ -88,7 +88,7 @@ const TestMcq: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -141,7 +141,7 @@ const TestMcq: React.FC = () => {
       setSelectedOption(null);
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/mcq/`
       try {
-        await axios.put(url, {
+        await apiClient.put(url, {
           student_id: studentId,
           question_id: questions[currentQuestion].Qn_name || "ranjitha",
           test_id: testId,
@@ -174,7 +174,7 @@ const TestMcq: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

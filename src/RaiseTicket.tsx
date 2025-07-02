@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal } from "react-bootstrap";
 import html2canvas from "html2canvas";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
 
@@ -88,7 +88,7 @@ const RaiseTicket: React.FC<RaiseTicketProps> = ({ show, onHide, studentId: prop
         img_path: base64Data ? `data:image/png;base64,${base64Data}` : ''
       };
 
-      const response = await axios.post(
+      const response = await apiClient.post(
         url,
         payload
       );
@@ -113,7 +113,7 @@ const RaiseTicket: React.FC<RaiseTicketProps> = ({ show, onHide, studentId: prop
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from "./utils/apiAuth";
 import { Box, Typography, Grid, Paper, TextField, Button, List, ListItem, ListItemText, Snackbar, Modal, IconButton,
 } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -73,7 +73,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
     setLoading(true);
   const url='${process.env.REACT_APP_BACKEND_URL}api/student/ticket/comments/'
     try {
-      const response = await axios.put(
+      const response = await apiClient.put(
         url,
         {
           student_id: studentId,
@@ -120,7 +120,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

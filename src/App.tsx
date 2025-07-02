@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Detector } from "react-detect-offline";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import { Modal } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import 'react-loading-skeleton/dist/skeleton.css';

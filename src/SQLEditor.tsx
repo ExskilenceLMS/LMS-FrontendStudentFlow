@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import AceEditor from "react-ace";
 import { useNavigate } from "react-router-dom";
 import "ace-builds/src-noconflict/mode-sql";
@@ -109,7 +109,7 @@ const SQLEditor: React.FC = () => {
           `${weekNumber}/` +
           `${sessionStorage.getItem("currentSubTopicId")}/`
       try {
-        const response = await axios.get(
+        const response = await apiClient.get(
           url
         );
 
@@ -149,7 +149,7 @@ const SQLEditor: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -164,7 +164,7 @@ const SQLEditor: React.FC = () => {
     const fetchTables = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/tables/`
       try {
-        const response = await axios.get(
+        const response = await apiClient.get(
           url
         );
         const tables = response.data;
@@ -202,7 +202,7 @@ const SQLEditor: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -442,7 +442,7 @@ const SQLEditor: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -475,7 +475,7 @@ const SQLEditor: React.FC = () => {
         Attempt: 0
       };
 
-      const response = await axios.put(
+      const response = await apiClient.put(
         url,
         postData
       );
@@ -505,7 +505,7 @@ const SQLEditor: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

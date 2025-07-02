@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Card, Table, Button, Spinner, Badge, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from "../utils/apiAuth";
 import { format, formatDistance } from 'date-fns';
 import { secretKey } from "../constants";
 interface DeviceSession {
@@ -32,7 +32,7 @@ const DeviceSessions: React.FC = () => {
     const url =`${process.env.REACT_APP_BACKEND_URL}api/sessions/`
     try {
       setRefreshing(true);
-      const response = await axios.get<{ sessions: DeviceSession[] }>(
+      const response = await apiClient.get<{ sessions: DeviceSession[] }>(
         url,
         {
           headers: {
@@ -69,7 +69,7 @@ const DeviceSessions: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -108,7 +108,7 @@ const DeviceSessions: React.FC = () => {
       setLoading(true);
       
       if (revokeAll) {
-        await axios.post(
+        await apiClient.post(
           url,
           {},
           {
@@ -123,7 +123,7 @@ const DeviceSessions: React.FC = () => {
         localStorage.removeItem('current_device');
         navigate('/');
       } else if (sessionToRevoke) {
-        await axios.post(
+        await apiClient.post(
           url1,
           { session_id: sessionToRevoke },
           {
@@ -159,7 +159,7 @@ const DeviceSessions: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

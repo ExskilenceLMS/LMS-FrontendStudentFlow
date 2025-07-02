@@ -10,7 +10,7 @@ import Footer from "./Components/Footer";
 import Sidebar from "./Components/Sidebar";
 import { useNavigate } from "react-router-dom";
 import Header from "./Components/Header";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import Skeleton from "react-loading-skeleton";
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
@@ -82,7 +82,7 @@ const ReportProblem: React.FC = () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/tickets/${studentId}/`
       try {
         setLoading(true);
-        const response = await axios.get<TicketResponse>(
+        const response = await apiClient.get<TicketResponse>(
           url
         );
         
@@ -123,7 +123,7 @@ const ReportProblem: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

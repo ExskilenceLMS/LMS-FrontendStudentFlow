@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import apiClient from "./utils/apiAuth";
 import './SubjectRoadMap.css';
 import Skeleton from 'react-loading-skeleton';
 import MCQSkeletonCode from "./Components/MCQSkeletonCode";
@@ -209,7 +209,7 @@ const fetchRoadmapData = async () => {
         setLoading(true);
         setDisablePreviousBtn(true);
 
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
         const responseData = response.data.modules;
 
         setChapters(responseData);
@@ -278,7 +278,7 @@ const fetchRoadmapData = async () => {
             }
         }
 
-        await axios.post(url1, {
+        await apiClient.post(url1, {
             student_id: studentId,
             subject: subject,
             subject_id: subjectId,
@@ -309,7 +309,7 @@ const fetchRoadmapData = async () => {
         };
 
         try {
-            await axios.post(
+            await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
             );
@@ -330,7 +330,7 @@ const fetchRoadmapData = async () => {
         try {
             setLoading(true);
             setDisablePreviousBtn(true);
-            const response = await axios.get(url);
+            const response = await apiClient.get(url);
             setMcqQuestions(response.data.questions);
             setCurrentMCQIndex(0);
             setLoading(false);
@@ -353,7 +353,7 @@ const fetchRoadmapData = async () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -370,7 +370,7 @@ const fetchRoadmapData = async () => {
         try {
             setLoading(true);
             setDisablePreviousBtn(true);
-            const response = await axios.get(url);
+            const response = await apiClient.get(url);
             const codingQuestionsData = response.data.questions.map((question: any, index: number) => ({
                 id: index + 1,
                 question: question.Qn,
@@ -399,7 +399,7 @@ const fetchRoadmapData = async () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -435,7 +435,7 @@ const fetchRoadmapData = async () => {
             setDisablePreviousBtn(true);
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                await axios.post(url, {
+                await apiClient.post(url, {
                     "student_id": studentId,
                     "subject": subject,
                     "subject_id": subjectId,
@@ -459,7 +459,7 @@ const fetchRoadmapData = async () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -712,7 +712,7 @@ const fetchRoadmapData = async () => {
             setDisablePreviousBtn(true);
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/practicemcq/submit/`
             try {
-                const response = await axios.post(
+                const response = await apiClient.post(
                     url,
                     submissionData
                 );
@@ -739,7 +739,7 @@ const fetchRoadmapData = async () => {
                 };
     
                 try {
-                    await axios.post(
+                    await apiClient.post(
                     `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                     body
                     );
@@ -811,7 +811,7 @@ useEffect(() => {
                 };
 
                 try {
-                    await axios.post(
+                    await apiClient.post(
                         `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                         body
                     );
@@ -864,7 +864,7 @@ useEffect(() => {
                 };
 
                 try {
-                    await axios.post(
+                    await apiClient.post(
                         `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                         body
                     );
@@ -1248,7 +1248,7 @@ const handleNext = useCallback(async () => {
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
-                        const response3 = await axios.post(url, {
+                        const response3 = await apiClient.post(url, {
                             "student_id": studentId,
                             "subject": subject,
                             "subject_id": subjectId,
@@ -1298,7 +1298,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1325,7 +1325,7 @@ const handleNext = useCallback(async () => {
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
-                        const response3 = await axios.post(url, {
+                        const response3 = await apiClient.post(url, {
                             "student_id": studentId,
                             "subject": subject,
                             "subject_id": subjectId,
@@ -1375,7 +1375,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1413,7 +1413,7 @@ const handleNext = useCallback(async () => {
                         if (isLastContent) {
                             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                             try {
-                                const response3 = await axios.post(url, {
+                                const response3 = await apiClient.post(url, {
                                     "student_id": studentId,
                                     "subject": subject,
                                     "subject_id": subjectId,
@@ -1463,7 +1463,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1496,7 +1496,7 @@ const handleNext = useCallback(async () => {
         if (isLastContent) {
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                const response3 = await axios.post(url, {
+                const response3 = await apiClient.post(url, {
                     "student_id": studentId,
                     "subject": subject,
                     "subject_id": subjectId,
@@ -1546,7 +1546,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -1561,7 +1561,7 @@ const handleNext = useCallback(async () => {
             setDisablePreviousBtn(true);
             const url = `${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                const response3 = await axios.put(url, {
+                const response3 = await apiClient.put(url, {
                     "student_id": studentId,
                     "subject": subject,
                     "subject_id": subjectId,
@@ -1595,7 +1595,7 @@ const handleNext = useCallback(async () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

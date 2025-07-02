@@ -5,7 +5,7 @@ import { html } from '@codemirror/lang-html';
 import { css } from '@codemirror/lang-css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckCircle, faCircleXmark, faExpand } from '@fortawesome/free-solid-svg-icons';
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import { useNavigate } from "react-router-dom";
 import SkeletonCode from "./Components/EditorSkeletonCode"
 import { secretKey } from "./constants";
@@ -64,7 +64,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
     const fetchQuestion = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}frontend/qns/data/`
       try {
-        const response = await axios.post(
+        const response = await apiClient.post(
           url,
           {
             StudentId: "24TEST0108",
@@ -91,7 +91,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -586,7 +586,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
             Attempt: 0
           };
     
-          const response = await axios.put(
+          const response = await apiClient.put(
             url,
             postData
           );
@@ -612,7 +612,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

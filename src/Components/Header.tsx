@@ -8,7 +8,7 @@ import { PiUserCircleLight } from "react-icons/pi";
 import { RiUserSharedLine } from "react-icons/ri";
 import { CiLogout } from "react-icons/ci";
 import 'bootstrap/dist/css/bootstrap.min.css';
-import axios from 'axios';
+import apiClient from "../utils/apiAuth";
 import { performLogout } from '../utils/apiAuth';
 
 const Header: React.FC = () => {
@@ -67,7 +67,7 @@ const Header: React.FC = () => {
       };
 
       try {
-        await axios.post(
+        await apiClient.post(
           `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
           body
         );

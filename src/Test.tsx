@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import apiClient from "./utils/apiAuth";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
@@ -82,7 +83,7 @@ const Test: React.FC = () => {
     const fetchTestDetails = async () => {
       const url = `${process.env.REACT_APP_BACKEND_URL}api/student/testdetails/${studentId}/`
       try {
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
         setTestDetails(response.data.test_details);
         setFilteredDetails(response.data.test_details);
         setLoading(false);
@@ -101,7 +102,7 @@ const Test: React.FC = () => {
         };
 
         try {
-          await axios.post(
+                      await apiClient.post(
             `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
             body
           );

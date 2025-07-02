@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "./Components/Sidebar";
 import { useNavigate } from "react-router-dom";
 import Footer from "./Components/Footer";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import Skeleton from "react-loading-skeleton";
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
@@ -45,7 +45,7 @@ const OnlineSession: React.FC = () => {
     const fetchSessions = async () => {
       const url= `${process.env.REACT_APP_BACKEND_URL}api/student/sessions/${studentId}/`
       try {
-        const response = await axios.get(
+        const response = await apiClient.get(
          url
         );
         const apiSessions = response.data as ApiSession[];
@@ -80,7 +80,7 @@ const OnlineSession: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

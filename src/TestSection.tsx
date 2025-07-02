@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "./constants";
 import SkeletonLoading from "./SkeletonTestSection";
@@ -51,9 +51,7 @@ const TestSection: React.FC = () => {
     const fetchData = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${studentId}/${testId}/`
       try {
-        const response = await axios.get(
-          url
-        );
+        const response = await apiClient.get(url);
 
         if (response.status === 200) {
           setQuestionList(response.data);
@@ -75,7 +73,7 @@ const TestSection: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -104,7 +102,7 @@ const TestSection: React.FC = () => {
   const confirmSubmitTest = async () => {
     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/submit/${studentId}/${testId}/`
     try {
-      await axios.get(url);
+      await apiClient.get(url);
       sessionStorage.setItem("time", "0");
       setShowSubmitConfirmation(false);
       setShowModal(true);
@@ -123,7 +121,7 @@ const TestSection: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

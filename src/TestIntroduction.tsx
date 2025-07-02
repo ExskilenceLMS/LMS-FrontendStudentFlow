@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import timer from "./Components/images/Timer.png";
 import problems from "./Components/images/problems.png";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
 import { Spinner } from "react-bootstrap";
@@ -36,7 +36,7 @@ const TestIntroduction: React.FC = () => {
         const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instuction/${studentId}/${testId}/`;
 
         try {
-          const response = await axios.get(url);
+          const response = await apiClient.get(url);
           setDuration(response.data.duration);
           setSectionCount(response.data.section_count);
         } catch (innerError:any) {
@@ -54,7 +54,7 @@ const TestIntroduction: React.FC = () => {
           };
 
           try {
-            await axios.post(
+            await apiClient.post(
               `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
               body
             );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import apiClient from "../utils/apiAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Spinner } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -41,7 +41,7 @@ const TestingMCQS: React.FC = () => {
     const fetchQuestions = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}mcqtesting/`
       try {
-        const response = await axios.get(
+        const response = await apiClient.get(
           url
         );
 
@@ -71,7 +71,7 @@ const TestingMCQS: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

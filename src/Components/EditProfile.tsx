@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import apiClient from "../utils/apiAuth";
 import { useNavigate } from 'react-router-dom';
 import { FaPlus, FaTrash, FaFile, FaVideo, FaLinkedin, FaCode, FaHackerrank, FaGithub } from 'react-icons/fa';
 import { secretKey } from "../constants";
@@ -91,7 +91,7 @@ const EditProfile: React.FC = () => {
   const fetchColleges = useCallback(async () => {
     const url=`${API_BASE_URL}/colleges/`
     try {
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       setColleges(response.data);
       return response.data;
     } 
@@ -110,7 +110,7 @@ const EditProfile: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -130,7 +130,7 @@ const EditProfile: React.FC = () => {
     const url=`${API_BASE_URL}/student/profile/${studentId}/`
     try {
       setLoading(true);
-      const response = await axios.get(url);
+      const response = await apiClient.get(url);
       const { profile_details, education_details, social_media } = response.data;
 
       setProfileDetails({
@@ -172,7 +172,7 @@ const EditProfile: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -350,7 +350,7 @@ const EditProfile: React.FC = () => {
     };
     const url=`${API_BASE_URL}/student/profile/`
     try {
-      const response = await axios.put(
+      const response = await apiClient.put(
         url,
         requestData
       );
@@ -378,7 +378,7 @@ const EditProfile: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

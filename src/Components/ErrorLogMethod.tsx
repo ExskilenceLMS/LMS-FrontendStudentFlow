@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import axios from 'axios';
+import apiClient from "../utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
 
@@ -31,7 +31,7 @@ const ErrorLogMethod: React.FC<ErrorLogProps> = ({ url, body, response }) => {
       const decryptedName = CryptoJS.AES.decrypt(encryptedName!, secretKey).toString(CryptoJS.enc.Utf8);
       const name = decryptedName;
 
-      axios.post(url, {
+      apiClient.post(url, {
         student_id: studentId,
         email: email,
         name: name,
@@ -58,7 +58,7 @@ const ErrorLogMethod: React.FC<ErrorLogProps> = ({ url, body, response }) => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import Modal from 'react-bootstrap/Modal';
 import eye from './Components/images/eye.png';
 import { secretKey } from "./constants";
@@ -118,7 +118,7 @@ const TestReport: React.FC = () => {
     const fetchData = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/report/${studentId}/${testId}/`
       try {
-        const response = await axios.get(url);
+        const response = await apiClient.get(url);
         const apiData = response.data;
         setData({
           timeTaken: `${apiData.test_summary.time_taken_for_completion} / ${apiData.test_summary.total_time}`,
@@ -195,7 +195,7 @@ const TestReport: React.FC = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );

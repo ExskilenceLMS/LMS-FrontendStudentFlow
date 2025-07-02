@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import AceEditor from "react-ace";
-import axios from "axios";
+import apiClient from "./utils/apiAuth";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import Sk from "skulpt";
@@ -142,7 +142,7 @@ const decryptData = (encryptedData: string) => {
           `${weekNumber}/` +
           `${sessionStorage.getItem("currentSubTopicId")}/`
       try {
-        const response = await axios.get(
+        const response = await apiClient.get(
           url
         );
         
@@ -186,7 +186,7 @@ const decryptData = (encryptedData: string) => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -413,7 +413,7 @@ const handleNext = () => {
       };
       // console.log("Post data:", postData);
 
-      const response = await axios.post(
+      const response = await apiClient.post(
         url,
         postData
       );
@@ -502,7 +502,7 @@ const handleNext = () => {
             };
  
             try {
-                await axios.post(
+                await apiClient.post(
                 `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
                 body
                 );
@@ -537,7 +537,7 @@ const handleSubmit = async () => {
       Attempt: 0
     };
 
-    const response = await axios.put(url, postData);
+    const response = await apiClient.put(url, postData);
     const responseData = response.data;
 
     const updatedQuestions = [...questions];
@@ -569,7 +569,7 @@ const handleSubmit = async () => {
     };
 
     try {
-      await axios.post(`${process.env.REACT_APP_BACKEND_URL}api/errorlog/`, body);
+      await apiClient.post(`${process.env.REACT_APP_BACKEND_URL}api/errorlog/`, body);
     } catch (loggingError) {
       console.error("Error logging the python code submit error:", loggingError);
     }
