@@ -74,6 +74,12 @@ function AppContent() {
     }
   }, [studentId]);
 
+  // Global right-click disable
+  const disableRightClick = useCallback((e: MouseEvent) => {
+    e.preventDefault();
+    return false;
+  }, []);
+
   const startCountdown = useCallback(() => {
     // Don't start countdown if user is on login page
     if (isOnLoginPage()) {
@@ -139,6 +145,9 @@ function AppContent() {
   }, [startCountdown, location.pathname]);
 
   useEffect(() => {
+    // Add global right-click disable for all pages including login
+    window.addEventListener('contextmenu', disableRightClick);
+
     // Don't set up timer events if user is on login page
     if (isOnLoginPage()) {
       // Clear any existing timers if we're on login page
@@ -200,7 +209,22 @@ function AppContent() {
     };
 
     checkSessionAndSetupTimer();
-  }, [resetTimer, location.pathname]);
+
+    // Cleanup function for the entire useEffect
+    return () => {
+      // Remove global right-click disable
+      window.removeEventListener('contextmenu', disableRightClick);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+    };
+  }, [resetTimer, location.pathname, disableRightClick]);
 
   return (
     <>
