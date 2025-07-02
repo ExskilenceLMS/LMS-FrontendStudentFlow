@@ -56,11 +56,20 @@ interface CodingQuestion {
 }
 
 
-  interface SubTopic {
+  interface VideoLesson {
+    otp: string;
+    playback_info: string;
+}
+
+interface NoteContent {
+    content: string;
+}
+
+interface SubTopic {
     subtopicid: string;
     sub_topic: string;
-    lesson: string[];
-    notes: string[];
+    lesson: VideoLesson[];
+    notes: NoteContent[];
     mcqQuestions: number;
     codingQuestions: number;
 }
@@ -123,11 +132,10 @@ const SubjectRoadMap: React.FC = () => {
     const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
     const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
     const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
-    const VideoEmbed =['https://player.vdocipher.com/v2/?otp=20160313versASE323itYNtHlXu9YYIoKt2END5H9pee2bNFtO6bMKsT0dv9OQ1L&playbackInfo=eyJ2aWRlb0lkIjoiYjQ5Yjc4NjhkNTU1NGYzZGFmZDk3MDQ4MjlkYzEzYjcifQ==',
-        'https://player.vdocipher.com/v2/?otp=20160313versASE323AP9tnPSWgTG4UeQwPrb76fi0F8lzGOagTYWcsUlzcwbmf1&playbackInfo=eyJ2aWRlb0lkIjoiYzIwNjY1YzFjYzE4NDUyN2FlYmQxNDhiMDY3YTYxMjIifQ==',
-        'https://player.vdocipher.com/v2/?otp=20160313versASE323bPpxt1sNlsoRmneMlqq5ZxL8LRjItAdGDfseFwCUe2srVa&playbackInfo=eyJ2aWRlb0lkIjoiMGY0YzNhOWYyYTM5NDdjNTgwMzE2NTQ2ZGM5NTY4NTAifQ==',
-        'https://player.vdocipher.com/v2/?otp=20160313versASE323vo8nwfo5NtF20u9BlWtA0tUqthMIQgiFyk2TZlYT5h1581&playbackInfo=eyJ2aWRlb0lkIjoiMDI4ODA4NjFlMGExNDRkYTlmODQxNWFlZmJkNzM1MjQifQ=='
-    ]
+    // Helper function to build video URL from lesson data
+    const buildVideoUrl = (lesson: VideoLesson): string => {
+        return `https://player.vdocipher.com/v2/?otp=${lesson.otp}&playbackInfo=${lesson.playback_info}`;
+    };
     const handleToggle = () => {
         setIsActive(prevIsActive => !prevIsActive);
     };
@@ -392,10 +400,10 @@ const fetchRoadmapData = async () => {
             }
         }
 
-        if (currentView === 'lesson' && VideoEmbed.length > 0) {
-            // No need to set selectedContent for hardcoded videos
+        if (currentView === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
+            // No need to set selectedContent for videos - they will be built dynamically
         } else if (currentView === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
-            setSelectedContent(subTopic.notes[currentNotesIndex]);
+            setSelectedContent(subTopic.notes[currentNotesIndex].content);
             setContentType('notes');
         }
     }
@@ -416,10 +424,10 @@ const fetchRoadmapData = async () => {
         if (chapters.length > 0 && chapters[0].sub_topic_data.length > currentSubTopicIndex) {
             const subTopic = chapters[0].sub_topic_data[currentSubTopicIndex];
     
-            if (view === 'lesson' && VideoEmbed.length > 0) {
-                // No need to set selectedContent for hardcoded videos
+            if (view === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
+                // No need to set selectedContent for videos - they will be built dynamically
             } else if (view === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
-                setSelectedContent(subTopic.notes[currentNotesIndex]);
+                setSelectedContent(subTopic.notes[currentNotesIndex].content);
                 setContentType('notes');
             } else if (view === 'mcq') {
                 // Only fetch if not already fetched
@@ -438,8 +446,8 @@ const fetchRoadmapData = async () => {
     const handleNextLesson = useCallback(() => {
         if (chapters.length > 0 && chapters[0].sub_topic_data.length > currentSubTopicIndex) {
             const subTopic = chapters[0].sub_topic_data[currentSubTopicIndex];
-            // Check if there are more videos in the hardcoded array or more subtopics
-            if (currentLessonIndex < VideoEmbed.length - 1) {
+            // Check if there are more videos in the lesson array or more subtopics
+            if (subTopic.lesson && currentLessonIndex < subTopic.lesson.length - 1) {
                 const nextIndex = currentLessonIndex + 1;
                 setCurrentLessonIndex(nextIndex);
             } else if (chapters[0].sub_topic_data.length > currentSubTopicIndex + 1) {
@@ -462,8 +470,9 @@ const fetchRoadmapData = async () => {
             setCurrentLessonIndex(prevIndex);
         } else if (currentSubTopicIndex > 0) {
             const prevSubTopicIndex = currentSubTopicIndex - 1;
+            const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
             setCurrentSubTopicIndex(prevSubTopicIndex);
-            setCurrentLessonIndex(VideoEmbed.length - 1);
+            setCurrentLessonIndex(prevSubTopic.lesson ? prevSubTopic.lesson.length - 1 : 0);
             
             if (currentView === 'mcq') {
                 fetchMCQQuestions(prevSubTopicIndex);
@@ -479,7 +488,7 @@ const fetchRoadmapData = async () => {
             if (subTopic.notes && currentNotesIndex < subTopic.notes.length - 1) {
                 const nextIndex = currentNotesIndex + 1;
                 setCurrentNotesIndex(nextIndex);
-                setSelectedContent(subTopic.notes[nextIndex]);
+                setSelectedContent(subTopic.notes[nextIndex].content);
             } else if (chapters[0].sub_topic_data.length > currentSubTopicIndex + 1) {
                 const nextSubTopicIndex = currentSubTopicIndex + 1;
                 setCurrentSubTopicIndex(nextSubTopicIndex);
@@ -487,7 +496,7 @@ const fetchRoadmapData = async () => {
 
                 const nextSubTopic = chapters[0].sub_topic_data[nextSubTopicIndex];
                 if (nextSubTopic.notes && nextSubTopic.notes.length > 0) {
-                    setSelectedContent(nextSubTopic.notes[0]);
+                    setSelectedContent(nextSubTopic.notes[0].content);
                 }
             }
         }
@@ -497,7 +506,7 @@ const fetchRoadmapData = async () => {
         if (currentNotesIndex > 0) {
             const prevIndex = currentNotesIndex - 1;
             setCurrentNotesIndex(prevIndex);
-            setSelectedContent(chapters[0].sub_topic_data[currentSubTopicIndex].notes[prevIndex]);
+            setSelectedContent(chapters[0].sub_topic_data[currentSubTopicIndex].notes[prevIndex].content);
         } else if (currentSubTopicIndex > 0) {
             const prevSubTopicIndex = currentSubTopicIndex - 1;
             const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
@@ -505,7 +514,7 @@ const fetchRoadmapData = async () => {
             if (prevSubTopic.notes && prevSubTopic.notes.length > 0) {
                 setCurrentSubTopicIndex(prevSubTopicIndex);
                 setCurrentNotesIndex(prevSubTopic.notes.length - 1);
-                setSelectedContent(prevSubTopic.notes[prevSubTopic.notes.length - 1]);
+                setSelectedContent(prevSubTopic.notes[prevSubTopic.notes.length - 1].content);
             }
         }
     }, [chapters, currentSubTopicIndex, currentNotesIndex]);
@@ -538,11 +547,11 @@ const fetchRoadmapData = async () => {
         if (!chapters.length) return true;
 
         if (currentView === 'lesson') {
-            const hasMoreLessons = currentLessonIndex < VideoEmbed.length - 1;
-            const hasNotes = chapters[0].sub_topic_data[currentSubTopicIndex].notes &&
-                            chapters[0].sub_topic_data[currentSubTopicIndex].notes.length > 0;
-            const hasCodingQuestions = chapters[0].sub_topic_data[currentSubTopicIndex].codingQuestions > 0;
-            const hasMCQs = chapters[0].sub_topic_data[currentSubTopicIndex].mcqQuestions > 0;
+            const subTopic = chapters[0].sub_topic_data[currentSubTopicIndex];
+            const hasMoreLessons = subTopic.lesson && currentLessonIndex < subTopic.lesson.length - 1;
+            const hasNotes = subTopic.notes && subTopic.notes.length > 0;
+            const hasCodingQuestions = subTopic.codingQuestions > 0;
+            const hasMCQs = subTopic.mcqQuestions > 0;
             return !hasMoreLessons && !hasNotes && !hasCodingQuestions && !hasMCQs;
         }
         else if (currentView === 'notes') {
@@ -657,7 +666,7 @@ useEffect(() => {
         const lessonVideoUrl = chapters[0]?.sub_topic_data[currentSubTopicIndex]?.lesson?.[currentLessonIndex] || '';
 
         if (sessionStorage.getItem("lastContentType") === "notes") {
-            await fetchNotes(notesUrl);
+            // No need to fetch notes since they now contain HTML content directly
         } else {
             // Only fetch video if we're not using hardcoded VideoEmbed URLs
             // Since the current implementation uses hardcoded VideoEmbed, we skip video fetching
@@ -757,9 +766,9 @@ useEffect(() => {
             );
         }
 
-        // Use hardcoded VideoEmbed array instead of lesson URLs
-        const videoIndex = currentLessonIndex % VideoEmbed.length;
-        const videoUrl = VideoEmbed[videoIndex];
+        // Build video URL from lesson data
+        const currentLesson = chapters[0].sub_topic_data[currentSubTopicIndex].lesson[currentLessonIndex];
+        const videoUrl = buildVideoUrl(currentLesson);
 
         return (
             <div className="h-100 overflow-hidden p-0">
@@ -787,29 +796,17 @@ useEffect(() => {
             );
         }
 
-        const notesUrl = chapters[0].sub_topic_data[currentSubTopicIndex].notes[currentNotesIndex];
+        const noteContent = chapters[0].sub_topic_data[currentSubTopicIndex].notes[currentNotesIndex].content;
 
-        if (notesUrl.endsWith('.html')) {
-            return (
-                <iframe
-                    src={`https://docs.google.com/gview?url=${encodeURIComponent(notesUrl)}&embedded=true`}
-                    className="w-100 h-100"
-                    title="HTML Notes"
-                    style={{ border: 'none' }}
-                />
-            );
-        } else if (notesUrl.endsWith('.pdf')) {
-            return (
-                <iframe 
-                    src={pdfUrl} 
-                    className="w-100 h-100" 
-                    title="PDF Viewer" 
-                    style={{ border: 'none' }} 
-                />
-            );
-        }
-
-        return null;
+        // Display HTML content directly in iframe
+        return (
+            <iframe
+                srcDoc={noteContent}
+                className="w-100 h-100"
+                title="Notes Content"
+                style={{ border: 'none' }}
+            />
+        );
     };
 
 
@@ -1051,20 +1048,21 @@ const handleNext = useCallback(async () => {
         return;
     }
 
-    if (currentView === 'lesson') {
-        if (currentLessonIndex < VideoEmbed.length - 1) {
-            handleNextLesson();
-        } else {
-            if (currentChapter.sub_topic_data[currentSubTopicIndex].notes && currentChapter.sub_topic_data[currentSubTopicIndex].notes.length > 0) {
-                handleViewChange('notes');
-                setCurrentNotesIndex(0);
-            } else if (currentChapter.sub_topic_data[currentSubTopicIndex].mcqQuestions > 0) {
-                handleViewChange('mcq');
-                setCurrentMCQIndex(0);
-            } else if (currentChapter.sub_topic_data[currentSubTopicIndex].codingQuestions > 0) {
-                handleViewChange('coding');
+            if (currentView === 'lesson') {
+            const subTopic = currentChapter.sub_topic_data[currentSubTopicIndex];
+            if (subTopic.lesson && currentLessonIndex < subTopic.lesson.length - 1) {
+                handleNextLesson();
             } else {
-                const isLastContent = currentLessonIndex === VideoEmbed.length - 1;
+                if (subTopic.notes && subTopic.notes.length > 0) {
+                    handleViewChange('notes');
+                    setCurrentNotesIndex(0);
+                } else if (subTopic.mcqQuestions > 0) {
+                    handleViewChange('mcq');
+                    setCurrentMCQIndex(0);
+                } else if (subTopic.codingQuestions > 0) {
+                    handleViewChange('coding');
+                } else {
+                    const isLastContent = subTopic.lesson ? currentLessonIndex === subTopic.lesson.length - 1 : true;
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
@@ -1338,8 +1336,8 @@ const handlePrevious = useCallback(() => {
             const prevSubTopicIndex = currentSubTopicIndex - 1;
             const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
             setCurrentSubTopicIndex(prevSubTopicIndex);
-            setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
-            setSelectedContent(prevSubTopic.lesson[prevSubTopic.lesson.length - 1]);
+            setCurrentLessonIndex(prevSubTopic.lesson ? prevSubTopic.lesson.length - 1 : 0);
+            // No need to set selectedContent for videos - they will be built dynamically
             let unlockSubTopicId = JSON.parse(sessionStorage.getItem("unlockedSubtopics") || "[]");
         let currentSubTopicId = sessionStorage.getItem("currentSubTopicId");
 
@@ -1366,8 +1364,8 @@ const handlePrevious = useCallback(() => {
                 const prevSubTopicIndex = currentSubTopicIndex - 1;
                 const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
                 setCurrentSubTopicIndex(prevSubTopicIndex);
-                setCurrentNotesIndex(prevSubTopic.notes.length - 1);
-                setSelectedContent(prevSubTopic.notes[prevSubTopic.notes.length - 1]);
+                setCurrentNotesIndex(prevSubTopic.notes ? prevSubTopic.notes.length - 1 : 0);
+                setSelectedContent(prevSubTopic.notes ? prevSubTopic.notes[prevSubTopic.notes.length - 1].content : '');
             }
         }
     } 
@@ -1398,8 +1396,8 @@ const handlePrevious = useCallback(() => {
                 const prevSubTopicIndex = currentSubTopicIndex - 1;
                 const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
                 setCurrentSubTopicIndex(prevSubTopicIndex);
-                setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
-                setSelectedContent(prevSubTopic.lesson[prevSubTopic.lesson.length - 1]);
+                setCurrentLessonIndex(prevSubTopic.lesson ? prevSubTopic.lesson.length - 1 : 0);
+                // No need to set selectedContent for videos - they will be built dynamically
             }
         }
     }
@@ -1553,10 +1551,10 @@ const handlePrevious = useCallback(() => {
     setCurrentContentType(contentType);
 
     if (contentType === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
-        setSelectedContent(subTopic.lesson[0]);
+        // No need to set selectedContent for videos - they will be built dynamically
         setCurrentLessonIndex(0);
     } else if (contentType === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
-        setSelectedContent(subTopic.notes[0]);
+        setSelectedContent(subTopic.notes[0].content);
         setContentType('notes');
         setCurrentNotesIndex(0);
     } else if (contentType === 'mcq') {
