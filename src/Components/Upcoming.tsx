@@ -42,38 +42,21 @@ const Upcoming: React.FC = () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}/`
       try {
         const response = await apiClient.get(url);
-        setDiscussions(response.data.sessions.map((item: any) => ({
-          title: item.title,
-          week: item.title,
-          date: item.date,
-          time: item.time,
-        })));
-      } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the Upcoming error:", loggingError);
-            }
- 
-            console.error("Error fetching upcoming data:", innerError);
-            }
-            finally {
+        if (response.data && response.data.sessions && Array.isArray(response.data.sessions)) {
+          setDiscussions(response.data.sessions.map((item: any) => ({
+            title: item.title,
+            week: item.title,
+            date: item.date,
+            time: item.time,
+          })));
+        } else {
+          console.error("Expected sessions array but got:", typeof response.data, response.data);
+          setDiscussions([]);
+        }
+      } catch (error) {
+        console.error("Error fetching discussions:", error);
+        setDiscussions([]);
+      } finally {
         setLoadingDiscussions(false);
       }
     };
@@ -82,37 +65,20 @@ const Upcoming: React.FC = () => {
         const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}/`
       try {
         const response = await apiClient.get(url);
-        setEvents(response.data.map((event: any) => ({
-          title: event.title,
-          date: event.date,
-          time: event.time,
-        })));
-      } 
-catch (innerError: any) {
-            const errorData = innerError.response?.data.events || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the events error:", loggingError);
-            }
- 
-            console.error("Error fetching events data:", innerError);
-            }finally {
+        if (Array.isArray(response.data)) {
+          setEvents(response.data.map((event: any) => ({
+            title: event.title,
+            date: event.date,
+            time: event.time,
+          })));
+        } else {
+          console.error("Expected array but got:", typeof response.data, response.data);
+          setEvents([]);
+        }
+      } catch (error) {
+        console.error("Error fetching events:", error);
+        setEvents([]);
+      } finally {
         setLoadingEvents(false);
       }
     };

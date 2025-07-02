@@ -52,30 +52,7 @@ const Header: React.FC = () => {
       // Navigate immediately without waiting for API call
       navigate('/');
       setShowUserMenu(false);
-    } catch (innerError: any) {
-      const errorData = innerError.response?.data || {
-        message: innerError.message,
-        stack: innerError.stack
-      };
-
-      const body = {
-        student_id: actualStudentId,
-        Email: actualEmail,
-        Name: actualName,
-        URL_and_Body: `Logout API call\n + ""`,
-        error: errorData.error,
-      };
-
-      try {
-        await apiClient.post(
-          `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-          body
-        );
-      } catch (loggingError) {
-        console.error("Error logging the logout error:", loggingError);
-      }
-
-      console.error("Error during logout:", innerError);
+    } catch (innerError: any) {console.error("Error during logout:", innerError);
       // Still navigate even if error logging fails
       navigate('/');
       setShowUserMenu(false);

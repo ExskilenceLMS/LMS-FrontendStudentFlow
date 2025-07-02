@@ -82,30 +82,7 @@ const SubjectOverview: React.FC = () => {
  
         setData(transformedData);
       } catch (innerError: any) {
-        setError('No data found');
-        const errorData = innerError.response?.data || {
-          message: innerError.message,
-          stack: innerError.stack
-        };
- 
-        const body = {
-          student_id: actualStudentId,
-          Email: actualEmail,
-          Name: actualName,
-          URL_and_Body: `${url}\n + ""`,
-          error: errorData.error,
-        };
- 
-        try {
-          await getApiClient().post(
-            `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-            body
-          );
-        } catch (loggingError) {
-          console.error("Error logging the subject overview error:", loggingError);
-        }
- 
-        console.error("Error fetching subject overview data:", innerError);
+        setError('No data found');console.error("Error fetching subject overview data:", innerError);
       } finally {
         setLoading(false);
       }
@@ -183,37 +160,15 @@ const SubjectOverview: React.FC = () => {
           });
         }
  
-        navigate("/subject-roadmap");
+                navigate("/subject-roadmap");
       }
-    } catch (innerError: any) {
-      const errorData = innerError.response?.data || {
-        message: innerError.message,
-        stack: innerError.stack
-      };
- 
-      const body = {
-        student_id: actualStudentId,
-        Email: actualEmail,
-        Name: actualName,
-        URL_and_Body: `${url}\n + ""`,
-        error: errorData.error,
-      };
- 
-      try {
-        await getApiClient().post(
-          `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-          body
-        );
-      } catch (loggingError) {
-        console.error("Error logging the navigation logic error:", loggingError);
-      }
- 
-      console.error("Error fetching navigation logic data:", innerError);
+    } catch (error) {
+      console.error("Error in handleStartButtonClick:", error);
     } finally {
       setBtnClickLoading(false);
     }
   };
- 
+
   const handleStartButtonClickVideo = async (
     day_key: string,
     weekNumber: number,
@@ -251,30 +206,8 @@ const SubjectOverview: React.FC = () => {
  
         navigate("/subject-roadmap");
       }
-    } catch (innerError: any) {
-      const errorData = innerError.response?.data || {
-        message: innerError.message,
-        stack: innerError.stack
-      };
- 
-      const body = {
-        student_id: actualStudentId,
-        Email: actualEmail,
-        Name: actualName,
-        URL_and_Body: `${url}\n + ""`,
-        error: errorData.error,
-      };
- 
-      try {
-        await getApiClient().post(
-          `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-          body
-        );
-      } catch (loggingError) {
-        console.error("Error logging the navigation logic error:", loggingError);
-      }
- 
-      console.error("Error fetching navigation logic data:", innerError);
+    } catch (error) {
+      console.error("Error in handleStartButtonClickVideo:", error);
     } finally {
       setBtnClickLoading(false);
     }

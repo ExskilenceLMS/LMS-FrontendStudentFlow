@@ -127,29 +127,7 @@ const TestSQLCoding: React.FC = () => {
           initializeQuestionData(questionsWithSavedCode[initialIndex], response.data.tables);
         }
       } 
-      catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the test sql coding  error:", loggingError);
-            }
-            navigate("/test");
+      catch (innerError: any) {navigate("/test");
             console.error("Error fetching test sql coding data:", innerError);
             }
       finally {
@@ -361,30 +339,7 @@ const TestSQLCoding: React.FC = () => {
       }
     } catch (innerError: any) {
       setSuccessMessage("Error");
-      setAdditionalMessage("There was an error executing the SQL query.");
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the executing SQL query error:", loggingError);
-            }
- 
-            console.error("Error fetching executing SQL query data:", innerError);
+      setAdditionalMessage("There was an error executing the SQL query.");console.error("Error fetching executing SQL query data:", innerError);
             }
     finally {
       setIsProcessing(false);
@@ -425,30 +380,7 @@ const TestSQLCoding: React.FC = () => {
   } 
   catch (innerError: any) {
     setSuccessMessage("Error");
-    setAdditionalMessage("There was an error executing the code.");
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the executing the sql code error:", loggingError);
-            }
- 
-            console.error("Error fetching executing the sql code data:", innerError);
+    setAdditionalMessage("There was an error executing the code.");console.error("Error fetching executing the sql code data:", innerError);
             }
      finally {
     setIsProcessing(false);

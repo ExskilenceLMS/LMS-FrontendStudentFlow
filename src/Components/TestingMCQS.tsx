@@ -55,35 +55,10 @@ const TestingMCQS: React.FC = () => {
         setSkippedQuestions(Array(shuffledQuestions.length).fill(false));
 
         setLoading(false);
-      } 
-      catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the testing mcq error:", loggingError);
-            
-            setLoading(false);
-              }
-            setLoading(false);
-            console.error("Error fetching testing mcq data:", innerError);
-            setLoading(false);
-            }
+      } catch (innerError: any) {
+        setLoading(false);
+        console.error("Error fetching testing mcq data:", innerError);
+      }
     };
 
     fetchQuestions();

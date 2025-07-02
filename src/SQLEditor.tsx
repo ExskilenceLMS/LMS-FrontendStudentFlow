@@ -134,31 +134,9 @@ const SQLEditor: React.FC = () => {
         if (response.data.length > 0) {
           initializeQuestionData(questionsWithSavedCode[initialIndex], availableTables);
         }
-      } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the sql editor error:", loggingError);
-            }
- 
-            console.error("Error fetching sql questions data:", innerError);
-            }
+      } catch (error) {
+        console.error("Error fetching questions:", error);
+      }
     };
 
     const fetchTables = async () => {
@@ -186,32 +164,9 @@ const SQLEditor: React.FC = () => {
             setTableName(tables[0].tab_name);
           }
         }
-
-      } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the sql tables error:", loggingError);
-            }
- 
-            console.error("Error fetching sql tables data:", innerError);
-            } finally {
+      } catch (error) {
+        console.error("Error fetching tables:", error);
+      } finally {
         setLoading(false);
       }
     };
@@ -427,32 +382,9 @@ const SQLEditor: React.FC = () => {
       }
     } catch (innerError: any) {
       setSuccessMessage("Error");
-      setAdditionalMessage("There was an error executing the SQL query.");
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the sql query error:", loggingError);
-            }
- 
-            console.error("Error fetching sql query data:", innerError);
-            }
-  finally {
+      setAdditionalMessage("There was an error executing the SQL query.");console.error("Error fetching sql query data:", innerError);
+    }
+    finally {
       setProcessing(false);
     }
   };
@@ -490,32 +422,9 @@ const SQLEditor: React.FC = () => {
       setIsNextBtn(true);
     } catch (innerError: any) {
       setSuccessMessage("Error");
-      setAdditionalMessage("There was an error executing the code.");
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the sql editor error:", loggingError);
-            }
- 
-            console.error("Error fetching sql query data:", innerError);
-            }
-  finally {
+      setAdditionalMessage("There was an error executing the code.");console.error("Error fetching sql query data:", innerError);
+    }
+    finally {
       setProcessing(false);
     }
   };

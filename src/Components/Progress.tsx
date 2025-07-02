@@ -95,32 +95,9 @@ function Progress() {
         setWeeks([{ id: "All", name: "All" }, ...weeksData]);
 
         updateProgressData(data, "All", "All");
-      } 
-      catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the progress error:", loggingError);
-            }
- 
-            console.error("Error fetching progress data:", innerError);
-            }
+      } catch (error) {
+        console.error("Error fetching progress data:", error);
+      }
     };
 
     fetchData();

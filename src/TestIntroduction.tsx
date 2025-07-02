@@ -39,31 +39,8 @@ const TestIntroduction: React.FC = () => {
           const response = await apiClient.get(url);
           setDuration(response.data.duration);
           setSectionCount(response.data.section_count);
-        } catch (innerError:any) {
-          const errorData = innerError.response?.data || {
-            message: innerError.message,
-            stack: innerError.stack,
-          };
-
-          const body = {
-            student_id: actualStudentId,
-            Email: actualEmail,
-            Name: actualName,
-            URL_and_Body: `${url}\n + ""`,
-            error: errorData.error || errorData,
-          };
-
-          try {
-            await apiClient.post(
-              `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-              body
-            );
-          } catch (loggingError) {
-            console.error("Error logging the test instruction error:", loggingError);
-          }
-
+        } catch (innerError: any) {
           console.error("Error fetching test instruction data:", innerError);
-          navigate("/test");
         } finally {
           setLoading(false);
         }

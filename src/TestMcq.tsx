@@ -73,30 +73,7 @@ const TestMcq: React.FC = () => {
         setLoading(false);
       } 
       catch (innerError: any) {
-        setLoading(false);
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the mcq questions error:", loggingError);
-            }
- 
-            console.error("Error fetching MCQ questions data:", innerError);
+        setLoading(false);console.error("Error fetching MCQ questions data:", innerError);
             }
     };
 
@@ -158,31 +135,7 @@ const TestMcq: React.FC = () => {
         const revertedAnsweredQuestions = [...answeredQuestions];
         revertedAnsweredQuestions[currentQuestion] = null;
         setAnsweredQuestions(revertedAnsweredQuestions);
-        setSelectedOption(selectedOption);
-        
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the mcq questions error:", loggingError);
-            }
- 
-            console.error("Error fetching mcq questions data:", innerError);
+        setSelectedOption(selectedOption);console.error("Error fetching mcq questions data:", innerError);
             } finally {
         setIsSubmitting(false);
         setShowSubmitConfirmation(false);

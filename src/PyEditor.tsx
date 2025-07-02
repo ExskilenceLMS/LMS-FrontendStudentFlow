@@ -171,30 +171,7 @@ const decryptData = (encryptedData: string) => {
         setRunResponseTestCases(questionsWithSavedCode[initialIndex].RunResponseTestCases);
 
       } catch (innerError: any) {
-            setLoading(false);
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the python questions error:", loggingError);
-            }
- 
-            console.error("Error fetching python questions data:", innerError);
+            setLoading(false);console.error("Error fetching python questions data:", innerError);
             } 
     };
 
@@ -487,30 +464,7 @@ const handleNext = () => {
       }
     } catch (innerError: any) {
       setSuccessMessage("Error");
-      setAdditionalMessage("There was an error executing the code.");
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the python code execute error:", loggingError);
-            }
- 
-            console.error("Error fetching python code execute data:", innerError);
+      setAdditionalMessage("There was an error executing the code.");console.error("Error fetching python code execute data:", innerError);
             }
              finally {
       setProcessing(false);
@@ -554,27 +508,7 @@ const handleSubmit = async () => {
     setIsNextBtn(true);
   } catch (innerError: any) {
     setSuccessMessage("Error");
-    setAdditionalMessage("There was an error submitting the code.");
-    const errorData = innerError.response?.data || {
-      message: innerError.message,
-      stack: innerError.stack
-    };
-
-    const body = {
-      student_id: actualStudentId,
-      Email: actualEmail,
-      Name: actualName,
-      URL_and_Body: `${url}\n + ""`,
-      error: errorData.error,
-    };
-
-    try {
-      await apiClient.post(`${process.env.REACT_APP_BACKEND_URL}api/errorlog/`, body);
-    } catch (loggingError) {
-      console.error("Error logging the python code submit error:", loggingError);
-    }
-
-    console.error("Error fetching python code submit data:", innerError);
+    setAdditionalMessage("There was an error submitting the code.");console.error("Error fetching python code submit data:", innerError);
   } finally {
     setProcessing(false);
   }

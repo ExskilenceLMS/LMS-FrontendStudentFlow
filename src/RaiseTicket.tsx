@@ -98,30 +98,7 @@ const RaiseTicket: React.FC<RaiseTicketProps> = ({ show, onHide, studentId: prop
       setScreenshot(null);
       onHide();
     } catch (innerError: any) {
-            setError("Failed to submit ticket. Please try again.");
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the login error:", loggingError);
-            }
- 
-            console.error("Error fetching login data:", innerError);
+            setError("Failed to submit ticket. Please try again.");console.error("Error fetching login data:", innerError);
             }
             finally {
       setLoading(false);

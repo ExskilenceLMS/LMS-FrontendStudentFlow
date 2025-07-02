@@ -59,32 +59,9 @@ const TestSection: React.FC = () => {
           navigate("/test");
         }
       } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-                 navigate("/test");
-            } catch (loggingError) {
-                console.error("Error logging the test section error:", loggingError);
-                 navigate("/test");
-            }
- 
-            console.error("Error fetching test section data:", innerError);
-            }
+        console.error("Error fetching test section data:", innerError);
+        navigate("/test");
+      }
 
     };
 
@@ -107,30 +84,8 @@ const TestSection: React.FC = () => {
       setShowSubmitConfirmation(false);
       setShowModal(true);
     } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the submitting the test error:", loggingError);
-            }
- 
-            console.error("Error fetching submitting the test data:", innerError);
-            }
+      console.error("Error submitting test:", innerError);
+    }
   };
 
   const handleViewReport = () => {

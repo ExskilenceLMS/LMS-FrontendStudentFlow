@@ -44,32 +44,8 @@ const Calendar: React.FC = () => {
         setSpecialDates(transformedSpecialDates);
       }  
       catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName
-                
-                ,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the Calendar error:", loggingError);
-            }
- 
-            console.error("Error fetching Calendar data:", innerError);
-            }
+        console.error("Error fetching Calendar data:", innerError);
+      }
     };
     fetchData();
   }, [studentId]);

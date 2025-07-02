@@ -75,33 +75,9 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
         setQuestionData(response.data.Question);
         setHtmlEdit(response.data.Question.UserAnsHTML || '');
         setCssEdit(response.data.Question.UserAnsCSS || '');
-      } 
-      catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the HTML CSS question error:", loggingError);
-            }
- 
-            console.error("Error fetching HTML CSS question:", innerError);
-            }
-       finally {
+      } catch (error) {
+        console.error("Error fetching question data:", error);
+      } finally {
         setLoading(false);
       }
     };
@@ -596,33 +572,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
           setIsCSSSubmitted(true);
 
      
-        } 
-        catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the HTML CSS Editor error:", loggingError);
-            }
- 
-            console.error("Error in HTML CSS Editor data:", innerError);
-            }
-       finally {
+        }finally {
           setProcessing(false);
         }
       };

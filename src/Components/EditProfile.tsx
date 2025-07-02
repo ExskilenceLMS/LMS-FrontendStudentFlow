@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from "../utils/apiAuth";
 import { useNavigate } from 'react-router-dom';
@@ -94,35 +92,10 @@ const EditProfile: React.FC = () => {
       const response = await apiClient.get(url);
       setColleges(response.data);
       return response.data;
-    } 
-    catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error fetching Colleges in EditProfile data:", loggingError);
-                return {};
-            }
- 
-            console.error("Error fetching Colleges in EditProfile data:", innerError);
-            return {};
-            }
-    
+    } catch (innerError: any) {
+      console.error("Error fetching Colleges in EditProfile data:", innerError);
+      return {};
+    }
   }, [API_BASE_URL]);
 
   const fetchProfileData = useCallback(async () => {
@@ -156,33 +129,9 @@ const EditProfile: React.FC = () => {
           video: social_media.video || ''
         });
       }
-    } 
-    catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the profile error in Edit profile:", loggingError);
-            }
- 
-            console.error("Error fetching profile data in Edit profile:", innerError);
-            }
-     finally {
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+    } finally {
       setLoading(false);
     }
   }, [API_BASE_URL, studentId]);
@@ -362,33 +311,8 @@ const EditProfile: React.FC = () => {
     } 
     catch (innerError: any) {
       alert('Failed to update profile. Please try again.');
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName
-                
-                ,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the updating profile:", loggingError);
-            }
- 
-            console.error("Error updating profile:", innerError);
-            
-            }
+      console.error("Error updating profile:", innerError);
+    }
   };
 
   if (loading) {

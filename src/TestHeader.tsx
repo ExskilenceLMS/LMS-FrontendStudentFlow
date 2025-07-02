@@ -87,29 +87,7 @@ useEffect(() => {
     const { time_left } = response.data;
     setTimeInSeconds(time_left);
     sessionStorage.setItem("timer", time_left);
-  } catch (innerError:any) {
-    const errorData = innerError.response?.data || {
-      message: innerError.message,
-      stack: innerError.stack,
-    };
-
-    const body = {
-      student_id: actualStudentId,
-      Email: actualEmail,
-      Name: actualName,
-      URL_and_Body: `${url}\n + ""`,
-      error: errorData.error || errorData,
-    };
-
-    try {
-                      await getApiClient().post(
-        `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-        body
-      );
-    } catch (loggingError) {
-      console.error("Error logging the time left error:", loggingError);
-    }
-
+  } catch (innerError: any) {
     console.error("Error fetching test header data:", innerError);
   }
 };
@@ -157,30 +135,8 @@ useEffect(() => {
                 url
               );
               sessionStorage.removeItem("timer");
-            } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the submitting test error:", loggingError);
-            }
- 
-            console.error("Error fetching submitting test data:", innerError);
+            } catch (error) {
+              console.error("Error submitting test:", error);
             }
           };
 

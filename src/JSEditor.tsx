@@ -83,33 +83,9 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
         setJsEdit(response.data.Question.UserAns || '');
         setHtmlEdit(response.data.Question.html_file || '');
         setCssEdit(response.data.Question.css_file || '');
-      } 
-      catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the JS Editor error:", loggingError);
-            }
- 
-            console.error("Error fetching JS Editor question data:", innerError);
-            }
- finally {
+      } catch (error) {
+        console.error("Error fetching question data:", error);
+      } finally {
         setLoading(false);
       }
     };
@@ -411,31 +387,7 @@ const handleSubmit = async () => {
     setIsJSSubmitted(true);
 
 
-  } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the JS Editor error:", loggingError);
-            }
- 
-            console.error("Error fetching JS Editor data:", innerError);
-            } finally {
+  }finally {
     setProcessing(false);
   }
 };

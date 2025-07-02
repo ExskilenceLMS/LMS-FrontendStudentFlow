@@ -10,7 +10,6 @@ import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
 import './Courses.css';
-import ErrorLogMethod from "./ErrorLogMethod";
 import CourseImage from "../Components/images/CourseImage.png";
 
 interface Course {
@@ -118,30 +117,8 @@ const Courses: React.FC = () => {
         setCourses(courseData);
 
         setTimeout(checkScrollStatus, 100);
-      } catch (innerError: any) {
-        const errorData = innerError.response?.data || {
-          message: innerError.message,
-          stack: innerError.stack
-        };
-
-        const body = {
-          student_id: actualStudentId,
-          Email: actualEmail,
-          Name: actualName,
-          URL_and_Body: `${url}\n + ""`,
-          error: errorData.error,
-        };
-
-        try {
-          await apiClient.post(
-            `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-            body
-          );
-        } catch (loggingError) {
-          console.error("Error logging the courses error:", loggingError);
-        }
-
-        console.error("Error fetching courses data:", innerError);
+      } catch (error) {
+        console.error("Error fetching courses:", error);
       }
     };
 

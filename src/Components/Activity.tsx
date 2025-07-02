@@ -70,33 +70,8 @@ const Activity: React.FC = () => {
         const maxHourValue = Math.max(...response.data.hours.map((hour: { hours: number }) => hour.hours));
         setMaxHours(maxHourValue);
       } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName
-                
-                ,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the Activity error:", loggingError);
-            }
- 
-             console.error("Error fetching initial data:", innerError);
-          
-            }
+        console.error("Error fetching initial data:", innerError);
+      }
     };
 
     fetchData();
@@ -117,32 +92,8 @@ const Activity: React.FC = () => {
       const maxHourValue = Math.max(...response.data.hours.map((hour: { hours: number }) => hour.hours));
       setMaxHours(maxHourValue);
     } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName
-                
-                ,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the Activity error:", loggingError);
-            }
- 
-           console.error("Error fetching data for week", weekNumber, ":", innerError);
-            }
+      console.error("Error fetching data for week", weekNumber, ":", innerError);
+    }
   };
 
   const total = data ? (data.reduce((acc, curr) => acc + curr.hours, 0)).toFixed(1) : 0;

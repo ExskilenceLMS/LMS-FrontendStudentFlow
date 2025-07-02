@@ -105,30 +105,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
     } 
     catch (innerError: any) {
       setSnackbarMessage('Error sending comment');
-      setSnackbarOpen(true);
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the Detail panel error:", loggingError);
-            }
-            
-            console.error("Error fetching Detail panel data:", innerError);
+      setSnackbarOpen(true);console.error("Error fetching Detail panel data:", innerError);
             }
 finally {
       setLoading(false);

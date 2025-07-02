@@ -299,28 +299,6 @@ const fetchRoadmapData = async () => {
         setLoading(false);
         setDisablePreviousBtn(false);
 
-        const errorData = innerError.response?.data || {
-            message: innerError.message,
-            stack: innerError.stack
-        };
-
-        const body = {
-            student_id: actualStudentId,
-            Email: actualEmail,
-            Name: actualName,
-            URL_and_Body: `${url}\n + ""`,
-            error: errorData.error,
-        };
-
-        try {
-            await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-            );
-        } catch (loggingError) {
-            console.error("Error logging the roadmap data error:", loggingError);
-        }
-
         console.error("Error fetching roadmap data:", innerError);
     }
 };
@@ -343,27 +321,6 @@ const fetchRoadmapData = async () => {
         catch (innerError: any) {
             setError("Failed to load MCQ questions. Please try again later.");
             setLoading(false);
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the MCQ questions error:", loggingError);
-            }
  
             console.error("Error fetching MCQ questions data:", innerError);
             }
@@ -389,27 +346,6 @@ const fetchRoadmapData = async () => {
             setError("Failed to load coding questions. Please try again later.");
             setLoading(false);
             setDisablePreviousBtn(false);
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the coding questions error:", loggingError);
-            }
  
             console.error("Error fetching coding questions data:", innerError);
             }
@@ -449,27 +385,6 @@ const fetchRoadmapData = async () => {
                     "status": false
                 });
             } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the handle subtopic change error:", loggingError);
-            }
  
             console.error("Error fetching handle subtopic change data:", innerError);
             } finally {
@@ -720,27 +635,6 @@ const fetchRoadmapData = async () => {
                     )
                 );
             }catch (innerError: any) {
-                const errorData = innerError.response?.data || {
-                    message: innerError.message,
-                    stack: innerError.stack
-                };
-    
-                const body = {
-                    student_id: actualStudentId,
-                    Email: actualEmail,
-                    Name: actualName,
-                    URL_and_Body: `${url}\n + ""`,
-                    error: errorData.error,
-                };
-    
-                try {
-                    await getApiClient().post(
-                    `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                    body
-                    );
-                } catch (loggingError) {
-                    console.error("Error logging the submitting answer error:", loggingError);
-                }
     
                 console.error("Error fetching submitting answer data:", innerError);
                 } finally {
@@ -794,27 +688,6 @@ useEffect(() => {
                 setPdfUrl(processedUrl);
             } catch (innerError: any) {
                 setPdfError(true);
-                const errorData = innerError.response?.data || {
-                    message: innerError.message,
-                    stack: innerError.stack
-                };
-
-                const body = {
-                    student_id: actualStudentId,
-                    Email: actualEmail,
-                    Name: actualName,
-                    URL_and_Body: `${url}\n + ""`,
-                    error: errorData.error,
-                };
-
-                try {
-                    await getApiClient().post(
-                        `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                        body
-                    );
-                } catch (loggingError) {
-                    console.error("Error logging the pdf error:", loggingError);
-                }
 
                 console.error("Error fetching pdf data:", innerError);
             } finally {
@@ -847,27 +720,6 @@ useEffect(() => {
                 setVideoUrl(processedUrl);
             } catch (innerError: any) {
                 setVideoError(true);
-                const errorData = innerError.response?.data || {
-                    message: innerError.message,
-                    stack: innerError.stack
-                };
-
-                const body = {
-                    student_id: actualStudentId,
-                    Email: actualEmail,
-                    Name: actualName,
-                    URL_and_Body: `${lessonVideoUrl}\n + ""`,
-                    error: errorData.error,
-                };
-
-                try {
-                    await getApiClient().post(
-                        `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                        body
-                    );
-                } catch (loggingError) {
-                    console.error("Error logging the error:", loggingError);
-                }
 
                 console.error("Error fetching video:", innerError);
             } finally {
@@ -1252,27 +1104,6 @@ const handleNext = useCallback(async () => {
                             setDisableNextBtn(false);
                         }
                     } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging update status error:", loggingError);
-            }
  
             console.error("Error fetching update status data:", innerError);
             }
@@ -1329,27 +1160,6 @@ const handleNext = useCallback(async () => {
                             setDisableNextBtn(false);
                         }
                     } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the update status error:", loggingError);
-            }
  
             console.error("Error fetching update status data:", innerError);
             }
@@ -1417,27 +1227,6 @@ const handleNext = useCallback(async () => {
                                     setDisableNextBtn(false);
                                 }
                             } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the update status error:", loggingError);
-            }
  
             console.error("Error fetching update status data:", innerError);
             }
@@ -1500,27 +1289,6 @@ const handleNext = useCallback(async () => {
                     setDisableNextBtn(false);
                 }
             }catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the update status error:", loggingError);
-            }
  
             console.error("Error fetching update status data:", innerError);
             }
@@ -1549,27 +1317,6 @@ const handleNext = useCallback(async () => {
                     setDisableNextBtn(false);
                 }
             } catch (innerError: any) {
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await getApiClient().post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the update status error:", loggingError);
-            }
  
             console.error("Error fetching update status data:", innerError);
             }

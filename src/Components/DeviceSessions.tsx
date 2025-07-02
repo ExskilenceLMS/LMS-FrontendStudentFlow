@@ -54,30 +54,7 @@ const DeviceSessions: React.FC = () => {
       
       setError(null);
     } catch (innerError: any) {
-      setError('Failed to load your active sessions');
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the login error:", loggingError);
-            }
- 
-            console.error("Error fetching login data:", innerError);
+      setError('Failed to load your active sessions');console.error("Error fetching login data:", innerError);
             }
  finally {
       setLoading(false);
@@ -144,30 +121,7 @@ const DeviceSessions: React.FC = () => {
       }
     } 
     catch (innerError: any) {
-      setError('Failed to revoke session');
-            const errorData = innerError.response?.data || {
-                message: innerError.message,
-                stack: innerError.stack
-            };
- 
-            const body = {
-                student_id: actualStudentId,
-                Email: actualEmail,
-                Name: actualName,
-                URL_and_Body: `${url}\n + ""`,
-                error: errorData.error,
-            };
- 
-            try {
-                await apiClient.post(
-                `${process.env.REACT_APP_BACKEND_URL}api/errorlog/`,
-                body
-                );
-            } catch (loggingError) {
-                console.error("Error logging the login error:", loggingError);
-            }
- 
-            console.error("Error fetching login data:", innerError);
+      setError('Failed to revoke session');console.error("Error fetching login data:", innerError);
             }
      finally {
       setShowConfirmModal(false);
