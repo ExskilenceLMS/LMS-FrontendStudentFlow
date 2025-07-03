@@ -128,6 +128,7 @@ const SubjectRoadMap: React.FC = () => {
     let allSubtopicIdsList: string[] = [];
     const navigate = useNavigate();
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
+    const decryptedCourseId = CryptoJS.AES.decrypt(sessionStorage.getItem('CourseId')!, secretKey).toString(CryptoJS.enc.Utf8);
     const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
     const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
     const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
@@ -617,7 +618,8 @@ const fetchRoadmapData = async () => {
                 subject_id: subjectId,
                 subject: subject.split(" ")[0],
                 week_number: parseInt(weekNumber),
-                day_number: parseInt(dayNumber)
+                day_number: parseInt(dayNumber),
+                course_id: decryptedCourseId
             };
 
             setDisablePreviousBtn(true);
