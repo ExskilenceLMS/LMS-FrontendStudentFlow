@@ -55,7 +55,6 @@ const Login: React.FC = () => {
     const fetchUserProfile = async (): Promise<void> => {
       setLoading(true);
       try {
-        // console.log("🔍 Fetching Google profile data...");
         const { data } = await axios.get<GoogleUserInfo>(
           `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${user.access_token}`,
           {
@@ -82,10 +81,8 @@ const Login: React.FC = () => {
           "access_token": CryptoJS.enc.Utf8.parse(user.access_token).toString(),
         }
         
-        // console.log("📤 Sending login request to backend...");
         const url = `${process.env.REACT_APP_BACKEND_URL}api/new-login/`
         
-        // Create axios instance with activity tracking
         const axiosWithTracking = createAxiosWithActivityTracking();
 
         try {
@@ -99,16 +96,9 @@ const Login: React.FC = () => {
           sessionStorage.setItem("CourseId", encryptedCourseId);
           sessionStorage.setItem("BatchId", encryptedBatchId);
 
-          // Store access token for API authentication
           if (response.data.access_token) {
             sessionStorage.setItem("access_token", response.data.access_token);
           }
-          console.log("from login", response.data.access_token);
-          // console.log("💾 Preparing session data for IndexedDB...");
-          // Store session data in localStorage for auto-login functionality
-          
-          
-          // Store session data using simple localStorage operations
           try {
             localStorage.setItem("LMS_access_token", response.data.access_token);
             localStorage.setItem("LMS_StudentId", encryptedStudentId);
@@ -119,7 +109,6 @@ const Login: React.FC = () => {
             localStorage.setItem("LMS_Picture", encryptedPicture);
             localStorage.setItem("LMS_timestamp", Date.now().toString());
             localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
-            console.log("🎉 localStorage update completed successfully!");
           } catch (error) {
             console.error("❌ localStorage update failed:", error);
             // Continue with login even if localStorage fails
@@ -163,7 +152,6 @@ const Login: React.FC = () => {
 
     const checkExistingSession = async () => {
       const executionId = Math.random().toString(36).substr(2, 9);
-      console.log(`🚀 Session check execution started - ID: ${executionId}`);
       
       try {
         sessionCheckExecuted.current = true;
@@ -195,32 +183,17 @@ const Login: React.FC = () => {
             
             const timeSinceLastActivity = currentTime - lastActivityTime;
             
-            console.log(`🔍 Session check - Raw env var: "${rawSessionTimeout}"`);
-            console.log(`🔍 Session check - Last activity: ${new Date(lastActivityTime).toLocaleString()}`);
-            console.log(`🔍 Session check - Current time: ${new Date(currentTime).toLocaleString()}`);
-            console.log(`🔍 Session check - Time since last activity: ${Math.round(timeSinceLastActivity / 1000 / 60)} minutes`);
-            console.log(`🔍 Session check - Session timeout: ${sessionTimeoutMinutes} minutes`);
-            console.log(`🔍 Session check - Time since last activity (ms): ${timeSinceLastActivity}`);
-            console.log(`🔍 Session check - Session timeout (ms): ${sessionTimeoutMs}`);
-            console.log(`🔍 Session check - Is within timeout: ${timeSinceLastActivity <= sessionTimeoutMs}`);
             
-            // If time since last activity is within session timeout, make API call
             if (timeSinceLastActivity <= sessionTimeoutMs && lastActivityTime > 0) {
-              console.log("✅ Session is within timeout limit, making API validation");
               
-              // Validate with backend since session is within timeout
               try {
                 const axiosWithTracking = createAxiosWithActivityTracking();
                 const response = await axiosWithTracking.get(`${process.env.REACT_APP_BACKEND_URL}api/validate-session/`);
                 
                 if (response.status === 200 && isMounted) {
-                  // Check if the response has the authorized field and it's true
                   const responseData = response.data;
-                  console.log("🔍 Session validation response:", responseData);
                   
                   if (responseData.authorized === true) {
-                    console.log("✅ Session is authorized, proceeding to dashboard");
-                    // Session is valid and authorized, restore session data
                     sessionStorage.setItem("access_token", sessionData.access_token);
                     sessionStorage.setItem("StudentId", sessionData.StudentId);
                     sessionStorage.setItem("CourseId", sessionData.CourseId);
@@ -229,10 +202,8 @@ const Login: React.FC = () => {
                     sessionStorage.setItem("Name", sessionData.Name);
                     sessionStorage.setItem("Picture", sessionData.Picture);
 
-                    // Update last activity time
                     localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
 
-                    // Navigate to dashboard
                     try {
                       navigate("/Dashboard");
                     } catch (navError) {
@@ -241,8 +212,6 @@ const Login: React.FC = () => {
                     
                     return;
                   } else {
-                    console.log("❌ Session is not authorized:", responseData.message || "No authorization");
-                    // Session is not authorized, clear the data and stay on login page
                     const existingSessionData = {
                       access_token: localStorage.getItem("LMS_access_token") || "",
                       StudentId: localStorage.getItem("LMS_StudentId") || "",
@@ -274,20 +243,11 @@ const Login: React.FC = () => {
                     localStorage.removeItem("LMS_lastActivityTime");
                     return;
                   }
-                } else if (isMounted) {
-                  // API call returned non-200 status
-                  console.log("⚠️ Session validation returned non-200 status:", response.status);
-                }
+                } 
               } catch (error: any) {
                 if (isMounted) {
-                  // Backend validation failed, but don't clear data immediately
-                  // Only clear if it's a specific error that indicates session is truly invalid
-                  // console.log("⚠️ Session validation failed:", error.message);
                   
-                  // Check if it's a network error or 401/403 error
                   if (error.response?.status === 401 || error.response?.status === 403) {
-                    // console.log("🚫 Session is invalid (401/403), clearing data");
-                    // Only clear data for authentication errors
                     const existingSessionData = {
                       access_token: localStorage.getItem("LMS_access_token") || "",
                       StudentId: localStorage.getItem("LMS_StudentId") || "",
@@ -317,18 +277,11 @@ const Login: React.FC = () => {
                     localStorage.removeItem("LMS_Picture");
                     localStorage.removeItem("LMS_timestamp");
                     localStorage.removeItem("LMS_lastActivityTime");
-                  } else {
-                    // console.log("⚠️ Session validation failed due to network/backend issue, keeping data");
-                    // For other errors (network, 404, 500, etc.), keep the data
-                    return;
                   }
                 }
               }
             }
             
-            // If session timeout exceeded, skip API call
-            console.log("⏰ Session timeout exceeded, skipping API validation");
-            // Session timeout exceeded, clear the data and stay on login page
             localStorage.removeItem("LMS_access_token");
             localStorage.removeItem("LMS_StudentId");
             localStorage.removeItem("LMS_CourseId");
@@ -340,8 +293,6 @@ const Login: React.FC = () => {
             localStorage.removeItem("LMS_lastActivityTime");
             return;
           } else if (isMounted) {
-            // Session is too old, proceeding with timeout
-            // console.log("⏰ Session is too old, clearing data");
             localStorage.removeItem("LMS_access_token");
             localStorage.removeItem("LMS_StudentId");
             localStorage.removeItem("LMS_CourseId");
@@ -352,23 +303,14 @@ const Login: React.FC = () => {
             localStorage.removeItem("LMS_timestamp");
             localStorage.removeItem("LMS_lastActivityTime");
           }
-        } else if (isMounted) {
-          // No session data found
-          // console.log("📊 No session data found in localStorage");
-        }
+        } 
 
-        // Note: Removed redundant clearSessionData calls here
-        // Data is only cleared for specific authentication errors (401/403) or when session is too old
-        
       } catch (error:any) {
         if (isMounted) {
           console.error("Error checking existing session:", error);
-          // Only clear session data on critical errors
           if (error.message?.includes('network') || error.message?.includes('timeout')) {
-            // console.log("⚠️ Network/timeout error, keeping session data");
             return;
           }
-          // console.log("🚫 Critical error, clearing session data");
           localStorage.removeItem("LMS_access_token");
           localStorage.removeItem("LMS_StudentId");
           localStorage.removeItem("LMS_CourseId");
@@ -386,11 +328,10 @@ const Login: React.FC = () => {
       checkExistingSession();
     }
 
-    // Cleanup function
     return () => {
       isMounted = false;
     };
-  }, []); // Remove navigate dependency
+  }, []); 
  
   return (
     <div className='login'>

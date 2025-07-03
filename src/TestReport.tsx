@@ -191,7 +191,6 @@ const TestReport: React.FC = () => {
 
   const handleAnswerClick = (data: question) => {
     setPopupData(data);
-    console.log("Popup Data:", data);
     setShowModal(true);
   };
 

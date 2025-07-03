@@ -55,33 +55,7 @@ const Courses: React.FC = () => {
         progress: 0,
       },
       status: "Loading",
-    },
-    {
-      title: "Loading Course Title...",
-      subject: "Loading Subject...",
-      subject_id: "6",
-      color: "#B5FEB5",
-      image: CourseImage,
-      duration: "00:00",
-      progress: {
-        student_progress: 0,
-        progress: 0,
-      },
-      status: "Loading",
-    },
-    {
-      title: "Loading Course Title...",
-      subject: "Loading Subject...",
-      subject_id: "7",
-      color: "#B6BAFE",
-      image: CourseImage,
-      duration: "00:00",
-      progress: {
-        student_progress: 0,
-        progress: 0,
-      },
-      status: "Loading",
-    },
+    }
   ];
 
   const handleCourseClick = (subject_id: string, subject: string, courseTitle: string) => {

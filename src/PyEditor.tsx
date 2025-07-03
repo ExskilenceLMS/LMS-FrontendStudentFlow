@@ -388,7 +388,6 @@ const handleNext = () => {
         TestCases: questions[currentQuestionIndex].TestCases,
         Attempt: 0
       };
-      // console.log("Post data:", postData);
 
       const response = await apiClient.post(
         url,

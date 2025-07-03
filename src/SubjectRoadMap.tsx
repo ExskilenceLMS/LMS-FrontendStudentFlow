@@ -124,7 +124,6 @@ const SubjectRoadMap: React.FC = () => {
     const [showExplanation, setShowExplanation] = useState<{ [key: string]: boolean }>({});
     const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
     const [isActive, setIsActive] = useState<boolean>(true);
-    // const [currentSubTopicIndex, setCurrentSubTopicIndex] = useState(0);
     const [currentContentType, setCurrentContentType] = useState<'lesson' | 'notes' | 'mcq' | 'coding'>('lesson');
     let allSubtopicIdsList: string[] = [];
     const navigate = useNavigate();
@@ -232,19 +231,15 @@ const fetchRoadmapData = async () => {
         );
 
         allSubtopicIdsList = allSubtopicIds;
-        // // console.log("All Subtopic IDs:", allSubtopicIdsList);
 
         if (responseData.length > 0) {
             const chapter = responseData[0];
             const userSubtopicId = chapter.user_subtopic_id;
 
-            // Retrieve currentSubTopicId from session
             const currentSubTopicIdFromSession = sessionStorage.getItem("currentSubTopicId");
 
-            // Check if currentSubTopicId from session is applicable to the current day
             const isCurrentSubTopicIdValid = currentSubTopicIdFromSession && chapter.sub_topic_data.some((subtopic: SubTopic) => subtopic.subtopicid === currentSubTopicIdFromSession);
 
-            // Only update currentSubTopicId if it is not applicable to the current day
             if (!isCurrentSubTopicIdValid) {
                 sessionStorage.setItem("currentSubTopicId", variable ? responseData[0].sub_topic_data[0].subtopicid : userSubtopicId);
             }
@@ -265,10 +260,7 @@ const fetchRoadmapData = async () => {
             let currentSubTopicId = sessionStorage.getItem("currentSubTopicId");
 
             if (currentSubTopicId && unlockSubTopicId.length) {
-                // // console.log('xyz');
-                // // console.log(currentSubTopicId, unlockSubTopicId);
                 let index = unlockSubTopicId.indexOf(currentSubTopicId);
-                // // console.log(index);
                 sessionStorage.setItem("lastSubTopicIndex", index.toString());
             }
 
@@ -624,7 +616,7 @@ const fetchRoadmapData = async () => {
                 entered_ans: selectedAnswers[questionId],
                 subject_id: subjectId,
                 subject: subject.split(" ")[0],
-                week_number: weekNumber,
+                week_number: parseInt(weekNumber),
                 day_number: parseInt(dayNumber)
             };
 
@@ -680,7 +672,6 @@ useEffect(() => {
             setPdfError(false);
             setLoading(true);
             const url = `${process.env.REACT_APP_BACKEND_URL}api/media/`;
-            // console.log('url',url);
             try {
                 const response = await fetch(url, {
                     method: 'POST',
@@ -1095,7 +1086,6 @@ const handleNext = useCallback(async () => {
                             }
                         } else if (response3.data.message === "Day Completed") {
                             navigate("/SubjectOverview");
-                            // // console.log(allSubtopicIdsList);
                         } else {
                             setShowUpdateModal(true);
                             setModalMessage(response3.data.qns_status);
@@ -1151,7 +1141,6 @@ const handleNext = useCallback(async () => {
                             }
                         } else if (response3.data.message === "Day Completed") {
                             navigate("/SubjectOverview");
-                            // // console.log(allSubtopicIdsList);
                         } else {
                             setShowUpdateModal(true);
                             setModalMessage(response3.data.qns_status);
@@ -1218,7 +1207,6 @@ const handleNext = useCallback(async () => {
                                     }
                                 } else if (response3.data.message === "Day Completed") {
                                     navigate("/SubjectOverview");
-                                    // // console.log(allSubtopicIdsList);
                                 } else {
                                     setShowUpdateModal(true);
                                     setModalMessage(response3.data.qns_status);
@@ -1280,7 +1268,6 @@ const handleNext = useCallback(async () => {
                     }
                 } else if (response3.data.message === "Day Completed") {
                     navigate("/SubjectOverview");
-                    // // console.log(allSubtopicIdsList);
                 } else {
                     setShowUpdateModal(true);
                     setModalMessage(response3.data.qns_status);
@@ -1308,7 +1295,6 @@ const handleNext = useCallback(async () => {
                     setDisablePreviousBtn(false);
                 } else if (response3.data.message === "Day Completed") {
                     navigate("/SubjectOverview");
-                    // // console.log(allSubtopicIdsList);
                 } else {
                     setShowUpdateModal(true);
                     setModalMessage(response3.data.qns_status);
@@ -1325,11 +1311,8 @@ const handleNext = useCallback(async () => {
  
 
 const handlePrevious = useCallback(() => {
-    // // console.log('handleprevious')
     if (currentView === 'lesson') {
-        // // console.log('lesson')
         if (currentLessonIndex > 0) {
-            // // console.log('.0')
              handlePreviousLesson();
 
         } else if (currentSubTopicIndex > 0) {
@@ -1337,15 +1320,11 @@ const handlePrevious = useCallback(() => {
             const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
             setCurrentSubTopicIndex(prevSubTopicIndex);
             setCurrentLessonIndex(prevSubTopic.lesson ? prevSubTopic.lesson.length - 1 : 0);
-            // No need to set selectedContent for videos - they will be built dynamically
             let unlockSubTopicId = JSON.parse(sessionStorage.getItem("unlockedSubtopics") || "[]");
         let currentSubTopicId = sessionStorage.getItem("currentSubTopicId");
 
         if (currentSubTopicId && unlockSubTopicId.length) {
-            // // console.log('xyz');
-            // // console.log(currentSubTopicId, unlockSubTopicId);
             let index = unlockSubTopicId.indexOf(currentSubTopicId);
-            // // console.log(index); 
             sessionStorage.setItem("lastSubTopicIndex", Number(index-1).toString());
             sessionStorage.setItem("currentSubTopicId", unlockSubTopicId[index-1]);
         }
@@ -1579,7 +1558,6 @@ const [requestedContent, setRequestedContent] = useState<string[]>([]);
 
 useEffect(() => {
     const requestedContentTypes = sessionStorage.getItem('lastContentType') ||'';
-    // // console.log('123',requestedContentTypes);
     if ( sessionStorage.getItem('currentSubTopicId') != null && !hasFetched) {
         if (requestedContentTypes.includes('mcq') && mcqQuestions.length === 0) {
             fetchMCQQuestions(0);
