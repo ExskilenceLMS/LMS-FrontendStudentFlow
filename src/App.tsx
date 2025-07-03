@@ -138,7 +138,7 @@ function AppContent() {
         setShowLogoutWarning(true);
         setCountdown(60);
         startCountdown();
-      }, 30000); // Temporarily set to 30 seconds for testing
+      }, (parseInt(process.env.REACT_APP_SESSION_TIMEOUT_MINUTES || "2") * 60 * 1000)); // Use environment variable for session timeout
     } catch (error) {
       console.error("Error checking session data from localStorage:", error);
     }

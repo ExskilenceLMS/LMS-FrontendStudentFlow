@@ -179,7 +179,7 @@ const Login: React.FC = () => {
             const currentTime = Date.now();
             const rawSessionTimeout = process.env.REACT_APP_SESSION_TIMEOUT_MINUTES;
             const sessionTimeoutMinutes = parseInt(rawSessionTimeout || "2");
-            const sessionTimeoutMs = sessionTimeoutMinutes * 60 * 1000; // Convert to milliseconds
+            const sessionTimeoutMs = sessionTimeoutMinutes * 60 * 1000; 
             
             const timeSinceLastActivity = currentTime - lastActivityTime;
             

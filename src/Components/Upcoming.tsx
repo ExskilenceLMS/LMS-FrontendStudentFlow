@@ -65,14 +65,14 @@ const Upcoming: React.FC = () => {
         const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}/`
       try {
         const response = await apiClient.get(url);
-        if (Array.isArray(response.data)) {
-          setEvents(response.data.map((event: any) => ({
+        if (response.data && response.data.events && Array.isArray(response.data.events)) {
+          setEvents(response.data.events.map((event: any) => ({
             title: event.title,
             date: event.date,
             time: event.time,
           })));
         } else {
-          console.error("Expected array but got:", typeof response.data, response.data);
+          console.error("Expected events array but got:", typeof response.data, response.data);
           setEvents([]);
         }
       } catch (error) {
