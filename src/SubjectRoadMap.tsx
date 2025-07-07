@@ -840,7 +840,7 @@ const renderMCQContent = () => {
     }
 
     if (!currentQuestion.shuffledOptions) {
-        currentQuestion.shuffledOptions = shuffleArray([...currentQuestion.options]);
+        currentQuestion.shuffledOptions = shuffleArray(Array.isArray(currentQuestion.options) ? [...currentQuestion.options] : []);
     }
 
     const shuffledOptions = currentQuestion.shuffledOptions;
@@ -870,27 +870,12 @@ const renderMCQContent = () => {
                     <div className="p-3">
                         <div className="mb-4">
                             <div className="d-flex justify-content-between mb-3">
-                                {/* <div style={{width:'85%'}}><pre style={{ fontWeight: 'bold', fontSize: '16px', fontFamily: 'inherit' }}>{currentQuestion.question}</pre></div> */}
-                            {/* <div style={{ width: '85%' }}>
-                            <pre style={{ fontWeight: 'bold', fontSize: '16px', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
-                                {currentQuestion.question.replace(/\r/g, '\t')}
-                            </pre>
-                            </div> */}
-                            {/* <div style={{ width: '85%' }}>
-                            <pre style={{ fontWeight: 'bold', fontSize: '16px', fontFamily: 'monospace' }}>
-                                {currentQuestion.question
-                                .replace(/\r\n/g, '\n')                    
-                                .replace(/ +\n/g, '\n')                    
-                                .replace(/\n(?!\n)(?!if|elif|else)/g, '\n\t') 
-                                }
-                            </pre>
-                            </div> */}
-                            <pre style={{
-                                whiteSpace: 'pre-wrap',
-                                wordWrap: 'break-word',
-                                overflowWrap: 'break-word',
-                                width: '100%'
-                            }}>{currentQuestion.question}</pre>
+                                <pre style={{
+                                    whiteSpace: 'pre-wrap',
+                                    wordWrap: 'break-word',
+                                    overflowWrap: 'break-word',
+                                    width: '100%'
+                                }}>{currentQuestion.question}</pre>
                                 <div>Score : {score}</div>
                             </div>
 
@@ -965,19 +950,21 @@ const renderMCQContent = () => {
 
     const renderCodingContent = () => {
         if (loading) {
-            <div className="d-flex justify-content-center align-items-center h-100">
-                <Skeleton height={50} />
-                <Skeleton count={3} height={50} />
-            </div>
-            return ;
+            return (
+                <div className="d-flex justify-content-center align-items-center h-100">
+                    <Skeleton height={50} />
+                    <Skeleton count={3} height={50} />
+                </div>
+            );
         }
 
-        if (error || !codingQuestions.length) {
-            <div className="d-flex justify-content-center align-items-center h-100">
-                <Skeleton height={50} />
-                <Skeleton count={3} height={50} />
-            </div>
-            return ;
+        if (error || !codingQuestions || !codingQuestions.length) {
+            return (
+                <div className="d-flex justify-content-center align-items-center h-100">
+                    <Skeleton height={50} />
+                    <Skeleton count={3} height={50} />
+                </div>
+            );
         }
 
         return (
@@ -989,7 +976,7 @@ const renderMCQContent = () => {
                                 <div className="d-flex align-items-start">
                                     <span className="me-2">{question.id}.</span>
                                     <span style={{ wordBreak: 'break-word' }}>
-                                        {question.question.length >
+                                        {question.question && question.question.length >
                                             (window.innerWidth < 600
                                             ? 30
                                             : window.innerWidth < 1024
@@ -1005,7 +992,7 @@ const renderMCQContent = () => {
                                                 ? 80
                                                 : 100
                                             ) + "..."
-                                            : question.question}
+                                            : question.question || "No question text available"}
                                         </span>
                                 </div>
                             </div>
@@ -1319,7 +1306,7 @@ const handleNext = useCallback(async () => {
         }
     }
     setDisableStatusNextBtn(false);
-}, [currentView, currentLessonIndex, currentNotesIndex, currentMCQIndex, chapters, currentSubTopicIndex, studentId, subject, subjectId, dayNumber, weekNumber]);
+}, [currentView, currentLessonIndex, currentNotesIndex, currentMCQIndex, chapters, currentSubTopicIndex]);
  
 
 const handlePrevious = useCallback(() => {
@@ -1392,7 +1379,7 @@ const handlePrevious = useCallback(() => {
             }
         }
     }
-}, [currentView, currentLessonIndex, currentNotesIndex, currentMCQIndex, chapters, currentSubTopicIndex]);
+}, [currentView, currentLessonIndex, currentNotesIndex, currentMCQIndex, chapters, currentSubTopicIndex, handlePreviousLesson, handlePreviousNotes, handlePreviousMCQ, handleViewChange, mcqQuestions.length]);
 
     const SidebarComponent = () => {
         if (error || !chapters.length) {

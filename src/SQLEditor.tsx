@@ -113,7 +113,7 @@ const SQLEditor: React.FC = () => {
           url
         );
 
-        const questionsWithSavedCode = response.data.map((q: Question) => {
+        const questionsWithSavedCode = response.data.questions.map((q: Question) => {
           const savedCodeKey = getUserCodeKey(q.Qn_name);
           const savedCode = sessionStorage.getItem(savedCodeKey);
 
