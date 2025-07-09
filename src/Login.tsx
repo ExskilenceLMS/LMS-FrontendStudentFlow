@@ -34,6 +34,7 @@ const Login: React.FC = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [email] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [verifyingSession, setVerifyingSession] = useState<boolean>(false);
   const [showAlert, setShowAlert] = useState<boolean>(false);
   const [alertMessage, setAlertMessage] = useState<string>('');
   const sessionCheckExecuted = useRef<boolean>(false);
@@ -154,6 +155,7 @@ const Login: React.FC = () => {
       const executionId = Math.random().toString(36).substr(2, 9);
       
       try {
+        setVerifyingSession(true);
         sessionCheckExecuted.current = true;
         
         const sessionData = {
@@ -321,6 +323,10 @@ const Login: React.FC = () => {
           localStorage.removeItem("LMS_timestamp");
           localStorage.removeItem("LMS_lastActivityTime");
         }
+      } finally {
+        if (isMounted) {
+          setVerifyingSession(false);
+        }
       }
     };
 
@@ -356,6 +362,10 @@ const Login: React.FC = () => {
                   {loading ? (
                     <div className="d-flex justify-content-center text-center align-items-center">
                       <Spinner color="#0d6efd" size="sm" className='me-2' /> Signing in...
+                    </div>
+                  ) : verifyingSession ? (
+                    <div className="d-flex justify-content-center text-center align-items-center">
+                      <Spinner color="#0d6efd" size="sm" className='me-2' /> Verifying...
                     </div>
                   ) : (
                     <button 

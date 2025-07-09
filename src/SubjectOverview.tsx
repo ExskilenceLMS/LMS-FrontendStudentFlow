@@ -56,7 +56,7 @@ const SubjectOverview: React.FC = () => {
  
   useEffect(() => {
     const fetchDataFromAPI = async () => {
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/roadmap/${studentId}/${courseId}/${subjectId}/`;
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/roadmap/${studentId}/${courseId}/${subjectId}`;
       try {
         setLoading(true);
         const response = await getApiClient().get(url);

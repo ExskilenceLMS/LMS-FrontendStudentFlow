@@ -39,7 +39,7 @@ const Upcoming: React.FC = () => {
 
   useEffect(() => {
     const fetchDiscussions = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}/`
+      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}`
       try {
         const response = await apiClient.get(url);
         if (response.data && response.data.sessions && Array.isArray(response.data.sessions)) {
@@ -62,7 +62,7 @@ const Upcoming: React.FC = () => {
     };
 
     const fetchEvents = async () => {
-        const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}/`
+        const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}`
       try {
         const response = await apiClient.get(url);
         if (response.data && response.data.events && Array.isArray(response.data.events)) {

@@ -68,7 +68,7 @@ const Courses: React.FC = () => {
 
   useEffect(() => {
     const fetchCourses = async () => {
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}/`;
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}`;
       try {
         const response = await apiClient.get(url);
 

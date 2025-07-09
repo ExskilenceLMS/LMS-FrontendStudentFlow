@@ -73,7 +73,7 @@ function Progress() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}/`
+      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}`
       try {
         const response = await apiClient.get<ApiResponse>(
           url
