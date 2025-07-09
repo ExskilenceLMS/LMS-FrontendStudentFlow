@@ -75,36 +75,36 @@ useEffect(() => {
     )
     .join(' > '), [pathSegments]);
 
-  useEffect(() => {
-    isMounted.current = true;
-    const currentPath = location.pathname;
-    if (studentId && testId  && !testCompleted && (currentPath === '/test-section' || currentPath === '/mcq-temp' || currentPath === '/coding-temp')) {
-      const fetchTimeLeft = async () => {
-  const url = `${process.env.REACT_APP_BACKEND_URL}api/student/duration/${studentId}/${testId}/`;
+//   useEffect(() => {
+//     isMounted.current = true;
+//     const currentPath = location.pathname;
+//     if (studentId && testId  && !testCompleted && (currentPath === '/test-section' || currentPath === '/mcq-temp' || currentPath === '/coding-temp')) {
+//       const fetchTimeLeft = async () => {
+//   const url = `${process.env.REACT_APP_BACKEND_URL}api/student/duration/${studentId}/${testId}/`;
 
-  try {
-            const response = await getApiClient().get(url);
-    const { time_left } = response.data;
-    setTimeInSeconds(time_left);
-    sessionStorage.setItem("timer", time_left);
-  } catch (innerError: any) {
-    console.error("Error fetching test header data:", innerError);
-  }
-};
+//   try {
+//             const response = await getApiClient().get(url);
+//     const { time_left } = response.data;
+//     setTimeInSeconds(time_left);
+//     sessionStorage.setItem("timer", time_left);
+//   } catch (innerError: any) {
+//     console.error("Error fetching test header data:", innerError);
+//   }
+// };
 
 
-      if (isMounted.current) {
-        fetchTimeLeft();
-      }
+//       if (isMounted.current) {
+//         fetchTimeLeft();
+//       }
 
-      const intervalId = setInterval(fetchTimeLeft, 60000);
+//       const intervalId = setInterval(fetchTimeLeft, 60000);
 
-      return () => {
-        clearInterval(intervalId);
-        isMounted.current = false;
-      };
-    }
-  }, [studentId, testId, location.pathname, testCompleted]);
+//       return () => {
+//         clearInterval(intervalId);
+//         isMounted.current = false;
+//       };
+//     }
+//   }, [studentId, testId, location.pathname, testCompleted]);
 
 useEffect(() => {
   if (timeInSeconds > 0 && !testCompleted) {

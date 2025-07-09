@@ -20,10 +20,14 @@ const TestIntroduction: React.FC = () => {
   const encryptedSubjectId = sessionStorage.getItem("SubjectId") || "";
   const decryptedSubjectId = CryptoJS.AES.decrypt(encryptedSubjectId!, secretKey).toString(CryptoJS.enc.Utf8);
   const subjectId = decryptedSubjectId;
+  const [sectionData, setSectionData] = useState<any>(null);
   const navigate = useNavigate();
   const [duration, setDuration] = useState<string>("");
   const [sectionCount, setSectionCount] = useState({ section_1: 0, section_2: 0 });
   const [loading, setLoading] = useState<boolean>(true);
+  const [sectionCount1, setSectionCount1] = useState<number>(0);
+  const [sectionCount2, setSectionCount2] = useState<number>(0);
+  const [testDuration, setTestDuration] = useState<number>(0);
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
@@ -33,12 +37,24 @@ const TestIntroduction: React.FC = () => {
     const fetchData = async () => {
       if (testId && studentId) {
         setLoading(true);
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instuction/${studentId}/${testId}/`;
+        // const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instuction/${studentId}/${testId}/`;
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instruction/${studentId}/${"Test1"}/`;
 
         try {
           const response = await apiClient.get(url);
           setDuration(response.data.duration);
           setSectionCount(response.data.section_count);
+          setSectionCount1(response.data.mcq_section_count);
+          setSectionCount2(response.data.coding_section_count);
+          setTestDuration(response.data.test_duration_minutes);
+
+          const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${studentId}/${"Test1"}/`;
+          const response1 = await apiClient.get(url1);
+          console.log(response1.data);
+          setSectionData(response1.data);
+          console.log(JSON.stringify(response1.data));
+          const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response1.data), secretKey).toString();
+          sessionStorage.setItem("sectionData", encryptedSectionData);
         } catch (innerError: any) {
           console.error("Error fetching test instruction data:", innerError);
         } finally {
@@ -50,9 +66,19 @@ const TestIntroduction: React.FC = () => {
     fetchData();
   }, [testId, studentId, navigate]);
 
-  const handleStartTest = () => {
+  const handleStartTest = async () => {
     // sessionStorage.setItem("timer", duration);
-    navigate("/test-section", { state: { testId } });
+    // api/student/test/start/25EABCXIS001/Test1/
+    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/start/${studentId}/${"Test1"}/`;
+    const response = await apiClient.patch(url);
+    console.log(response.data);
+    const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response.data), secretKey).toString();
+    sessionStorage.setItem("sectionData", encryptedSectionData);
+    if (response.data.status === "completed") {
+      navigate("/test-report");
+    } else {
+      navigate("/test-section", { state: { sectionData } });
+    }
   };
 
   return (
@@ -102,7 +128,7 @@ const TestIntroduction: React.FC = () => {
                   />
                 </div>
                 <div className="ms-2">
-                  <p className="m-0 fs-5 fw-bold">{sectionCount.section_1}</p>
+                  <p className="m-0 fs-5 fw-bold">{sectionCount1}</p>
                   <p className="m-0">questions to be solved in section 1</p>
                 </div>
               </div>
@@ -115,7 +141,7 @@ const TestIntroduction: React.FC = () => {
                   />
                 </div>
                 <div className="ms-2">
-                  <p className="m-0 fs-5 fw-bold">{sectionCount.section_2}</p>
+                  <p className="m-0 fs-5 fw-bold">{sectionCount2}</p>
                   <p className="m-0">questions to be solved in section 2</p>
                 </div>
               </div>

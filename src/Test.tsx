@@ -170,6 +170,11 @@ const Test: React.FC = () => {
       navigate("/test-report");
     }
   };
+  const handleTest1 = () => {
+   const encryptedTestId = CryptoJS.AES.encrypt("Test1", process.env.REACT_APP_SECRET_KEY || '').toString();
+    sessionStorage.setItem("TestId", encryptedTestId);
+    navigate("/test-introduction");
+  };
 
   const convertTo24HourFormat = (timeStr: string) => {
     const [time, modifier] = timeStr.split(' ');
@@ -367,6 +372,7 @@ const isTestTimeMatch = (test: TestDetail) => {
                             </tr>
                           )}
                         </tbody>
+                        <button className="btn border-black btn-sm" onClick={() => handleTest1()}>Test1</button>
                       </table>
                     </div>
                   )}

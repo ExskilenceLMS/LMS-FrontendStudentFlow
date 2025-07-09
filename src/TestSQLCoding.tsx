@@ -30,6 +30,23 @@ interface Question {
   entered_ans: string;
   Query: string;
   user_answer: string;
+  question_data?: { 
+    Qn: string;
+    Ans: string;
+    Expl: any[];
+    Name: string;
+    Qnte: string;
+    Qnty: string;
+    Tags: any[];
+    test: any[];
+    Hints: any[];
+    Level: string;
+    Table: string;
+    CreatedOn: string;
+    TestCases: TestCase[];
+    MultiSelect: number;
+    ExpectedOutput: Data[];
+  };
 }
 
 const TestSQLCoding: React.FC = () => {
@@ -92,12 +109,13 @@ const TestSQLCoding: React.FC = () => {
   };
 
   useEffect(() => {
-    const fetchQuestions = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/${studentId}/${testId}/coding/`
+    // Get test data from location.state (passed from TestSection)
+    const testData = (location.state as any)?.sectionData;
+    
+    if (testData && testData.qns_data && testData.qns_data.coding) {
       try {
-        const response = await getApiClient().get(url);
-
-        const questionsWithSavedCode = response.data.qns_data.coding.map((q: Question) => {
+        // Use the coding questions from the test data
+        const codingQuestions = testData.qns_data.coding.map((q: Question) => {
           const savedCodeKey = getUserCodeKey(q.Qn_name);
           const savedCode = sessionStorage.getItem(savedCodeKey);
 
@@ -108,49 +126,51 @@ const TestSQLCoding: React.FC = () => {
           return q;
         });
 
-        setQuestions(questionsWithSavedCode);
-        setAvailableTables(response.data.tables);
+        setQuestions(codingQuestions);
+        // For now, use empty tables array - you might need to modify this based on your data structure
+        setAvailableTables([]);
 
         const urlParams = new URLSearchParams(location.search);
         const indexParam = urlParams.get('index');
         const initialIndex = indexParam ? parseInt(indexParam, 10) : 0;
 
         setCurrentQuestionIndex(initialIndex);
-        setStatus(questionsWithSavedCode[initialIndex].status);
-        setEnteredAns(questionsWithSavedCode[initialIndex].entered_ans);
+        setStatus(codingQuestions[initialIndex].status);
+        setEnteredAns(codingQuestions[initialIndex].entered_ans);
 
-        const savedCodeKey = getUserCodeKey(questionsWithSavedCode[initialIndex].Qn_name);
+        const savedCodeKey = getUserCodeKey(codingQuestions[initialIndex].Qn_name);
         const savedCode = sessionStorage.getItem(savedCodeKey);
-        setSqlQuery(savedCode !== null ? decryptData(savedCode) : questionsWithSavedCode[initialIndex].user_answer);
+        setSqlQuery(savedCode !== null ? decryptData(savedCode) : codingQuestions[initialIndex].user_answer);
 
-        if (response.data.qns_data.coding.length > 0) {
-          initializeQuestionData(questionsWithSavedCode[initialIndex], response.data.tables);
-        }
-      } 
-      catch (innerError: any) {navigate("/test");
-            console.error("Error fetching test sql coding data:", innerError);
+        if (codingQuestions.length > 0) {
+          // Initialize question data using the question_data structure
+          const question = codingQuestions[initialIndex];
+          setExpectedOutput(question.ExpectedOutput || []);
+          setTestCases(question.TestCases || []);
+          
+          // Set up table data if available
+          if (question.question_data && question.question_data.TestCases) {
+            const testCaseData = question.question_data.TestCases.find((tc: any) => Array.isArray(tc.Testcase));
+            if (testCaseData && Array.isArray(testCaseData.Testcase)) {
+              setTableData(testCaseData.Testcase);
+              setTableName(question.question_data.Table || question.Table || "Table");
             }
-      finally {
+          }
+        }
+      } catch (error) {
+        console.error("Error processing coding questions:", error);
+        navigate("/test-section");
+      } finally {
         setLoading(false);
       }
-    };
-
-    fetchQuestions();
-  }, [location.search]);
-
-  const initializeQuestionData = (question: Question, tables: { tab_name: string; data: Data[] }[]) => {
-    const initialTable = tables.find((table: any) =>
-      table.tab_name === (question.Tables?.[0]?.tab_name || question.Table)
-    ) || tables[0];
-
-    if (initialTable) {
-      setTableData(initialTable.data || []);
-      setTableName(initialTable.tab_name);
+    } else {
+      // If no test data available, redirect back to test section
+      console.error("No coding test data found, redirecting to test section");
+      navigate('/test-section');
     }
+  }, [location.search, location.state, navigate]);
 
-    setExpectedOutput(question.ExpectedOutput || []);
-    setTestCases(question.TestCases || []);
-  };
+
 
   const handleQuestionChange = (index: number) => {
   setIsRunBtnClicked(false);
@@ -181,17 +201,35 @@ const TestSQLCoding: React.FC = () => {
   setIsSubmitted(isSubmitted);
 
   const question = questions[index];
-  const initialTable = availableTables.find((table: any) =>
-    table.tab_name === (question.Tables?.[0]?.tab_name || question.Table)
-  ) || availableTables[0];
+  
+  // Set up data from question_data structure
+  if (question.question_data) {
+    setExpectedOutput(question.question_data.ExpectedOutput || question.ExpectedOutput || []);
+    setTestCases(question.question_data.TestCases || question.TestCases || []);
+    
+    // Set up table data if available
+    const testCaseData = question.question_data.TestCases?.find((tc: any) => Array.isArray(tc.Testcase));
+    if (testCaseData && Array.isArray(testCaseData.Testcase)) {
+      setTableData(testCaseData.Testcase);
+      setTableName(question.question_data.Table || question.Table || "Table");
+    } else {
+      setTableData([]);
+      setTableName(question.question_data.Table || question.Table || "Table");
+    }
+  } else {
+    // Fallback to original structure
+    const initialTable = availableTables.find((table: any) =>
+      table.tab_name === (question.Tables?.[0]?.tab_name || question.Table)
+    ) || availableTables[0];
 
-  if (initialTable) {
-    setTableData(initialTable.data || []);
-    setTableName(initialTable.tab_name);
+    if (initialTable) {
+      setTableData(initialTable.data || []);
+      setTableName(initialTable.tab_name);
+    }
+
+    setExpectedOutput(question.ExpectedOutput || []);
+    setTestCases(question.TestCases || []);
   }
-
-  setExpectedOutput(question.ExpectedOutput || []);
-  setTestCases(question.TestCases || []);
 
   setRunResponseTable([]);
   setRunResponseTestCases([]);
@@ -213,7 +251,7 @@ const TestSQLCoding: React.FC = () => {
 
     setIsNextBtn(false);
     if (currentQuestionIndex === questions.length - 1) {
-      navigate('/test-section');
+      handleTestSectionPage();
     } else {
       const nextIndex = (currentQuestionIndex + 1) % questions.length;
       setCurrentQuestionIndex(nextIndex);
@@ -234,17 +272,34 @@ const TestSQLCoding: React.FC = () => {
 
       setEnteredAns(questions[nextIndex].entered_ans);
 
-      const initialTable = availableTables.find((table: any) =>
-        table.tab_name === (question.Tables?.[0]?.tab_name || question.Table)
-      ) || availableTables[0];
+      // Set up data from question_data structure
+      if (question.question_data) {
+        setExpectedOutput(question.question_data.ExpectedOutput || question.ExpectedOutput || []);
+        setTestCases(question.question_data.TestCases || question.TestCases || []);
+        
+        // Set up table data if available
+        const testCaseData = question.question_data.TestCases?.find((tc: any) => Array.isArray(tc.Testcase));
+        if (testCaseData && Array.isArray(testCaseData.Testcase)) {
+          setTableData(testCaseData.Testcase);
+          setTableName(question.question_data.Table || question.Table || "Table");
+        } else {
+          setTableData([]);
+          setTableName(question.question_data.Table || question.Table || "Table");
+        }
+      } else {
+        // Fallback to original structure
+        const initialTable = availableTables.find((table: any) =>
+          table.tab_name === (question.Tables?.[0]?.tab_name || question.Table)
+        ) || availableTables[0];
 
-      if (initialTable) {
-        setTableData(initialTable.data || []);
-        setTableName(initialTable.tab_name);
+        if (initialTable) {
+          setTableData(initialTable.data || []);
+          setTableName(initialTable.tab_name);
+        }
+
+        setExpectedOutput(question.ExpectedOutput || []);
+        setTestCases(question.TestCases || []);
       }
-
-      setExpectedOutput(question.ExpectedOutput || []);
-      setTestCases(question.TestCases || []);
 
       setRunResponseTable([]);
       setRunResponseTestCases([]);
@@ -390,7 +445,12 @@ const TestSQLCoding: React.FC = () => {
 
   const handleTestSectionPage = () => {
     sessionStorage.setItem("codingCurrentQuestionIndex", currentQuestionIndex.toString());
-    navigate('/test-section');
+    // Navigate back to test section with the same data
+    navigate('/test-section', { 
+      state: { 
+        sectionData: (location.state as any)?.sectionData 
+      } 
+    });
   };
 
   if (loading) {
@@ -436,7 +496,7 @@ const TestSQLCoding: React.FC = () => {
                   <div className="col-5 lg-8 bg-white " style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
                     <div className="bg-white" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
                       <div className="p-3 flex-grow-1 overflow-auto" >
-                        <p>{questions[currentQuestionIndex]?.Qn}</p>
+                        <p>{questions[currentQuestionIndex]?.question_data?.Qn || questions[currentQuestionIndex]?.Qn || "Question not available"}</p>
                       </div>
                     </div>
                     <div className="bg-white" style={{ height: "50%", backgroundColor: "#E5E5E533" }}>

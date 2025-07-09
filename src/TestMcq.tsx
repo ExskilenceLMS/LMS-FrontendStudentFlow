@@ -4,22 +4,43 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
 
+interface QuestionData {
+  Tags: string[];
+  level: string;
+  options: string[];
+  Template: number;
+  question: string;
+  topic_id: string;
+  CreatedBy: string;
+  subject_id: string;
+  Explanation: string;
+  subtopic_id: string;
+  correct_answer: string;
+}
+
 interface Question {
+  Qn_name: string;
+  Qn: string;
+  Level: string;
+  question_type: string;
+  tags: string;
+  question_data: QuestionData;
+  status?: string;
+  user_answer?: string;
+  question_status?: string;
+  // Additional properties for compatibility
+  question: string;
+  options: string[];
+  correct_answer: string;
   level: string;
   CreatedBy: string;
   subject_id: string;
   topic_id: string;
   subtopic_id: string;
-  question: string;
-  options: string[];
-  correct_answer: string;
   Tags: string[];
   Template: string;
   Explanation: string;
   LastUpdated: string;
-  Qn_name: string;
-  question_status: string;
-  user_answer?: string;
 }
 
 const TestMcq: React.FC = () => {
@@ -46,45 +67,97 @@ const TestMcq: React.FC = () => {
   const [showSkipConfirmation, setShowSkipConfirmation] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
-  const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
- 
- 
+
+  // Encryption/Decryption functions for sessionStorage
+  const getUserAnswerKey = (qnName: string) => {
+    return `userAnswer_${qnName}`;
+  };
+
+  const encryptData = (data: string): string => {
+    return CryptoJS.AES.encrypt(data, secretKey).toString();
+  };
+
+  const decryptData = (encryptedData: string): string => {
+    const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey);
+    return bytes.toString(CryptoJS.enc.Utf8);
+  };
+
   useEffect(() => {
-    const fetchQuestions = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/${studentId}/${testId}/mcq/`
-      try {
-        const response = await apiClient.get(url);
-        const shuffledQuestions = response.data.qns_data.mcq.map((q: Question) => ({
-          ...q,
-          options: shuffleArray(q.options)
-        }));
-        setQuestions(shuffledQuestions);
-        setAnsweredQuestions(Array(shuffledQuestions.length).fill(null));
-        setSkippedQuestions(Array(shuffledQuestions.length).fill(false));
+    // Get test data from location.state (passed from TestSection)
+    const testData = (location.state as any)?.sectionData;
+    
+    if (testData && testData.qns_data && testData.qns_data.mcq) {
+      // Use the MCQ questions from the test data
+      const mcqQuestions = testData.qns_data.mcq.map((q: Question) => ({
+        ...q,
+        options: q.question_data.options ? shuffleArray(q.question_data.options) : [],
+        question: q.question_data.question || q.Qn,
+        correct_answer: q.question_data.correct_answer,
+        level: q.question_data.level || q.Level,
+        CreatedBy: q.question_data.CreatedBy,
+        subject_id: q.question_data.subject_id,
+        topic_id: q.question_data.topic_id,
+        subtopic_id: q.question_data.subtopic_id,
+        Tags: q.question_data.Tags || [],
+        Template: q.question_data.Template?.toString() || "1",
+        Explanation: q.question_data.Explanation || "",
+        LastUpdated: "",
+        question_status: q.status || "Pending"
+      }));
 
-        const urlParams = new URLSearchParams(location.search);
-        const indexParam = urlParams.get('index');
-        if (indexParam !== null) {
-          setCurrentQuestion(parseInt(indexParam, 10));
+      setQuestions(mcqQuestions);
+      
+      // Initialize answered questions with encrypted data from sessionStorage
+      const initialAnswers = Array(mcqQuestions.length).fill(null);
+      mcqQuestions.forEach((q: Question, index: number) => {
+        const answerKey = getUserAnswerKey(q.Qn_name);
+        const encryptedAnswer = sessionStorage.getItem(answerKey);
+        if (encryptedAnswer) {
+          try {
+            const decryptedAnswer = decryptData(encryptedAnswer);
+            initialAnswers[index] = decryptedAnswer;
+          } catch (error) {
+            console.error("Error decrypting answer:", error);
+          }
         }
+      });
+      
+      setAnsweredQuestions(initialAnswers);
+      setSkippedQuestions(Array(mcqQuestions.length).fill(false));
 
-        setLoading(false);
-      } 
-      catch (innerError: any) {
-        setLoading(false);console.error("Error fetching MCQ questions data:", innerError);
-            }
-    };
+      // Get the question index from URL params
+      const urlParams = new URLSearchParams(location.search);
+      const indexParam = urlParams.get('index');
+      if (indexParam !== null) {
+        setCurrentQuestion(parseInt(indexParam, 10));
+      }
 
-    fetchQuestions();
-  }, [location.search]);
+      setLoading(false);
+    } else {
+      // If no test data available, redirect back to test section
+      console.error("No test data found, redirecting to test section");
+      navigate('/test-section');
+    }
+  }, [location.search, location.state, navigate]);
 
   useEffect(() => {
     if (questions.length > 0) {
-      setSelectedOption(questions[currentQuestion].user_answer || null);
+      // Check for saved encrypted answer first
+      const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
+      const encryptedAnswer = sessionStorage.getItem(answerKey);
+      if (encryptedAnswer) {
+        try {
+          const decryptedAnswer = decryptData(encryptedAnswer);
+          setSelectedOption(decryptedAnswer);
+        } catch (error) {
+          console.error("Error decrypting answer:", error);
+          setSelectedOption(answeredQuestions[currentQuestion] || null);
+        }
+      } else {
+        setSelectedOption(answeredQuestions[currentQuestion] || null);
+      }
     }
-  }, [currentQuestion, questions]);
+  }, [currentQuestion, questions, answeredQuestions]);
 
   const shuffleArray = (array: any[]) => {
     const shuffledArray = [...array];
@@ -96,7 +169,15 @@ const TestMcq: React.FC = () => {
   };
 
   const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedOption(event.target.value);
+    const value = event.target.value;
+    setSelectedOption(value);
+    
+    // Encrypt and store the answer in sessionStorage
+    if (questions[currentQuestion]?.Qn_name) {
+      const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
+      const encryptedAnswer = encryptData(value);
+      sessionStorage.setItem(answerKey, encryptedAnswer);
+    }
   };
 
   const handleNext = () => {
@@ -111,6 +192,13 @@ const TestMcq: React.FC = () => {
     if (selectedOption) {
       setIsSubmitting(true);
 
+      // Encrypt and store the answer in sessionStorage
+      if (questions[currentQuestion]?.Qn_name) {
+        const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
+        const encryptedAnswer = encryptData(selectedOption);
+        sessionStorage.setItem(answerKey, encryptedAnswer);
+      }
+
       // Optimistic update
       const newAnsweredQuestions = [...answeredQuestions];
       newAnsweredQuestions[currentQuestion] = selectedOption;
@@ -124,19 +212,16 @@ const TestMcq: React.FC = () => {
           test_id: testId,
           correct_ans: questions[currentQuestion].correct_answer,
           entered_ans: selectedOption,
-          subject_id: subjectId,
-          subject: subject,
-          week_number: 1,
-          day_number: 1
+          subject_id: subjectId
         });
       } 
       catch (innerError: any) {
-
         const revertedAnsweredQuestions = [...answeredQuestions];
         revertedAnsweredQuestions[currentQuestion] = null;
         setAnsweredQuestions(revertedAnsweredQuestions);
-        setSelectedOption(selectedOption);console.error("Error fetching mcq questions data:", innerError);
-            } finally {
+        setSelectedOption(selectedOption);
+        console.error("Error submitting MCQ answer:", innerError);
+      } finally {
         setIsSubmitting(false);
         setShowSubmitConfirmation(false);
       }
@@ -167,14 +252,33 @@ const TestMcq: React.FC = () => {
 
   const handleQuestionClick = (index: number) => {
     setCurrentQuestion(index);
-    setSelectedOption(answeredQuestions[index] || null);
-
+    
+    // Check for encrypted answer in sessionStorage first
+    const answerKey = getUserAnswerKey(questions[index].Qn_name);
+    const encryptedAnswer = sessionStorage.getItem(answerKey);
+    if (encryptedAnswer) {
+      try {
+        const decryptedAnswer = decryptData(encryptedAnswer);
+        setSelectedOption(decryptedAnswer);
+      } catch (error) {
+        console.error("Error decrypting answer:", error);
+        setSelectedOption(answeredQuestions[index] || null);
+      }
+    } else {
+      setSelectedOption(answeredQuestions[index] || null);
+    }
+    
     sessionStorage.setItem("mcqCurrentQuestionIndex", index.toString());
   };
 
   const handleTestSectionPage = () => {
     sessionStorage.setItem("mcqCurrentQuestionIndex", currentQuestion.toString());
-    navigate('/test-section');
+    // Navigate back to test section with the same data
+    navigate('/test-section', { 
+      state: { 
+        sectionData: (location.state as any)?.sectionData 
+      } 
+    });
   };
 
   if (loading) {
@@ -206,6 +310,19 @@ const TestMcq: React.FC = () => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="container-fluid p-0 d-flex justify-content-center align-items-center" style={{ height: "100vh", backgroundColor: "#f2eeee" }}>
+        <div className="text-center">
+          <h4>No MCQ questions available</h4>
+          <button className="btn btn-primary mt-3" onClick={handleTestSectionPage}>
+            Back to Test Section
+          </button>
         </div>
       </div>
     );
@@ -257,6 +374,12 @@ const TestMcq: React.FC = () => {
                               onClick={() => {
                                 if (!answeredQuestions[currentQuestion] && !skippedQuestions[currentQuestion] && questions[currentQuestion].question_status !== "Submitted") {
                                   setSelectedOption(option);
+                                  // Encrypt and store the answer in sessionStorage
+                                  if (questions[currentQuestion]?.Qn_name) {
+                                    const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
+                                    const encryptedAnswer = encryptData(option);
+                                    sessionStorage.setItem(answerKey, encryptedAnswer);
+                                  }
                                 }
                               }}
                             />
@@ -264,6 +387,12 @@ const TestMcq: React.FC = () => {
                               onClick={() => {
                                 if (!answeredQuestions[currentQuestion] && !skippedQuestions[currentQuestion] && questions[currentQuestion].question_status !== "Submitted") {
                                   setSelectedOption(option);
+                                  // Encrypt and store the answer in sessionStorage
+                                  if (questions[currentQuestion]?.Qn_name) {
+                                    const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
+                                    const encryptedAnswer = encryptData(option);
+                                    sessionStorage.setItem(answerKey, encryptedAnswer);
+                                  }
                                 }
                               }}>{option}</label>
                           </div>
