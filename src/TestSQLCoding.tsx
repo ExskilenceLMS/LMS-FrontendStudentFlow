@@ -104,7 +104,7 @@ const TestSQLCoding: React.FC = () => {
 
   const decryptData = (encryptedData: string): string => {
     try {
-      const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey);
+    const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey);
       const decrypted = bytes.toString(CryptoJS.enc.Utf8);
       return decrypted || "";
     } catch (error) {
@@ -149,68 +149,68 @@ const TestSQLCoding: React.FC = () => {
 
   useEffect(() => {
     const initializeData = async () => {
-      // Get test data from location.state (passed from TestSection)
-      const testData = (location.state as any)?.sectionData;
-      
-      if (testData && testData.qns_data && testData.qns_data.coding) {
-        try {
+    // Get test data from location.state (passed from TestSection)
+    const testData = (location.state as any)?.sectionData;
+    
+    if (testData && testData.qns_data && testData.qns_data.coding) {
+      try {
           console.log('testData.qns_data.coding',testData.qns_data.coding);
-          // Use the coding questions from the test data
-          const codingQuestions = testData.qns_data.coding.map((q: Question) => {
-            const savedCodeKey = getUserCodeKey(q.Qn_name);
-            const savedCode = sessionStorage.getItem(savedCodeKey);
-
-            if (savedCode !== null) {
-              const decryptedCode = decryptData(savedCode);
-              if (decryptedCode) {
-                return { ...q, entered_ans: decryptedCode };
-              }
-            }
-            return q;
-          });
-
-                    setQuestions(codingQuestions);
-
-          const urlParams = new URLSearchParams(location.search);
-          const indexParam = urlParams.get('index');
-          const initialIndex = indexParam ? parseInt(indexParam, 10) : 0;
-
-          setCurrentQuestionIndex(initialIndex);
-          setStatus(codingQuestions[initialIndex].status);
-          setEnteredAns(codingQuestions[initialIndex].entered_ans);
-
-          const savedCodeKey = getUserCodeKey(codingQuestions[initialIndex].Qn_name);
+        // Use the coding questions from the test data
+        const codingQuestions = testData.qns_data.coding.map((q: Question) => {
+          const savedCodeKey = getUserCodeKey(q.Qn_name);
           const savedCode = sessionStorage.getItem(savedCodeKey);
+
+          if (savedCode !== null) {
+            const decryptedCode = decryptData(savedCode);
+              if (decryptedCode) {
+            return { ...q, entered_ans: decryptedCode };
+              }
+          }
+          return q;
+        });
+
+        setQuestions(codingQuestions);
+
+        const urlParams = new URLSearchParams(location.search);
+        const indexParam = urlParams.get('index');
+        const initialIndex = indexParam ? parseInt(indexParam, 10) : 0;
+
+        setCurrentQuestionIndex(initialIndex);
+        setStatus(codingQuestions[initialIndex].status);
+        setEnteredAns(codingQuestions[initialIndex].entered_ans);
+
+        const savedCodeKey = getUserCodeKey(codingQuestions[initialIndex].Qn_name);
+        const savedCode = sessionStorage.getItem(savedCodeKey);
           setSqlQuery(savedCode !== null ? (decryptData(savedCode) || codingQuestions[initialIndex].user_answer) : codingQuestions[initialIndex].user_answer);
 
           // Load tables from session storage for the initial question
           await updateTableForQuestion(codingQuestions[initialIndex]);
 
-          if (codingQuestions.length > 0) {
-            // Initialize question data using the question_data structure
-            const question = codingQuestions[initialIndex];
+        if (codingQuestions.length > 0) {
+          // Initialize question data using the question_data structure
+          const question = codingQuestions[initialIndex];
             
             // Set up data from question_data structure (same logic as handleQuestionChange)
             if (question.question_data) {
               setExpectedOutput(question.question_data.ExpectedOutput || question.ExpectedOutput || []);
               // setTestCases(question.question_data.TestCases || question.TestCases || []);
             } else {
-              setExpectedOutput(question.ExpectedOutput || []);
-              setTestCases(question.TestCases || []);
+          setExpectedOutput(question.ExpectedOutput || []);
+          setTestCases(question.TestCases || []);
             }
             // Removed setTableData([]) and setTableName(...) here to avoid clearing the table after setting it
-          }
-        } catch (error) {
-          console.error("Error processing coding questions:", error);
-          navigate("/test-section");
-        } finally {
-          setLoading(false);
         }
-      } else {
-        // If no test data available, redirect back to test section
-        console.error("No coding test data found, redirecting to test section");
-        navigate('/test-section');
+      } catch (error) {
+        console.error("Error processing coding questions:", error);
+        navigate("/test-section");
+      } finally {
+        setLoading(false);
       }
+    } else {
+      // If no test data available, redirect back to test section
+      console.error("No coding test data found, redirecting to test section");
+      navigate('/test-section');
+    }
     };
 
     initializeData();
@@ -235,7 +235,7 @@ const TestSQLCoding: React.FC = () => {
   if (savedCode !== null) {
     const decryptedCode = decryptData(savedCode);
     if (decryptedCode) {
-      setSqlQuery(decryptedCode);
+    setSqlQuery(decryptedCode);
       console.log('Loaded saved query:', decryptedCode.substring(0, 50) + '...');
     } else {
       setSqlQuery(questions[index].user_answer || '');
@@ -315,7 +315,7 @@ const TestSQLCoding: React.FC = () => {
       if (savedCode !== null) {
         const decryptedCode = decryptData(savedCode);
         if (decryptedCode) {
-          setSqlQuery(decryptedCode);
+        setSqlQuery(decryptedCode);
         } else {
           setSqlQuery(questions[nextIndex].user_answer);
         }

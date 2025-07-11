@@ -178,24 +178,16 @@ useEffect(() => {
 }, [timeInSeconds, navigate, studentId, testId, testCompleted, location.pathname]);
 
 
-  const formatTime = useCallback((seconds: number): string => {
+  const formatTime = useCallback((seconds: number): { hours: string; minutes: string; seconds: string } => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = seconds % 60;
 
-    if (seconds < 60) {
-      return `${remainingSeconds} sec`;
-    }
-
-    let timeString = '';
-    if (hours > 0) {
-      timeString += `${hours} hr `;
-    }
-    if (minutes > 0 || hours > 0) {
-      timeString += `${minutes} min`;
-    }
-
-    return timeString.trim();
+    return {
+      hours: hours.toString().padStart(2, '0'),
+      minutes: minutes.toString().padStart(2, '0'),
+      seconds: remainingSeconds.toString().padStart(2, '0')
+    };
   }, []);
 
   const handleViewProfile = useCallback(() => {
@@ -239,7 +231,7 @@ useEffect(() => {
 
   return (
     <div className='pe-2'>
-      <div className="container-fluid bg-white border rounded-2 p-2 d-flex justify-content-between align-items-center me-5">
+      <div className="container-fluid bg-white border rounded-2 p-2 d-flex justify-content-between align-items-center">
         <span className="text-center fs-6">
           {formattedTitle === "Test Section" || formattedTitle === "Mcq Temp" || formattedTitle === "Coding Temp" ?
             <> <span className='fw-bold'>{sessionStorage.getItem("TestType") || ""}</span> </>
@@ -248,10 +240,36 @@ useEffect(() => {
         </span>
         <span className="text-center fs-6">
           {formattedTitle === "Test Section" || formattedTitle === "Mcq Temp" || formattedTitle === "Coding Temp" ?
-            <span className="text-danger pe-3 fw-bold">
-              {/* Time Left: {formatTime(timeInSeconds) > 0 ? formatTime(timeInSeconds) : "00:00:00"} */}
-              Time Left: {timeInSeconds > 0 ? formatTime(timeInSeconds) : "Loading..."}
-            </span>
+            <div className="card p-0 m-0" style={{ minWidth: '260px' }}>
+              <div className="card-body p-1 me-0">
+                <div className="row text-center align-items-center m-0">
+                  <div className="col-3">
+                    <h4 className="text-danger mb-0">
+                      {timeInSeconds > 0 ? formatTime(timeInSeconds).hours : "00"}
+                    </h4>
+                    <p className="small mb-0">Hours</p>
+                  </div>
+                  <div className="col-1 d-flex align-items-center justify-content-center">
+                    <h4 className="text-danger mb-0">:</h4>
+                  </div>
+                  <div className="col-3">
+                    <h4 className="text-danger mb-0">
+                      {timeInSeconds > 0 ? formatTime(timeInSeconds).minutes : "00"}
+                    </h4>
+                    <p className="small mb-0">Mins</p>
+                  </div>
+                  <div className="col-1 d-flex align-items-center justify-content-center">
+                    <h4 className="text-danger mb-0">:</h4>
+                  </div>
+                  <div className="col-3">
+                    <h4 className="text-danger mb-0">
+                      {timeInSeconds > 0 ? formatTime(timeInSeconds).seconds : "00"}
+                    </h4>
+                    <p className="small mb-0">Sec</p>
+                  </div>
+                </div>
+              </div>
+            </div>
             :
             <>
               <HiOutlineBellAlert size={25} className="me-1 cursor-pointer" style={{ cursor: 'pointer'}} />

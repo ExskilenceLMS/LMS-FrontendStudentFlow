@@ -387,7 +387,7 @@ const fetchRoadmapData = async () => {
                     fetchNotesContent(noteId).then(noteData => {
                         if (noteData) {
                             setSelectedContent(noteData.content);
-                            setContentType('notes');
+                    setContentType('notes');
                         }
                     });
                 } else if (actualCurrentView === 'mcq' && subTopic.mcqQuestions > 0) {
@@ -485,7 +485,7 @@ const fetchRoadmapData = async () => {
             setDisablePreviousBtn(false);
             console.error("Error fetching notes content:", innerError);
             return null;
-        }
+            }
     }, [studentId, subject, dayNumber]);
 
     const fetchCodingQuestions = useCallback(async (subTopicIndex: number) => {
@@ -578,7 +578,7 @@ const fetchRoadmapData = async () => {
             const noteData = await fetchNotesContent(noteId);
             if (noteData) {
                 setSelectedContent(noteData.content);
-                setContentType('notes');
+            setContentType('notes');
             }
         } else if (subTopic.mcqQuestions > 0) {
             console.log('SubTopic has MCQs, showing MCQs');
@@ -622,7 +622,7 @@ const fetchRoadmapData = async () => {
                 const noteData = await fetchNotesContent(noteId);
                 if (noteData) {
                     setSelectedContent(noteData.content);
-                    setContentType('notes');
+                setContentType('notes');
                 }
             } else if (view === 'mcq') {
                 // Always fetch MCQ questions when switching to MCQ view
@@ -710,9 +710,9 @@ const fetchRoadmapData = async () => {
                     const noteData = await fetchNotesContent(noteId);
                     if (noteData) {
                         setSelectedContent(noteData.content);
-                    }
                 }
             }
+        }
         }
     }, [chapters, currentSubTopicIndex, currentNotesIndex, fetchNotesContent]);
 
@@ -1955,8 +1955,8 @@ const handlePrevious = useCallback(async () => {
         const noteData = await fetchNotesContent(noteId);
         if (noteData) {
             setSelectedContent(noteData.content);
-            setContentType('notes');
-            setCurrentNotesIndex(itemIndex);
+        setContentType('notes');
+        setCurrentNotesIndex(itemIndex);
         }
     } else if (contentType === 'mcq') {
         // Always fetch MCQ questions when switching to MCQ view
