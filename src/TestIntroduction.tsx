@@ -52,7 +52,11 @@ const TestIntroduction: React.FC = () => {
           const response1 = await getApiClient().get(url1);
           console.log(response1.data);
           setSectionData(response1.data);
-          console.log(JSON.stringify(response1.data));
+          console.log(response.data.test_duration_minutes - response1.data.duration);
+          const calculatedDuration = response.data.test_duration_minutes - response1.data.duration;
+          const encryptedDuration = CryptoJS.AES.encrypt(calculatedDuration.toString(), secretKey).toString();
+          sessionStorage.setItem("testDuration", encryptedDuration);
+          
           const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response1.data), secretKey).toString();
           sessionStorage.setItem("sectionData", encryptedSectionData);
         } catch (innerError: any) {
@@ -114,7 +118,7 @@ const TestIntroduction: React.FC = () => {
                   />
                 </div>
                 <div className="ms-2">
-                  <p className="m-0 fs-5 fw-bold">{duration} minutes</p>
+                  <p className="m-0 fs-5 fw-bold">{Number(duration) / 60} minutes</p>
                   <p className="m-0">test duration</p>
                 </div>
               </div>

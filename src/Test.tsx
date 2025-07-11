@@ -7,7 +7,7 @@ import CryptoJS from "crypto-js";
 import { secretKey } from './constants';
 
 interface TestDetail {
-  test_type: string;
+  testtype: string;
   test_id: string;
   test_status: string;
   score: string;
@@ -147,7 +147,7 @@ const Test: React.FC = () => {
     const filtered = testDetails.filter((detail) => {
       const mappedStatus = statusMapping[detail.status] || detail.status;
       return (
-        (filterState.testType === "" || detail.test_type === filterState.testType) &&
+        (filterState.testType === "" || detail.testtype === filterState.testType) &&
         (filterState.subject === "" || detail.subject === filterState.subject) &&
         (filterState.testStatus === "" || mappedStatus === filterState.testStatus) &&
         (filterState.topic === "" || detail.topic === filterState.topic) &&
@@ -345,14 +345,14 @@ const isTestTimeMatch = (test: TestDetail) => {
                                     {isOngoing ? (
                                       <button
                                         className="btn border-black btn-sm"
-                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.test_type); }}
+                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); }}
                                         style={{ width: "80px", backgroundColor: "#E5EBFF" }}
                                       >
                                         Start
                                       </button>
                                     ) : mappedStatus === "Completed" ? (
                                       <HiOutlineClipboardDocumentList
-                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.test_type); }}
+                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); }}
                                         style={{ width: "30px", height: "30px", cursor: "pointer" }}
                                       />
                                     ) : (

@@ -16,7 +16,21 @@ const TestHeader: React.FC = () => {
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [testCompleted, setTestCompleted] = useState(false);
-  const [timeInSeconds, setTimeInSeconds] = useState<number>(Number(sessionStorage.getItem("timer")) || 0);
+    const [timeInSeconds, setTimeInSeconds] = useState<number>(() => {
+    // Try to get encrypted duration first
+    const encryptedDuration = sessionStorage.getItem("testDuration");
+    if (encryptedDuration) {
+      try {
+        const decryptedDuration = CryptoJS.AES.decrypt(encryptedDuration, secretKey).toString(CryptoJS.enc.Utf8);
+        return parseInt(decryptedDuration) || 0;
+      } catch (error) {
+        console.error("Error decrypting duration:", error);
+        return 0;
+      }
+    }
+    // Return 0 if no encrypted duration found
+    return 0;
+  });
   const [showModal, setShowModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -111,11 +125,20 @@ useEffect(() => {
     const intervalId = setInterval(() => {
       setTimeInSeconds((prevTime) => {
         const newTime = prevTime - 1;
+        
+        // Update both timer and encrypted duration in session storage
         sessionStorage.setItem("timer", newTime.toString());
+        
+        // Update encrypted duration
+        const encryptedDuration = CryptoJS.AES.encrypt(newTime.toString(), secretKey).toString();
+        sessionStorage.setItem("testDuration", encryptedDuration);
 
         if (newTime <= 0) {
           clearInterval(intervalId);
           sessionStorage.setItem("timer", "0");
+          const encryptedZero = CryptoJS.AES.encrypt("0", secretKey).toString();
+          sessionStorage.setItem("testDuration", encryptedZero);
+          
           const currentPath = location.pathname;
 
           if (
@@ -135,6 +158,7 @@ useEffect(() => {
                 url
               );
               sessionStorage.removeItem("timer");
+              sessionStorage.removeItem("testDuration");
             } catch (error) {
               console.error("Error submitting test:", error);
             }
@@ -170,6 +194,8 @@ useEffect(() => {
     if (minutes > 0 || hours > 0) {
       timeString += `${minutes} min `;
     }
+    // Always show seconds
+    timeString += `${remainingSeconds} sec`;
 
     return timeString.trim();
   }, []);
