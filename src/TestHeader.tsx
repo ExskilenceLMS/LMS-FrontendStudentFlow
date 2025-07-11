@@ -192,10 +192,8 @@ useEffect(() => {
       timeString += `${hours} hr `;
     }
     if (minutes > 0 || hours > 0) {
-      timeString += `${minutes} min `;
+      timeString += `${minutes} min`;
     }
-    // Always show seconds
-    timeString += `${remainingSeconds} sec`;
 
     return timeString.trim();
   }, []);
