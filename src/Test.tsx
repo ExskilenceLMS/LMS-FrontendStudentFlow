@@ -345,14 +345,14 @@ const isTestTimeMatch = (test: TestDetail) => {
                                     {isOngoing ? (
                                       <button
                                         className="btn border-black btn-sm"
-                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); }}
+                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
                                         style={{ width: "80px", backgroundColor: "#E5EBFF" }}
                                       >
                                         Start
                                       </button>
                                     ) : mappedStatus === "Completed" ? (
                                       <HiOutlineClipboardDocumentList
-                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); }}
+                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
                                         style={{ width: "30px", height: "30px", cursor: "pointer" }}
                                       />
                                     ) : (

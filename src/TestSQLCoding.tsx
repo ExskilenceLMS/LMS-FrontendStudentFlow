@@ -23,7 +23,6 @@ interface Question {
   Qn: string;
   Table: string;
   ExpectedOutput: Data[];
-  TestCases: TestCase[];
   Tables?: { tab_name: string; data: Data[] }[];
   Qn_name: string;
   status: boolean;
@@ -104,91 +103,147 @@ const TestSQLCoding: React.FC = () => {
   };
 
   const decryptData = (encryptedData: string): string => {
-    const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey);
-    return bytes.toString(CryptoJS.enc.Utf8);
+    try {
+      const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey);
+      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+      return decrypted || "";
+    } catch (error) {
+      console.error("Error decrypting data:", error);
+      return "";
+    }
   };
 
-  useEffect(() => {
-    // Get test data from location.state (passed from TestSection)
-    const testData = (location.state as any)?.sectionData;
-    
-    if (testData && testData.qns_data && testData.qns_data.coding) {
+  const updateTableForQuestion = async (question: Question) => {
+    // Get tables from session storage
+    const encryptedTables = sessionStorage.getItem('sqlTables');
+    if (encryptedTables) {
       try {
-        // Use the coding questions from the test data
-        const codingQuestions = testData.qns_data.coding.map((q: Question) => {
-          const savedCodeKey = getUserCodeKey(q.Qn_name);
-          const savedCode = sessionStorage.getItem(savedCodeKey);
+        const decryptedTables = JSON.parse(CryptoJS.AES.decrypt(encryptedTables, secretKey).toString(CryptoJS.enc.Utf8));
+        setAvailableTables(decryptedTables);
 
-          if (savedCode !== null) {
-            const decryptedCode = decryptData(savedCode);
-            return { ...q, entered_ans: decryptedCode };
-          }
-          return q;
-        });
-
-        setQuestions(codingQuestions);
-        // For now, use empty tables array - you might need to modify this based on your data structure
-        setAvailableTables([]);
-
-        const urlParams = new URLSearchParams(location.search);
-        const indexParam = urlParams.get('index');
-        const initialIndex = indexParam ? parseInt(indexParam, 10) : 0;
-
-        setCurrentQuestionIndex(initialIndex);
-        setStatus(codingQuestions[initialIndex].status);
-        setEnteredAns(codingQuestions[initialIndex].entered_ans);
-
-        const savedCodeKey = getUserCodeKey(codingQuestions[initialIndex].Qn_name);
-        const savedCode = sessionStorage.getItem(savedCodeKey);
-        setSqlQuery(savedCode !== null ? decryptData(savedCode) : codingQuestions[initialIndex].user_answer);
-
-        if (codingQuestions.length > 0) {
-          // Initialize question data using the question_data structure
-          const question = codingQuestions[initialIndex];
-          setExpectedOutput(question.ExpectedOutput || []);
-          setTestCases(question.TestCases || []);
+        if (decryptedTables.length > 0) {
+          // Get the table name from question data and convert to lowercase for comparison
+          const questionTableName = (question.question_data?.Table || question.Table || "").toLowerCase();
+          console.log('Question table name for update:', questionTableName);
           
-          // Set up table data if available
-          if (question.question_data && question.question_data.TestCases) {
-            const testCaseData = question.question_data.TestCases.find((tc: any) => Array.isArray(tc.Testcase));
-            if (testCaseData && Array.isArray(testCaseData.Testcase)) {
-              setTableData(testCaseData.Testcase);
-              setTableName(question.question_data.Table || question.Table || "Table");
-            }
+          // Find table that matches the question table name (case-insensitive)
+          const matchingTable = decryptedTables.find((table: any) =>
+            table.tab_name.toLowerCase() === questionTableName
+          );
+
+          if (matchingTable) {
+            setTableData(matchingTable.data || []);
+            setTableName(matchingTable.tab_name);
+            console.log('Updated to matching table:', matchingTable.tab_name);
+          } else {
+            setTableData([]);
+            setTableName(question.question_data?.Table || question.Table || "Table");
+            console.log('No matching table found for question');
           }
         }
       } catch (error) {
-        console.error("Error processing coding questions:", error);
-        navigate("/test-section");
-      } finally {
-        setLoading(false);
+        console.error("Error decrypting tables from session:", error);
       }
-    } else {
-      // If no test data available, redirect back to test section
-      console.error("No coding test data found, redirecting to test section");
-      navigate('/test-section');
     }
+  };
+
+  useEffect(() => {
+    const initializeData = async () => {
+      // Get test data from location.state (passed from TestSection)
+      const testData = (location.state as any)?.sectionData;
+      
+      if (testData && testData.qns_data && testData.qns_data.coding) {
+        try {
+          console.log('testData.qns_data.coding',testData.qns_data.coding);
+          // Use the coding questions from the test data
+          const codingQuestions = testData.qns_data.coding.map((q: Question) => {
+            const savedCodeKey = getUserCodeKey(q.Qn_name);
+            const savedCode = sessionStorage.getItem(savedCodeKey);
+
+            if (savedCode !== null) {
+              const decryptedCode = decryptData(savedCode);
+              if (decryptedCode) {
+                return { ...q, entered_ans: decryptedCode };
+              }
+            }
+            return q;
+          });
+
+                    setQuestions(codingQuestions);
+
+          const urlParams = new URLSearchParams(location.search);
+          const indexParam = urlParams.get('index');
+          const initialIndex = indexParam ? parseInt(indexParam, 10) : 0;
+
+          setCurrentQuestionIndex(initialIndex);
+          setStatus(codingQuestions[initialIndex].status);
+          setEnteredAns(codingQuestions[initialIndex].entered_ans);
+
+          const savedCodeKey = getUserCodeKey(codingQuestions[initialIndex].Qn_name);
+          const savedCode = sessionStorage.getItem(savedCodeKey);
+          setSqlQuery(savedCode !== null ? (decryptData(savedCode) || codingQuestions[initialIndex].user_answer) : codingQuestions[initialIndex].user_answer);
+
+          // Load tables from session storage for the initial question
+          await updateTableForQuestion(codingQuestions[initialIndex]);
+
+          if (codingQuestions.length > 0) {
+            // Initialize question data using the question_data structure
+            const question = codingQuestions[initialIndex];
+            
+            // Set up data from question_data structure (same logic as handleQuestionChange)
+            if (question.question_data) {
+              setExpectedOutput(question.question_data.ExpectedOutput || question.ExpectedOutput || []);
+              // setTestCases(question.question_data.TestCases || question.TestCases || []);
+            } else {
+              setExpectedOutput(question.ExpectedOutput || []);
+              setTestCases(question.TestCases || []);
+            }
+            // Removed setTableData([]) and setTableName(...) here to avoid clearing the table after setting it
+          }
+        } catch (error) {
+          console.error("Error processing coding questions:", error);
+          navigate("/test-section");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // If no test data available, redirect back to test section
+        console.error("No coding test data found, redirecting to test section");
+        navigate('/test-section');
+      }
+    };
+
+    initializeData();
   }, [location.search, location.state, navigate]);
 
 
 
-  const handleQuestionChange = (index: number) => {
+  const handleQuestionChange = async (index: number) => {
   setIsRunBtnClicked(false);
 
   if (questions[currentQuestionIndex]?.Qn_name && sqlQuery) {
     const currentCodeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
     const encryptedCode = encryptData(sqlQuery);
     sessionStorage.setItem(currentCodeKey, encryptedCode);
+    console.log('Saved query for question:', questions[currentQuestionIndex].Qn_name, 'Key:', currentCodeKey);
   }
 
   const nextQuestionKey = getUserCodeKey(questions[index].Qn_name);
   const savedCode = sessionStorage.getItem(nextQuestionKey);
+  console.log('Loading query for question:', questions[index].Qn_name, 'Key:', nextQuestionKey, 'Saved:', !!savedCode);
 
   if (savedCode !== null) {
     const decryptedCode = decryptData(savedCode);
-    setSqlQuery(decryptedCode);
+    if (decryptedCode) {
+      setSqlQuery(decryptedCode);
+      console.log('Loaded saved query:', decryptedCode.substring(0, 50) + '...');
+    } else {
+      setSqlQuery(questions[index].user_answer || '');
+      console.log('Failed to decrypt saved query, using default');
+    }
   } else {
-    setSqlQuery(questions[index].user_answer);
+    setSqlQuery(questions[index].user_answer || '');
+    console.log('Loaded default query:', (questions[index].user_answer || '').substring(0, 50) + '...');
   }
 
   setCurrentQuestionIndex(index);
@@ -197,7 +252,7 @@ const TestSQLCoding: React.FC = () => {
 
   const statusKey = `status_${questions[index].Qn_name}`;
   const encryptedStatus = sessionStorage.getItem(statusKey);
-  const isSubmitted = encryptedStatus ? decryptData(encryptedStatus) === "submitted" : false;
+  const isSubmitted = encryptedStatus ? (decryptData(encryptedStatus) === "submitted") : false;
   setIsSubmitted(isSubmitted);
 
   const question = questions[index];
@@ -205,17 +260,10 @@ const TestSQLCoding: React.FC = () => {
   // Set up data from question_data structure
   if (question.question_data) {
     setExpectedOutput(question.question_data.ExpectedOutput || question.ExpectedOutput || []);
-    setTestCases(question.question_data.TestCases || question.TestCases || []);
+    // setTestCases(question.question_data.TestCases || question.TestCases || []);
     
-    // Set up table data if available
-    const testCaseData = question.question_data.TestCases?.find((tc: any) => Array.isArray(tc.Testcase));
-    if (testCaseData && Array.isArray(testCaseData.Testcase)) {
-      setTableData(testCaseData.Testcase);
-      setTableName(question.question_data.Table || question.Table || "Table");
-    } else {
-      setTableData([]);
-      setTableName(question.question_data.Table || question.Table || "Table");
-    }
+    // Update table data for the new question
+    await updateTableForQuestion(question);
   } else {
     // Fallback to original structure
     if (!Array.isArray(availableTables)) {
@@ -231,7 +279,7 @@ const TestSQLCoding: React.FC = () => {
     }
 
     setExpectedOutput(question.ExpectedOutput || []);
-    setTestCases(question.TestCases || []);
+    // setTestCases(question.question_data?.TestCases || []);
   }
 
   setRunResponseTable([]);
@@ -243,7 +291,7 @@ const TestSQLCoding: React.FC = () => {
   sessionStorage.setItem("codingCurrentQuestionIndex", index.toString());
 };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     setIsRunBtnClicked(false);
 
     if (questions[currentQuestionIndex]?.Qn_name && sqlQuery) {
@@ -266,7 +314,11 @@ const TestSQLCoding: React.FC = () => {
 
       if (savedCode !== null) {
         const decryptedCode = decryptData(savedCode);
-        setSqlQuery(decryptedCode);
+        if (decryptedCode) {
+          setSqlQuery(decryptedCode);
+        } else {
+          setSqlQuery(questions[nextIndex].user_answer);
+        }
       } else {
         setSqlQuery(questions[nextIndex].user_answer);
       }
@@ -278,17 +330,10 @@ const TestSQLCoding: React.FC = () => {
       // Set up data from question_data structure
       if (question.question_data) {
         setExpectedOutput(question.question_data.ExpectedOutput || question.ExpectedOutput || []);
-        setTestCases(question.question_data.TestCases || question.TestCases || []);
+        // setTestCases(question.question_data.TestCases || question.TestCases || []);
         
-        // Set up table data if available
-        const testCaseData = question.question_data.TestCases?.find((tc: any) => Array.isArray(tc.Testcase));
-        if (testCaseData && Array.isArray(testCaseData.Testcase)) {
-          setTableData(testCaseData.Testcase);
-          setTableName(question.question_data.Table || question.Table || "Table");
-        } else {
-          setTableData([]);
-          setTableName(question.question_data.Table || question.Table || "Table");
-        }
+        // Update table data for the new question
+        await updateTableForQuestion(question);
       } else {
         // Fallback to original structure
         if (!Array.isArray(availableTables)) {
@@ -304,7 +349,7 @@ const TestSQLCoding: React.FC = () => {
         }
 
         setExpectedOutput(question.ExpectedOutput || []);
-        setTestCases(question.TestCases || []);
+        // setTestCases(question.question_data?.TestCases || []);
       }
 
       setRunResponseTable([]);
@@ -325,6 +370,7 @@ const TestSQLCoding: React.FC = () => {
       const codeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
       const encryptedCode = encryptData(newCode);
       sessionStorage.setItem(codeKey, encryptedCode);
+      console.log('Auto-saved query for question:', questions[currentQuestionIndex].Qn_name, 'Key:', codeKey);
     }
   };
 
@@ -373,11 +419,20 @@ const TestSQLCoding: React.FC = () => {
     try {
       setActiveTab("output");
       const updatedSqlQuery = sqlQuery.trim().replace(/\n/g, " ").replace(/;$/, "");
+      console.log('Current question TestCases:', questions[currentQuestionIndex]?.question_data?.TestCases);
       const sendData = {
         student_id: studentId,
         query: updatedSqlQuery.replace("/*Write a all SQl commands/clauses in UPPERCASE*/", "").replace(/\s*\n\s*/g, " \n "),
-        ExpectedOutput: expectedOutput,
-        TestCases: testCases,
+        ExpectedOutput: questions[currentQuestionIndex]?.question_data?.ExpectedOutput || [],
+        TestCases: questions[currentQuestionIndex]?.question_data?.TestCases || [],
+        week_number:0,
+        day_number:0,
+        subject_id:decryptData(sessionStorage.getItem("TestSubjectId") || ""),
+        test_id:testId,
+        subject:sessionStorage.getItem("TestSubject") || "",
+        call_function:"",
+        result:runResponseTestCases,
+        Qn:questions[currentQuestionIndex].Qn_name,
       };
       if (updatedSqlQuery) {
         setExecutingQuery(true);
@@ -421,17 +476,21 @@ const TestSQLCoding: React.FC = () => {
     const postData = {
       student_id: studentId,
       test_id: testId,
-      Qn: questions[currentQuestionIndex].Qn_name,
-      Ans: sqlQuery,
-      Subject: subject,
-      subject_id: subjectId,
-      CallFunction: "",
-      Result: runResponseTestCases,
+      question_id: questions[currentQuestionIndex].Qn_name,
+      answer: sqlQuery,
+      subject_id: decryptData(sessionStorage.getItem("TestSubjectId") || ""),
+      TestCases: questions[currentQuestionIndex]?.question_data?.TestCases || [],
+      subject: sessionStorage.getItem("TestSubject") || "",
+      final_score:"0/0",
+      result: runResponseTestCases,
     };
 
     const response = await getApiClient().put(url, postData);
 
     const responseData = response.data;
+    if(responseData.message == "Test Already Completed"){
+    navigate('/test')
+    }
     const codeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
     const encryptedCode = encryptData(sqlQuery);
     sessionStorage.setItem(codeKey, encryptedCode);
@@ -626,6 +685,7 @@ const TestSQLCoding: React.FC = () => {
 
                     <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
                       <AceEditor
+                        key={`editor-${currentQuestionIndex}`}
                         mode="sql"
                         theme="dreamweaver"
                         onChange={handleCodeChange}
