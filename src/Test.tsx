@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import apiClient from "./utils/apiAuth";
+import { getApiClient } from "./utils/apiAuth";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
@@ -83,7 +83,7 @@ const Test: React.FC = () => {
     const fetchTestDetails = async () => {
       const url = `${process.env.REACT_APP_BACKEND_URL}api/student/testdetails/${studentId}/`
       try {
-        const response = await apiClient.get(url);
+        const response = await getApiClient().get(url);
         setTestDetails(response.data.test_details);
         setFilteredDetails(response.data.test_details);
         setLoading(false);
@@ -163,18 +163,22 @@ const Test: React.FC = () => {
     if (mappedStatus === "Ongoing") {
       const encryptedTestId = CryptoJS.AES.encrypt(data.test_id, process.env.REACT_APP_SECRET_KEY || '').toString();
       sessionStorage.setItem("TestId", encryptedTestId);
+      const encryptedTestSubjectId = CryptoJS.AES.encrypt(data.subject_id, process.env.REACT_APP_SECRET_KEY || '').toString();
+      sessionStorage.setItem("TestSubjectId", encryptedTestSubjectId);
       navigate("/test-introduction");
     } else if (mappedStatus === "Completed") {
       const encryptedTestId = CryptoJS.AES.encrypt(data.test_id, process.env.REACT_APP_SECRET_KEY || '').toString();
       sessionStorage.setItem("TestId", encryptedTestId);
+      const encryptedTestSubject = CryptoJS.AES.encrypt(data.subject_id, process.env.REACT_APP_SECRET_KEY || '').toString();
+      sessionStorage.setItem("TestSubjectId", encryptedTestSubject);
       navigate("/test-report");
     }
   };
-  const handleTest1 = () => {
-   const encryptedTestId = CryptoJS.AES.encrypt("Test1", process.env.REACT_APP_SECRET_KEY || '').toString();
-    sessionStorage.setItem("TestId", encryptedTestId);
-    navigate("/test-introduction");
-  };
+  // const handleTest1 = () => {
+  //  const encryptedTestId = CryptoJS.AES.encrypt("Test1", process.env.REACT_APP_SECRET_KEY || '').toString();
+  //   sessionStorage.setItem("TestId", encryptedTestId);
+  //   navigate("/test-introduction");
+  // };
 
   const convertTo24HourFormat = (timeStr: string) => {
     const [time, modifier] = timeStr.split(' ');
@@ -372,7 +376,7 @@ const isTestTimeMatch = (test: TestDetail) => {
                             </tr>
                           )}
                         </tbody>
-                        <button className="btn border-black btn-sm" onClick={() => handleTest1()}>Test1</button>
+                        {/* <button className="btn border-black btn-sm" onClick={() => handleTest1()}>Test1</button> */}
                       </table>
                     </div>
                   )}

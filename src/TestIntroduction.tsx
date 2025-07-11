@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import timer from "./Components/images/Timer.png";
 import problems from "./Components/images/problems.png";
-import apiClient from "./utils/apiAuth";
+import { getApiClient } from "./utils/apiAuth";
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
 import { Spinner } from "react-bootstrap";
@@ -37,19 +37,19 @@ const TestIntroduction: React.FC = () => {
     const fetchData = async () => {
       if (testId && studentId) {
         setLoading(true);
-        // const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instuction/${studentId}/${testId}/`;
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instruction/${studentId}/${"Test1"}/`;
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instruction/${studentId}/${testId}/`;
+        // const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instruction/${studentId}/${"Test1"}/`;
 
         try {
-          const response = await apiClient.get(url);
-          setDuration(response.data.duration);
+          const response = await getApiClient().get(url);
+          setDuration(response.data.test_duration_minutes);
           setSectionCount(response.data.section_count);
           setSectionCount1(response.data.mcq_section_count);
           setSectionCount2(response.data.coding_section_count);
           setTestDuration(response.data.test_duration_minutes);
 
-          const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${studentId}/${"Test1"}/`;
-          const response1 = await apiClient.get(url1);
+          const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${studentId}/${testId}/`;
+          const response1 = await getApiClient().get(url1);
           console.log(response1.data);
           setSectionData(response1.data);
           console.log(JSON.stringify(response1.data));
@@ -69,8 +69,8 @@ const TestIntroduction: React.FC = () => {
   const handleStartTest = async () => {
     // sessionStorage.setItem("timer", duration);
     // api/student/test/start/25EABCXIS001/Test1/
-    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/start/${studentId}/${"Test1"}/`;
-    const response = await apiClient.patch(url);
+    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/start/${studentId}/${testId}/`;
+    const response = await getApiClient().patch(url);
     console.log(response.data);
     const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response.data), secretKey).toString();
     sessionStorage.setItem("sectionData", encryptedSectionData);
@@ -114,8 +114,7 @@ const TestIntroduction: React.FC = () => {
                   />
                 </div>
                 <div className="ms-2">
-                  {/* <p className="m-0 fs-5 fw-bold">{duration} minutes</p> */}
-                  <p className="m-0 fs-5 fw-bold">{Number(duration) / 60} minutes</p>
+                  <p className="m-0 fs-5 fw-bold">{duration} minutes</p>
                   <p className="m-0">test duration</p>
                 </div>
               </div>

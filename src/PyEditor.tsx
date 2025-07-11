@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import AceEditor from "react-ace";
-import apiClient from "./utils/apiAuth";
+import { getApiClient } from "./utils/apiAuth";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import Sk from "skulpt";
@@ -142,7 +142,7 @@ const decryptData = (encryptedData: string) => {
           `${weekNumber}/` +
           `${sessionStorage.getItem("currentSubTopicId")}/`
       try {
-        const response = await apiClient.get(
+        const response = await getApiClient().get(
           url
         );
         
@@ -385,11 +385,11 @@ const handleNext = () => {
         Code: Ans,
         Result: output,
         CallFunction: "",
-        TestCases: questions[currentQuestionIndex].TestCases,
+        TestCases: questions[currentQuestionIndex].TestCases || [],
         Attempt: 0
       };
 
-      const response = await apiClient.post(
+      const response = await getApiClient().post(
         url,
         postData
       );
@@ -490,7 +490,7 @@ const handleSubmit = async () => {
       Attempt: 0
     };
 
-    const response = await apiClient.put(url, postData);
+    const response = await getApiClient().put(url, postData);
     const responseData = response.data;
 
     const updatedQuestions = [...questions];

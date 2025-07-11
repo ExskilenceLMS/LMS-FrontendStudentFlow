@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import apiClient from "../utils/apiAuth";
+import { getApiClient } from "../utils/apiAuth";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 
@@ -19,22 +19,8 @@ const FAQ: React.FC = () => {
     const fetchData = async () => {
       const url= `${process.env.REACT_APP_BACKEND_URL}api/student/faq/`
       try{
-        const response = await fetch(
-       url
-      );
-      const blob = await response.blob();
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        try {
-          const jsonData = JSON.parse(reader.result as string);
-          setData(jsonData);
-        } catch (error) {
-          console.error("Error parsing JSON:", error);
-        }
-      };
-
-      reader.readAsText(blob);
+        const response = await getApiClient().get(url);
+        setData(response.data);
       } catch (error) {
         console.error("Error fetching FAQ data:", error);
       }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal } from "react-bootstrap";
 import html2canvas from "html2canvas";
-import apiClient from "./utils/apiAuth";
+import { getApiClient } from "./utils/apiAuth";
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
 
@@ -88,7 +88,7 @@ const RaiseTicket: React.FC<RaiseTicketProps> = ({ show, onHide, studentId: prop
         img_path: base64Data ? `data:image/png;base64,${base64Data}` : ''
       };
 
-      const response = await apiClient.post(
+      const response = await getApiClient().post(
         url,
         payload
       );

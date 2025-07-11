@@ -218,6 +218,9 @@ const TestSQLCoding: React.FC = () => {
     }
   } else {
     // Fallback to original structure
+    if (!Array.isArray(availableTables)) {
+      return;
+    }
     const initialTable = availableTables.find((table: any) =>
       table.tab_name === (question.Tables?.[0]?.tab_name || question.Table)
     ) || availableTables[0];
@@ -288,6 +291,9 @@ const TestSQLCoding: React.FC = () => {
         }
       } else {
         // Fallback to original structure
+        if (!Array.isArray(availableTables)) {
+          return;
+        }
         const initialTable = availableTables.find((table: any) =>
           table.tab_name === (question.Tables?.[0]?.tab_name || question.Table)
         ) || availableTables[0];
@@ -327,6 +333,9 @@ const TestSQLCoding: React.FC = () => {
 
     if (tab === "table") {
       const currentQuestion = questions[currentQuestionIndex];
+      if (!Array.isArray(availableTables)) {
+        return;
+      }
       const initialTable = availableTables.find((table: any) =>
         table.tab_name === (currentQuestion.Tables?.[0]?.tab_name || currentQuestion.Table)
       ) || availableTables[0];

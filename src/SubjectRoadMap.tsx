@@ -63,11 +63,16 @@ interface NoteContent {
     content: string;
 }
 
+interface NoteData {
+    id: number;
+    content: string;
+}
+
 interface SubTopic {
     subtopicid: string;
     sub_topic: string;
     lesson: VideoLesson[];
-    notes: NoteContent[];
+    notes: number[];
     mcqQuestions: number;
     codingQuestions: number;
 }
@@ -87,6 +92,7 @@ const SubjectRoadMap: React.FC = () => {
     const [chapters, setChapters] = useState<Chapter[]>([]);
     const [mcqQuestions, setMcqQuestions] = useState<MCQQuestion[]>([]);
     const [codingQuestions, setCodingQuestions] = useState<CodingQuestion[]>([]);
+    const [notesData, setNotesData] = useState<{ [key: number]: NoteData }>({});
     const encryptedStudentId = sessionStorage.getItem('StudentId') || "";
     const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
     const studentId = decryptedStudentId;
@@ -376,8 +382,14 @@ const fetchRoadmapData = async () => {
                     setSelectedContent(firstLesson.otp);
                 } else if (actualCurrentView === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
                     console.log('Setting notes content');
-                    setSelectedContent(subTopic.notes[0].content);
-                    setContentType('notes');
+                    // Fetch notes content for initial load
+                    const noteId = subTopic.notes[0];
+                    fetchNotesContent(noteId).then(noteData => {
+                        if (noteData) {
+                            setSelectedContent(noteData.content);
+                            setContentType('notes');
+                        }
+                    });
                 } else if (actualCurrentView === 'mcq' && subTopic.mcqQuestions > 0) {
                     console.log('Fetching MCQ questions for initial load');
                     // Fetch MCQ questions for initial load
@@ -442,6 +454,38 @@ const fetchRoadmapData = async () => {
  
             console.error("Error fetching MCQ questions data:", innerError);
             }
+    }, [studentId, subject, dayNumber]);
+
+    const fetchNotesContent = useCallback(async (noteId: number) => {
+        if (notesData[noteId]) {
+            return notesData[noteId]; // Return cached data if available
+        }
+
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/notes/${noteId}/`;
+        try {
+            setLoading(true);
+            setDisablePreviousBtn(true);
+            const response = await getApiClient().get(url);
+            const noteData: NoteData = {
+                id: noteId,
+                content: response.data.content
+            };
+            
+            setNotesData(prev => ({
+                ...prev,
+                [noteId]: noteData
+            }));
+            
+            setLoading(false);
+            setDisablePreviousBtn(false);
+            return noteData;
+        } catch (innerError: any) {
+            setError("Failed to load notes content. Please try again later.");
+            setLoading(false);
+            setDisablePreviousBtn(false);
+            console.error("Error fetching notes content:", innerError);
+            return null;
+        }
     }, [studentId, subject, dayNumber]);
 
     const fetchCodingQuestions = useCallback(async (subTopicIndex: number) => {
@@ -529,8 +573,13 @@ const fetchRoadmapData = async () => {
             console.log('SubTopic has notes, showing notes');
             setCurrentView('notes');
             sessionStorage.setItem("lastContentType", 'notes');
-            setSelectedContent(subTopic.notes[0].content);
-            setContentType('notes');
+            // Fetch notes content for the new subtopic
+            const noteId = subTopic.notes[0];
+            const noteData = await fetchNotesContent(noteId);
+            if (noteData) {
+                setSelectedContent(noteData.content);
+                setContentType('notes');
+            }
         } else if (subTopic.mcqQuestions > 0) {
             console.log('SubTopic has MCQs, showing MCQs');
             setCurrentView('mcq');
@@ -552,7 +601,7 @@ const fetchRoadmapData = async () => {
 }, [chapters, expandedSections, fetchMCQQuestions, fetchCodingQuestions]);
 
     
-    const handleViewChange = useCallback((view: 'lesson' | 'mcq' | 'coding'  | 'notes') => {
+    const handleViewChange = useCallback(async (view: 'lesson' | 'mcq' | 'coding'  | 'notes') => {
         console.log('handleViewChange called with view:', view);
         setCurrentView(view);
         sessionStorage.setItem("lastContentType", view);
@@ -568,8 +617,13 @@ const fetchRoadmapData = async () => {
             if (view === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
                 // No need to set selectedContent for videos - they will be built dynamically
             } else if (view === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
-                setSelectedContent(subTopic.notes[currentNotesIndex].content);
-                setContentType('notes');
+                // Fetch notes content if not already cached
+                const noteId = subTopic.notes[currentNotesIndex];
+                const noteData = await fetchNotesContent(noteId);
+                if (noteData) {
+                    setSelectedContent(noteData.content);
+                    setContentType('notes');
+                }
             } else if (view === 'mcq') {
                 // Always fetch MCQ questions when switching to MCQ view
                 if (!hasFetched || mcqQuestions.length === 0) {
@@ -631,13 +685,17 @@ const fetchRoadmapData = async () => {
         }
     }, [chapters, currentSubTopicIndex, currentLessonIndex, currentView, fetchMCQQuestions, fetchCodingQuestions]);
 
-    const handleNextNotes = useCallback(() => {
+    const handleNextNotes = useCallback(async () => {
         if (chapters.length > 0 && chapters[0].sub_topic_data.length > currentSubTopicIndex) {
             const subTopic = chapters[0].sub_topic_data[currentSubTopicIndex];
             if (subTopic.notes && currentNotesIndex < subTopic.notes.length - 1) {
                 const nextIndex = currentNotesIndex + 1;
                 setCurrentNotesIndex(nextIndex);
-                setSelectedContent(subTopic.notes[nextIndex].content);
+                const noteId = subTopic.notes[nextIndex];
+                const noteData = await fetchNotesContent(noteId);
+                if (noteData) {
+                    setSelectedContent(noteData.content);
+                }
             } else if (chapters[0].sub_topic_data.length > currentSubTopicIndex + 1) {
                 const nextSubTopicIndex = currentSubTopicIndex + 1;
                 setCurrentSubTopicIndex(nextSubTopicIndex);
@@ -648,17 +706,25 @@ const fetchRoadmapData = async () => {
 
                 const nextSubTopic = chapters[0].sub_topic_data[nextSubTopicIndex];
                 if (nextSubTopic.notes && nextSubTopic.notes.length > 0) {
-                    setSelectedContent(nextSubTopic.notes[0].content);
+                    const noteId = nextSubTopic.notes[0];
+                    const noteData = await fetchNotesContent(noteId);
+                    if (noteData) {
+                        setSelectedContent(noteData.content);
+                    }
                 }
             }
         }
-    }, [chapters, currentSubTopicIndex, currentNotesIndex]);
+    }, [chapters, currentSubTopicIndex, currentNotesIndex, fetchNotesContent]);
 
-    const handlePreviousNotes = useCallback(() => {
+    const handlePreviousNotes = useCallback(async () => {
         if (currentNotesIndex > 0) {
             const prevIndex = currentNotesIndex - 1;
             setCurrentNotesIndex(prevIndex);
-            setSelectedContent(chapters[0].sub_topic_data[currentSubTopicIndex].notes[prevIndex].content);
+            const noteId = chapters[0].sub_topic_data[currentSubTopicIndex].notes[prevIndex];
+            const noteData = await fetchNotesContent(noteId);
+            if (noteData) {
+                setSelectedContent(noteData.content);
+            }
         } else if (currentSubTopicIndex > 0) {
             const prevSubTopicIndex = currentSubTopicIndex - 1;
             const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
@@ -666,13 +732,17 @@ const fetchRoadmapData = async () => {
             if (prevSubTopic.notes && prevSubTopic.notes.length > 0) {
                 setCurrentSubTopicIndex(prevSubTopicIndex);
                 setCurrentNotesIndex(prevSubTopic.notes.length - 1);
-                setSelectedContent(prevSubTopic.notes[prevSubTopic.notes.length - 1].content);
+                const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
+                const noteData = await fetchNotesContent(noteId);
+                if (noteData) {
+                    setSelectedContent(noteData.content);
+                }
                 
                 // Clear the last content type when moving to previous subtopic
                 sessionStorage.removeItem("lastContentType");
             }
         }
-    }, [chapters, currentSubTopicIndex, currentNotesIndex]);
+    }, [chapters, currentSubTopicIndex, currentNotesIndex, fetchNotesContent]);
 
     const handleNextMCQ = useCallback(() => {
         const currentSubtopic = chapters[0]?.sub_topic_data[currentSubTopicIndex];
@@ -868,22 +938,14 @@ useEffect(() => {
             setLoading(true);
             const url = `${process.env.REACT_APP_BACKEND_URL}api/media/`;
             try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ file_url: notesUrl })
+                const response = await getApiClient().post(url, { file_url: notesUrl }, {
+                    responseType: 'blob'
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const blob = await response.blob();
-                const processedUrl = URL.createObjectURL(blob);
+                const processedUrl = URL.createObjectURL(response.data);
                 setPdfUrl(processedUrl);
             } catch (innerError: any) {
                 setPdfError(true);
-
                 console.error("Error fetching pdf data:", innerError);
             } finally {
                 setPdfLoading(false);
@@ -900,22 +962,14 @@ useEffect(() => {
             setVideoUrl('');
 
             try {
-                const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}api/media/`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ file_url: lessonVideoUrl })
+                const response = await getApiClient().post(`${process.env.REACT_APP_BACKEND_URL}api/media/`, { file_url: lessonVideoUrl }, {
+                    responseType: 'blob'
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const blob = await response.blob();
-                const processedUrl = URL.createObjectURL(blob);
+                const processedUrl = URL.createObjectURL(response.data);
                 setVideoUrl(processedUrl);
             } catch (innerError: any) {
                 setVideoError(true);
-
                 console.error("Error fetching video:", innerError);
             } finally {
                 setVideoLoading(false);
@@ -982,12 +1036,22 @@ useEffect(() => {
             );
         }
 
-        const noteContent = chapters[0].sub_topic_data[currentSubTopicIndex].notes[currentNotesIndex].content;
+        const subTopic = chapters[0].sub_topic_data[currentSubTopicIndex];
+        const noteId = subTopic.notes[currentNotesIndex];
+        const noteData = notesData[noteId];
+
+        if (!noteData) {
+            return (
+                <div className="d-flex justify-content-center align-items-center h-100">
+                    <Skeleton count={6} height={20} />
+                </div>
+            );
+        }
 
         // Display HTML content directly in iframe
         return (
             <iframe
-                srcDoc={noteContent}
+                srcDoc={noteData.content}
                 className="w-100 h-100"
                 title="Notes Content"
                 style={{ border: 'none' }}
@@ -1510,10 +1574,7 @@ const handleNext = useCallback(async () => {
 }, [currentView, currentLessonIndex, currentNotesIndex, currentMCQIndex, chapters, currentSubTopicIndex, fetchMCQQuestions, fetchCodingQuestions, handleViewChange, navigate, studentId, subject, subjectId, dayNumber, weekNumber]);
  
 
-const handlePrevious = useCallback((
-  // Explicitly type all dependencies
-  // These should match the state and function types used in the component
-) => {
+const handlePrevious = useCallback(async () => {
   if (currentView === 'lesson') {
       if (currentLessonIndex > 0) {
           handlePreviousLesson();
@@ -1543,7 +1604,11 @@ const handlePrevious = useCallback((
                 setCurrentNotesIndex(prevSubTopic.notes.length - 1);
                 setCurrentView('notes');
                 sessionStorage.setItem("lastContentType", 'notes');
-                setSelectedContent(prevSubTopic.notes[prevSubTopic.notes.length - 1].content);
+                const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
+                const noteData = await fetchNotesContent(noteId);
+                if (noteData) {
+                    setSelectedContent(noteData.content);
+                }
             } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
                 setCurrentSubTopicIndex(prevSubTopicIndex);
                 setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
@@ -1583,7 +1648,11 @@ const handlePrevious = useCallback((
                   setCurrentNotesIndex(prevSubTopic.notes.length - 1);
                   setCurrentView('notes');
                   sessionStorage.setItem("lastContentType", 'notes');
-                  setSelectedContent(prevSubTopic.notes[prevSubTopic.notes.length - 1].content);
+                  const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
+                  const noteData = await fetchNotesContent(noteId);
+                  if (noteData) {
+                      setSelectedContent(noteData.content);
+                  }
               } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
                   setCurrentSubTopicIndex(prevSubTopicIndex);
                   setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
@@ -1629,7 +1698,11 @@ const handlePrevious = useCallback((
                   setCurrentNotesIndex(prevSubTopic.notes.length - 1);
                   setCurrentView('notes');
                   sessionStorage.setItem("lastContentType", 'notes');
-                  setSelectedContent(prevSubTopic.notes[prevSubTopic.notes.length - 1].content);
+                  const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
+                  const noteData = await fetchNotesContent(noteId);
+                  if (noteData) {
+                      setSelectedContent(noteData.content);
+                  }
               } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
                   setCurrentSubTopicIndex(prevSubTopicIndex);
                   setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
@@ -1675,7 +1748,11 @@ const handlePrevious = useCallback((
               setCurrentNotesIndex(prevSubTopic.notes.length - 1);
               setCurrentView('notes');
               sessionStorage.setItem("lastContentType", 'notes');
-              setSelectedContent(prevSubTopic.notes[prevSubTopic.notes.length - 1].content);
+              const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
+              const noteData = await fetchNotesContent(noteId);
+              if (noteData) {
+                  setSelectedContent(noteData.content);
+              }
           } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
               setCurrentSubTopicIndex(prevSubTopicIndex);
               setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
@@ -1874,9 +1951,13 @@ const handlePrevious = useCallback((
     if (contentType === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
         setCurrentLessonIndex(itemIndex);
     } else if (contentType === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
-        setSelectedContent(subTopic.notes[itemIndex].content);
-        setContentType('notes');
-        setCurrentNotesIndex(itemIndex);
+        const noteId = subTopic.notes[itemIndex];
+        const noteData = await fetchNotesContent(noteId);
+        if (noteData) {
+            setSelectedContent(noteData.content);
+            setContentType('notes');
+            setCurrentNotesIndex(itemIndex);
+        }
     } else if (contentType === 'mcq') {
         // Always fetch MCQ questions when switching to MCQ view
         await fetchMCQQuestions(index);
@@ -1889,7 +1970,7 @@ const handlePrevious = useCallback((
     }
 
     handleViewChange(contentType);
-}, [chapters, fetchMCQQuestions, fetchCodingQuestions, hasFetched, currentSubTopicIndex]);
+}, [chapters, fetchMCQQuestions, fetchCodingQuestions, fetchNotesContent, hasFetched, currentSubTopicIndex]);
 
 const [requestedContent, setRequestedContent] = useState<string[]>([]); 
 

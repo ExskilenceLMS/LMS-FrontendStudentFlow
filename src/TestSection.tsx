@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import apiClient from "./utils/apiAuth";
+import { getApiClient } from "./utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "./constants";
 import SkeletonLoading from "./SkeletonTestSection";
@@ -28,7 +28,12 @@ interface Question {
   question_type: string;
   tags: string;
   question_data: QuestionData;
-  status?: string; // For tracking attempt status
+  status?: string; 
+  qn_id?: string;
+  level?: string;
+  question?: string;
+  score?: number;
+  time?: number;
 }
 
 interface QuestionList {
@@ -38,6 +43,10 @@ interface QuestionList {
     mcq: Question[];
     coding?: Question[];
   };
+  sections:{
+    MCQ?:Question[],
+    Coding?:Question[]
+  }
 }
 
 const TestSection: React.FC = () => {
@@ -69,9 +78,9 @@ const TestSection: React.FC = () => {
     const testData = sectionData;
 
     const fetchQuestionStatus = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/status/${studentId}/${'Test1'}/`
+      const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/status/${studentId}/${testId}/`
       try {
-        const response = await apiClient.get(url);
+        const response = await getApiClient().get(url);
         console.log('response',JSON.stringify(response.data));
         return response.data;
       } catch (innerError: any) {
@@ -145,9 +154,9 @@ const TestSection: React.FC = () => {
 
   const confirmSubmitTest = async () => {
     // api/student/test/submit/25EABCXIS001/Test1/
-    const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/submit/${studentId}/${'Test1'}/`
+    const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/submit/${studentId}/${testId}/`
     try {
-      await apiClient.post(url);
+      await getApiClient().post(url);
       sessionStorage.setItem("time", "0");
       setShowSubmitConfirmation(false);
       setShowModal(true);
@@ -208,9 +217,9 @@ const TestSection: React.FC = () => {
             </span>
           </div>
           
-          {questionList.qns_data.mcq && questionList.qns_data.mcq.length > 0 && (
+          {questionList.sections.MCQ && questionList.sections.MCQ.length > 0 && (
             <div>
-              {questionList.qns_data.mcq.map((question, index) => (
+              {questionList.sections.MCQ.map((question, index) => (
                 <div
                   className="d-flex flex-column flex-md-row justify-content-between align-items-center py-2"
                   key={question?.Qn_name || `mcq-${index}`}
@@ -224,7 +233,7 @@ const TestSection: React.FC = () => {
                   >
                     <div className="text-truncate" style={{ maxWidth: "100%" }}>
                       <span>
-                        {truncateText(question?.Qn || "", window.innerWidth < 600 ? 30 : 50)}
+                        {truncateText(question?.question || "", window.innerWidth < 600 ? 30 : 50)}
                       </span>
                     </div>
                     <div className="d-flex justify-content-start text-center mt-2 mt-md-0">
@@ -235,7 +244,7 @@ const TestSection: React.FC = () => {
                         {question?.Level || ""}
                       </span>
                       <span style={{ minWidth: "70px" }} className="me-3">
-                        Template {question?.question_data?.Template || ""}
+                        Score {question?.score || ""}
                       </span>
                       <button
                         className={`btn btn-sm px-3 border border-black text-dark`}
@@ -260,11 +269,11 @@ const TestSection: React.FC = () => {
             </div>
           )}
 
-          {questionList.qns_data.coding && questionList.qns_data.coding.length > 0 && (
+          {questionList.sections.Coding && questionList.sections.Coding.length > 0 && (
             <div>
               <hr />
               <h5 className="fw-normal">Section 2: Coding</h5>
-              {questionList.qns_data.coding.map((question, index) => (
+              {questionList.sections.Coding.map((question, index) => (
                 <div
                   className="d-flex flex-column flex-md-row justify-content-between align-items-center py-2"
                   key={question.Qn_name}
@@ -278,7 +287,7 @@ const TestSection: React.FC = () => {
                   >
                     <div className="text-truncate" style={{ maxWidth: "100%" }}>
                       <span>
-                        {truncateText(question?.question_data?.Qn || question?.Qn || "", window.innerWidth < 600 ? 30 : 50)}
+                        {truncateText(question?.question || "", window.innerWidth < 600 ? 30 : 50)}
                       </span>
                     </div>
                     <div className="d-flex justify-content-start text-center mt-2 mt-md-0">
@@ -289,7 +298,7 @@ const TestSection: React.FC = () => {
                         {question?.Level || ""}
                       </span>
                       <span style={{ minWidth: "70px" }} className="me-3">
-                        Template {question?.question_data?.Template || ""}
+                        Score {question?.score || ""}
                       </span>
                       <button
                         className={`btn btn-sm px-3 border border-black text-dark`}

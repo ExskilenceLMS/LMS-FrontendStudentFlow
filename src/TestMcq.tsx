@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import apiClient from "./utils/apiAuth";
+import { getApiClient } from "./utils/apiAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
@@ -53,7 +53,7 @@ const TestMcq: React.FC = () => {
   const encryptedSubject = sessionStorage.getItem("Subject") || "";
   const decryptedSubject = CryptoJS.AES.decrypt(encryptedSubject!, secretKey).toString(CryptoJS.enc.Utf8);
   const subject = decryptedSubject;
-  const encryptedSubjectId = sessionStorage.getItem("SubjectId") || "";
+  const encryptedSubjectId = sessionStorage.getItem("TestSubjectId") || "";
   const decryptedSubjectId = CryptoJS.AES.decrypt(encryptedSubjectId!, secretKey).toString(CryptoJS.enc.Utf8);
   const subjectId = decryptedSubjectId;
   const navigate = useNavigate();
@@ -206,7 +206,7 @@ const TestMcq: React.FC = () => {
       setSelectedOption(null);
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/mcq/`
       try {
-        await apiClient.put(url, {
+        await getApiClient().put(url, {
           student_id: studentId,
           question_id: questions[currentQuestion].Qn_name || "ranjitha",
           test_id: testId,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import apiClient from "./utils/apiAuth";
+import { getApiClient } from "./utils/apiAuth";
 import AceEditor from "react-ace";
 import { useNavigate } from "react-router-dom";
 import "ace-builds/src-noconflict/mode-sql";
@@ -74,6 +74,7 @@ const SQLEditor: React.FC = () => {
   const encryptedDayNumber = sessionStorage.getItem('DayNumber');
   const decryptedDayNumber = CryptoJS.AES.decrypt(encryptedDayNumber!, secretKey).toString(CryptoJS.enc.Utf8);
   const dayNumber = decryptedDayNumber;
+  const courseId = CryptoJS.AES.decrypt(sessionStorage.getItem('CourseId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
@@ -109,7 +110,7 @@ const SQLEditor: React.FC = () => {
           `${weekNumber}/` +
           `${sessionStorage.getItem("currentSubTopicId")}/`
       try {
-        const response = await apiClient.get(
+        const response = await getApiClient().get(
           url
         );
 
@@ -131,7 +132,7 @@ const SQLEditor: React.FC = () => {
         setEnteredAns(questionsWithSavedCode[initialIndex].entered_ans);
         setAns(questionsWithSavedCode[initialIndex].entered_ans || "");
 
-        if (response.data.length > 0) {
+        if (response.data.questions.length > 0) {
           initializeQuestionData(questionsWithSavedCode[initialIndex], availableTables);
         }
       } catch (error) {
@@ -142,10 +143,10 @@ const SQLEditor: React.FC = () => {
     const fetchTables = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/tables/`
       try {
-        const response = await apiClient.get(
+        const response = await getApiClient().get(
           url
         );
-        const tables = response.data;
+        const tables = response.data.tables;
         setAvailableTables(tables);
 
         if (questions.length > 0) {
@@ -198,7 +199,6 @@ const SQLEditor: React.FC = () => {
       setTableData(initialTables[0].data || []);
       setTableName(initialTables[0].tab_name);
     }
-
     setExpectedOutput(question.ExpectedOutput || []);
     setTestCases(question.TestCases || []);
   };
@@ -230,6 +230,10 @@ const SQLEditor: React.FC = () => {
     setStatus(submissionStatus ? decryptData(submissionStatus) === "submitted" : questions[index].status);
 
     const question = questions[index];
+    if (!Array.isArray(availableTables)) {
+      return;
+    }
+    
     const tableNames = question.Table.split(',').map(name => name.trim());
     const initialTables = tableNames.map(tableName =>
       availableTables.find(table => table.tab_name === tableName)
@@ -279,6 +283,10 @@ const SQLEditor: React.FC = () => {
     setEnteredAns(codeToSet);
     setAns(codeToSet);
 
+    if (!Array.isArray(availableTables)) {
+      return;
+    }
+    
     const tableNames = nextQuestion.Table.split(',').map(name => name.trim());
     const initialTables = tableNames.map(tableName =>
       availableTables.find(table => table.tab_name === tableName)
@@ -306,6 +314,10 @@ const SQLEditor: React.FC = () => {
 
     if (tab === "table") {
       const currentQuestion = questions[currentQuestionIndex];
+      if (!currentQuestion || !Array.isArray(availableTables)) {
+        return;
+      }
+      
       const tableNames = currentQuestion.Table.split(',').map(name => name.trim());
       const initialTables = tableNames.map(tableName =>
         availableTables.find(table => table.tab_name === tableName)
@@ -349,19 +361,13 @@ const SQLEditor: React.FC = () => {
         subject_id: subjectId,
         Qn: questions[currentQuestionIndex].Qn_name,
         query: updatedSqlQuery.replace("/*Write a all SQl commands/clauses in UPPERCASE*/", "").replace(/\s*\n\s*/g, " \n "),
-        ExpectedOutput: expectedOutput,
-        TestCases: testCases,
+        ExpectedOutput: questions[currentQuestionIndex].ExpectedOutput || [],
+        TestCases: questions[currentQuestionIndex].TestCases || [],
       };
       if (updatedSqlQuery) {
         setExecutingQuery(true);
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(sendData),
-        });
-        const responseData = await response.json();
+        const response = await getApiClient().post(url, sendData);
+        const responseData = response.data;
         setRunResponse(responseData);
 
         setRunResponseTable(responseData.data);
@@ -404,10 +410,12 @@ const SQLEditor: React.FC = () => {
         Ans: Ans,
         CallFunction: "",
         Result: runResponseTestCases,
-        Attempt: 0
+        Attempt: 0,
+        final_score:"0/0",
+        course_id:courseId
       };
 
-      const response = await apiClient.put(
+      const response = await getApiClient().put(
         url,
         postData
       );
@@ -515,6 +523,9 @@ const SQLEditor: React.FC = () => {
                                         className={`nav-link me-2 custom-tab ${selectedTable === tableName ? "active" : ""}`}
                                         onClick={() => {
                                           setSelectedTable(tableName);
+                                          if (!Array.isArray(availableTables)) {
+                                            return;
+                                          }
                                           const selectedTableData = availableTables.find(table => table.tab_name === tableName);
                                           if (selectedTableData) {
                                             setTableData(selectedTableData.data || []);
@@ -528,13 +539,13 @@ const SQLEditor: React.FC = () => {
                                     </li>
                                   ))}
                                 </ul>
-                                {selectedTable && tableData.length > 0 && (
+                                {selectedTable && tableData.length > 0 && tableData[0] && (
                                   <div className="table-responsive">
                                     <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "auto", fontSize: "12px" }}>
                                       <thead>
                                         <tr>
-                                          {Object.keys(tableData[0]).map((header) => (
-                                            <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(tableData[0]).length}vw` }}>
+                                          {Object.keys(tableData[0] || {}).map((header) => (
+                                            <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(tableData[0] || {}).length}vw` }}>
                                               {header}
                                             </th>
                                           ))}
@@ -543,7 +554,7 @@ const SQLEditor: React.FC = () => {
                                       <tbody>
                                         {tableData.map((row, index) => (
                                           <tr key={index}>
-                                            {Object.keys(row).map((header) => (
+                                            {Object.keys(row || {}).map((header) => (
                                               <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
                                                 {row[header]}
                                               </td>
@@ -557,12 +568,12 @@ const SQLEditor: React.FC = () => {
                               </div>
                               <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "output" ? "active show" : ""}`} style={{ height: "40vh", overflowX: "auto", fontSize: "12px" }}>
                                 <div className="table-responsive" style={{ height: "100%" }}>
-                                  {expectedOutput.length > 0 && (
+                                  {expectedOutput.length > 0 && expectedOutput[0] && (
                                     <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "auto", fontSize: "12px" }}>
                                       <thead>
                                         <tr>
-                                          {Object.keys(expectedOutput[0]).map((header) => (
-                                            <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(expectedOutput[0]).length}vw` }}>
+                                          {Object.keys(expectedOutput[0] || {}).map((header) => (
+                                            <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(expectedOutput[0] || {}).length}vw` }}>
                                               {header}
                                             </th>
                                           ))}
@@ -571,7 +582,7 @@ const SQLEditor: React.FC = () => {
                                       <tbody>
                                         {expectedOutput.map((row, index) => (
                                           <tr key={index}>
-                                            {Object.keys(row).map((header) => (
+                                            {Object.keys(row || {}).map((header) => (
                                               <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
                                                 {row[header]}
                                               </td>
@@ -675,12 +686,12 @@ const SQLEditor: React.FC = () => {
 
                     <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533" }}>
                       <div className="p-3 overflow-auto" style={{ height: "calc(100% - 10px)" }}>
-                        {runResponseTable.length > 0 && (
+                        {runResponseTable.length > 0 && runResponseTable[0] && (
                           <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
                             <thead>
                               <tr>
-                                {Object.keys(runResponseTable[0]).map((header) => (
-                                  <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(tableData[0]).length}vw` }}>
+                                {Object.keys(runResponseTable[0] || {}).map((header) => (
+                                  <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(runResponseTable[0] || {}).length}vw` }}>
                                     {header}
                                   </th>
                                 ))}
@@ -689,7 +700,7 @@ const SQLEditor: React.FC = () => {
                             <tbody>
                               {runResponseTable.map((row, index) => (
                                 <tr key={index}>
-                                  {Object.keys(row).map((header) => (
+                                  {Object.keys(row || {}).map((header) => (
                                     <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
                                       {row[header]}
                                     </td>
@@ -706,9 +717,9 @@ const SQLEditor: React.FC = () => {
                               className="d-flex align-items-center mb-2 border border-ligth shadow bg-white p-2 rounded-2"
                               style={{ width: "fit-content", fontSize: "12px" }}
                             >
-                              <span className="me-2">{Object.keys(testCase)[0]}:</span>
-                              <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
-                                {Object.values(testCase)[0]}
+                              <span className="me-2">{Object.keys(testCase || {})[0]}:</span>
+                              <span style={{ color: Object.values(testCase || {})[0] === "Passed" ? "blue" : Object.values(testCase || {})[0] === "True" ? "blue" : "red" }}>
+                                {Object.values(testCase || {})[0]}
                               </span>
                             </div>
                           ))}
