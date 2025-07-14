@@ -212,7 +212,8 @@ const TestMcq: React.FC = () => {
           test_id: testId,
           correct_ans: questions[currentQuestion].correct_answer,
           entered_ans: selectedOption,
-          subject_id: subjectId
+          subject_id: subjectId,
+          week_number: decryptData(sessionStorage.getItem("WeekNumber") || "0") || "0",
         });
       } 
       catch (innerError: any) {

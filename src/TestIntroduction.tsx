@@ -31,7 +31,7 @@ const TestIntroduction: React.FC = () => {
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
- 
+  const [responseLoading, setResponseLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,7 +47,8 @@ const TestIntroduction: React.FC = () => {
           setSectionCount1(response.data.mcq_section_count);
           setSectionCount2(response.data.coding_section_count);
           setTestDuration(response.data.test_duration_minutes);
-
+          setLoading(false);
+          setResponseLoading(true);
           const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${studentId}/${testId}/`;
           const response1 = await getApiClient().get(url1);
           console.log(response1.data);
@@ -56,7 +57,7 @@ const TestIntroduction: React.FC = () => {
           const calculatedDuration = response.data.test_duration_minutes - response1.data.duration;
           const encryptedDuration = CryptoJS.AES.encrypt(calculatedDuration.toString(), secretKey).toString();
           sessionStorage.setItem("testDuration", encryptedDuration);
-          
+          setResponseLoading(false);
           const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response1.data), secretKey).toString();
           sessionStorage.setItem("sectionData", encryptedSectionData);
         } catch (innerError: any) {
@@ -224,6 +225,7 @@ const TestIntroduction: React.FC = () => {
                   boxShadow: "0px 4px 4px rgba(0, 0, 0, 0.25)",
                 }}
                 onClick={handleStartTest}
+                disabled={responseLoading}
               >
                 Start Test
               </button>
