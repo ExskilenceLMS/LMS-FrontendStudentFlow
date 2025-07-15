@@ -61,7 +61,7 @@ const Test: React.FC = () => {
   const [filterState, setFilterState] = useState<FilterState>({
     testType: "",
     subject: "",
-    testStatus: "",
+    testStatus: "Ongoing",
     topic: "",
     startDate: "",
     endDate: "",
@@ -85,7 +85,12 @@ const Test: React.FC = () => {
       try {
         const response = await getApiClient().get(url);
         setTestDetails(response.data.test_details);
-        setFilteredDetails(response.data.test_details);
+        // Apply initial filter to show only ongoing tests
+        const ongoingTests = response.data.test_details.filter((detail: TestDetail) => {
+          const mappedStatus = statusMapping[detail.status] || detail.status;
+          return mappedStatus === "Ongoing";
+        });
+        setFilteredDetails(ongoingTests);
         setLoading(false);
       } catch (innerError: any) {
         console.error("Error fetching test details:", innerError);
@@ -116,6 +121,7 @@ const Test: React.FC = () => {
       let hasChanges = false;
       const updatedDetails = testDetails.map(detail => {
         const mappedStatus = statusMapping[detail.status] || detail.status;
+        // Only change to Ongoing if the test time has actually started
         if (mappedStatus === "Upcoming" && isTestTimeMatch(detail)) {
           hasChanges = true;
           return { ...detail, status: "Ongoing" };
@@ -210,6 +216,7 @@ const isTestTimeMatch = (test: TestDetail) => {
   const isSameDate = test.startdate === currentDateFormatted;
 
   if (!isSameDate) {
+    console.log(`Date mismatch: Test date ${test.startdate} vs Current date ${currentDateFormatted}`);
     return false;
   }
 
@@ -217,10 +224,14 @@ const isTestTimeMatch = (test: TestDetail) => {
   const currentTotalMinutes = currentHour * 60 + currentMinute;
   const isTimeMatch = currentTotalMinutes >= testStartTotalMinutes;
 
-  if (isTimeMatch) {
-  } else {
-    const minutesLeft = testStartTotalMinutes - currentTotalMinutes;
-  }
+  console.log(`Time check for test ${test.test_id}:`, {
+    testStartTime: `${test.starttime} (${startHour}:${startMinute})`,
+    currentTime: `${currentTime.time} (${currentHour}:${currentMinute})`,
+    testStartTotalMinutes,
+    currentTotalMinutes,
+    isTimeMatch,
+    minutesLeft: testStartTotalMinutes - currentTotalMinutes
+  });
 
   return isTimeMatch;
 };
@@ -261,11 +272,11 @@ const isTestTimeMatch = (test: TestDetail) => {
   return (
     <div style={{ backgroundColor: "#F2EEEE" }}>
       <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
-        <div className="container-fluid bg-white mt-2 border rounded-1" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee", height: `calc(100vh - 75px)` }}>
+        <div className="container-fluid bg-white mt-2 border rounded-1" style={{ maxWidth: "100%", overflowX: "hidden", backgroundColor: "#f2eeee" }}>
           <div className="row">
             <div className="col-md-3 col-lg-2">
               <div className="row p-2">
-                <div className="col border rounded-1 mt-2 pt-2">
+                <div className="col border rounded-1 mt-2 pt-2" style={{ height: "calc(100vh - 100px)", overflowY: "auto" }}>
                   <h5 className="text-center">Filter</h5>
                   <label className="form-label m-0 p-0 pt-2 ps-1">Test Type</label>
                   <select className="form-select" name="testType" value={filterState.testType} onChange={handleFilterChange}>
@@ -310,7 +321,7 @@ const isTestTimeMatch = (test: TestDetail) => {
                   {loading ? (
                     <SkeletonLoader />
                   ) : (
-                    <div className="table-responsive py-3">
+                    <div className="table-responsive py-3" style={{ height: "calc(100vh - 100px)", overflowY: "auto" }}>
                       <table className="table">
                         <thead className="table-header border border-secondary rounded-2 fs-5 fw-normal" style={{ backgroundColor: "#f8f9fa", boxShadow: "#00000033 0px 4px 8px" }}>
                           <tr>
@@ -327,7 +338,9 @@ const isTestTimeMatch = (test: TestDetail) => {
                           {filteredDetails.length > 0 ? (
                             filteredDetails.map((data, index) => {
                               const mappedStatus = statusMapping[data.status] || data.status;
-                              const isOngoing = mappedStatus === "Ongoing" || (mappedStatus === "Upcoming" && isTestTimeMatch(data));
+                              // Check if test time has actually started, regardless of status
+                              const isTimeStarted = isTestTimeMatch(data);
+                              const isOngoing = (mappedStatus === "Ongoing" && isTimeStarted) || (mappedStatus === "Upcoming" && isTimeStarted);
                               
                               return (
                                 <tr key={index} className="border rounded-2">
@@ -342,27 +355,31 @@ const isTestTimeMatch = (test: TestDetail) => {
                                   </td>
                                   <td className="text-center" style={{ alignContent: 'center' }}>{data.score}</td>
                                   <td className="text-center" style={{ alignContent: 'center' }}>
-                                    {isOngoing ? (
-                                      <button
-                                        className="btn border-black btn-sm"
-                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
-                                        style={{ width: "80px", backgroundColor: "#E5EBFF" }}
-                                      >
-                                        Start
-                                      </button>
+                                                                          {isOngoing ? (
+                                        <button
+                                          className="btn border-black btn-sm"
+                                          onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
+                                          style={{ width: "80px", backgroundColor: "#28a745", color: "white" }}
+                                        >
+                                          Start
+                                        </button>
                                     ) : mappedStatus === "Completed" ? (
                                       <HiOutlineClipboardDocumentList
                                         onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
                                         style={{ width: "30px", height: "30px", cursor: "pointer" }}
                                       />
                                     ) : (
-                                      <button
+                                      <div
                                         className="btn border-black btn-sm"
-                                        disabled
-                                        style={{ width: "80px", backgroundColor: "#E5EBFF" }}
+                                        style={{ 
+                                          width: "80px", 
+                                          backgroundColor: "#E5EBFF", 
+                                          opacity: "0.6",
+                                          cursor: "not-allowed"
+                                        }}
                                       >
                                         Start
-                                      </button>
+                                      </div>
                                     )}
                                   </td>
                                 </tr>
@@ -371,7 +388,10 @@ const isTestTimeMatch = (test: TestDetail) => {
                           ) : (
                             <tr>
                               <td colSpan={7} className="text-center">
-                                <p className="text-muted fs-6">No data found.</p>
+                                <p className="text-muted fs-6">
+                                  `No {filterState.testStatus.toLowerCase()} tests found`
+                                 
+                                </p>
                               </td>
                             </tr>
                           )}

@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getApiClient } from './utils/apiAuth';
 import './SubjectRoadMap.css';
 import Skeleton from 'react-loading-skeleton';
-import MCQSkeletonCode from "./Components/MCQSkeletonCode";
-import CodingSkeletonCode from "./Components/CodingSkeletonCode";
+
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
 import { Modal, Accordion, Spinner } from 'react-bootstrap';
@@ -134,6 +133,10 @@ const SubjectRoadMap: React.FC = () => {
         return `https://player.vdocipher.com/v2/?otp=${lesson.otp}&playbackInfo=${lesson.playback_info}`;
     };
 
+    const isDirectVideoUrl = (url: string): boolean => {
+        return url.includes('.mp4') || url.includes('.webm') || url.includes('.ogg') || url.includes('.mov');
+    };
+
     // Helper function to get dynamic label for content type
     const getContentLabel = (contentType: 'lesson' | 'notes' | 'mcq' | 'coding', count: number, index: number = 0) => {
         if (contentType === 'lesson') {
@@ -174,6 +177,30 @@ const SubjectRoadMap: React.FC = () => {
         }
         console.log('Returning lesson as default fallback');
         return 'lesson'; // fallback
+    };
+
+    // Helper function to get current subtopic name
+    const getCurrentSubTopicName = (): string => {
+        if (chapters.length === 0 || currentSubTopicIndex >= chapters[0].sub_topic_data.length) {
+            return '';
+        }
+        return chapters[0].sub_topic_data[currentSubTopicIndex].sub_topic;
+    };
+
+    // Helper function to get content type icon
+    const getContentTypeIcon = (contentType: 'lesson' | 'notes' | 'mcq' | 'coding'): React.ReactElement => {
+        switch (contentType) {
+            case 'lesson':
+                return <PiMonitorPlayBold size={20} />;
+            case 'notes':
+                return <SlNotebook size={20} />;
+            case 'mcq':
+                return <BsListTask size={20} />;
+            case 'coding':
+                return <LiaLaptopCodeSolid size={20} />;
+            default:
+                return <PiMonitorPlayBold size={20} />;
+        }
     };
     const handleToggle = () => {
         setIsActive(prevIsActive => !prevIsActive);
@@ -989,7 +1016,7 @@ useEffect(() => {
         if (loading) {
             return (
                 <div className='d-flex justify-content-center'>
-                    <div style={{ height: 'calc(100% - 10px)', overflow: 'auto' }}>
+                    <div style={{ height: 'calc(100% - 60px)', overflow: 'auto' }}>
                         <Skeleton />
                     </div>
                 </div>
@@ -999,7 +1026,7 @@ useEffect(() => {
         if (error || !chapters.length || !chapters[0].sub_topic_data[currentSubTopicIndex]?.lesson?.length) {
             return (
                 <div className='d-flex justify-content-center'>
-                    <div style={{ height: 'calc(100% - 10px)', overflow: 'auto' }}>
+                    <div style={{ height: 'calc(100% - 60px)', overflow: 'auto' }}>
                         <Skeleton />
                     </div>
                 </div>
@@ -1011,17 +1038,42 @@ useEffect(() => {
         const videoUrl = buildVideoUrl(currentLesson);
 
         return (
-            <div className="h-100 overflow-hidden p-0">
-                <iframe
-                    className="w-100 h-100"
-                    src={videoUrl}
-                    title="Video Player"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                    style={{ boxShadow: "#00000033 0px 0px 5px 0px inset" }}
-                />
+            <div className="h-100 overflow-hidden p-0" style={{ backgroundColor: "transparent", height: "calc(100% - 60px)" }}>
+                {isDirectVideoUrl(videoUrl) ? (
+                    <video
+                        className="w-100 h-100"
+                        controls
+                        autoPlay={false}
+                        muted={false}
+                        preload="metadata"
+                        style={{ 
+                            boxShadow: "#00000033 0px 0px 5px 0px inset",
+                            borderRadius: "8px",
+                            objectFit: "cover",
+                            backgroundColor: "transparent"
+                        }}
+                    >
+                        <source src={videoUrl} type="video/mp4" />
+                        <source src={videoUrl} type="video/webm" />
+                        <source src={videoUrl} type="video/ogg" />
+                        Your browser does not support the video tag.
+                    </video>
+                ) : (
+                    <iframe
+                        className="w-100 h-100"
+                        src={videoUrl}
+                        title="Video Player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
+                        style={{ 
+                            boxShadow: "#00000033 0px 0px 5px 0px inset",
+                            borderRadius: "8px",
+                            border: "none"
+                        }}
+                    />
+                )}
             </div>
         );
     };
@@ -1048,20 +1100,67 @@ useEffect(() => {
             );
         }
 
-        // Display HTML content directly in iframe
+        // Display HTML content directly in div using dangerouslySetInnerHTML
         return (
-            <iframe
-                srcDoc={noteData.content}
-                className="w-100 h-100"
-                title="Notes Content"
-                style={{ border: 'none' }}
+            <div className='p-0 m-0 ps-3'
+                style={{
+                    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                    fontSize: "16px",
+                    lineHeight: "1.6",
+                    margin: "40px",
+                    marginTop: "0px",
+                    color: "#333",
+                    height: "calc(100% - 10px)",
+                    overflow: "auto"
+                }}
+                dangerouslySetInnerHTML={{ __html: `
+                    <style>
+                        h1, h2 {
+                            font-weight: 600;
+                            color: #2C3E50;
+                            margin-top: 30px;
+                        }
+                        ul {
+                            margin: 10px 0 20px 20px;
+                        }
+                        li {
+                            margin-bottom: 8px;
+                        }
+                        code {
+                            background-color: #F4F4F4;
+                            padding: 4px 6px;
+                            font-family: Consolas, monospace;
+                            border-radius: 4px;
+                        }
+                        table {
+                            border-collapse: collapse;
+                            width: 100%;
+                            margin: 20px 0;
+                        }
+                        th, td {
+                            border: 1px solid #ddd;
+                            padding: 12px;
+                            text-align: left;
+                        }
+                        th {
+                            background-color: #F0F0F0;
+                        }
+                        pre {
+                            background-color: #F8F8F8;
+                            padding: 12px;
+                            border-left: 3px solid #ccc;
+                            font-size: 15px;
+                            overflow-x: auto;
+                        }
+                    </style>
+                    ${noteData.content}
+                `}}
             />
         );
     };
 
 
 const renderMCQContent = () => {
-    console.log('renderMCQContent called');
     console.log('MCQ render state:', { 
         loading, 
         error, 
@@ -1079,26 +1178,15 @@ const renderMCQContent = () => {
         return shuffled;
     };
 
-    if (loading) {
-        console.log('MCQ render: showing loading skeleton');
-        return <div className="d-flex justify-content-center align-items-center h-100">
-            <MCQSkeletonCode />
-        </div>;
-    }
-
     if (error || !mcqQuestions.length) {
         console.log('MCQ render condition:', { error, mcqQuestionsLength: mcqQuestions.length, currentView });
-        return <div className="d-flex justify-content-center align-items-center h-100">
-            <MCQSkeletonCode />
-        </div>;
+        return <div></div>;
     }
 
     const currentQuestion = mcqQuestions[currentMCQIndex];
 
     if (!currentQuestion) {
-        return <div className="d-flex justify-content-center align-items-center h-100">
-            <MCQSkeletonCode />
-        </div>;
+        return <div></div>;
     }
 
     if (!currentQuestion.shuffledOptions) {
@@ -1125,9 +1213,6 @@ const renderMCQContent = () => {
 
             <div className="flex-grow-1 d-flex flex-column" style={{ height: '100%', width:'min-content' }}>
                 <div className="border border-muted rounded-2" style={{ height: '100%', overflow: 'auto', boxShadow: "#00000033 0px 0px 5px 0px inset" }}>
-                    <div className="border-bottom border-muted p-3 d-flex justify-content-between align-items-center">
-                        <h5  style={{ cursor:'default'}} className="m-0">Practice MCQs</h5>
-                    </div>
 
                     <div className="p-3">
                         <div className="mb-4">
@@ -1211,26 +1296,12 @@ const renderMCQContent = () => {
 };
 
     const renderCodingContent = () => {
-        if (loading) {
-            return (
-                <div className="d-flex justify-content-center align-items-center h-100">
-                    <Skeleton height={50} />
-                    <Skeleton count={3} height={50} />
-                </div>
-            );
-        }
-
         if (error || !codingQuestions || !codingQuestions.length) {
-            return (
-                <div className="d-flex justify-content-center align-items-center h-100">
-                    <Skeleton height={50} />
-                    <Skeleton count={3} height={50} />
-                </div>
-            );
+            return <div></div>;
         }
 
         return (
-            <div className="p-3 CodingInfo" style={{ height: '88%', overflow: 'auto' }}>
+            <div className="p-3 CodingInfo" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
                 {codingQuestions.map((question) => (
                     <div key={question.id} className="mb-4">
                         <div className="d-flex align-items-start justify-content-between">
@@ -2024,23 +2095,43 @@ useEffect(() => {
 
 
 return (
-    <div className="container-fluid p-0" style={{ height: `calc(100vh - 60px)`, overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
-        <div className="p-0 my-0 me-2" style={{ backgroundColor: "#f0f0f0" }}>
-            <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f0f0f0" }}>
-                <div className='row g-2'>
-                    <div className='col-12'>
-                        <div className="bg-white border border-muted rounded-2 py-3" style={{ height: 'calc(100vh - 60px)', overflowY: "auto" }}>
-                            <div className="d-flex" style={{ height: 'calc(100vh - 145px)' }}>
+    <div className="container-fluid p-0" style={{ height: `calc(100vh - 50px)`, overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
+        <div className="p-0 my-0 me-2" style={{ backgroundColor: "#f0f0f0", height: "100%" }}>
+            <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f0f0f0", height: "100%" }}>
+                <div className='row g-2' style={{ height: "100%" }}>
+                    <div className='col-12' style={{ height: "100%" }}>
+                        <div className="bg-white border border-muted rounded-2 py-3" style={{ height: 'calc(100vh - 70px)', overflowY: "hidden" }}>
+                            <div className="d-flex" style={{ height: 'calc(100vh - 140px)' }}>
                                 {currentView === 'lesson' && (
                                     <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-3" style={{ height: 'calc(100% - 10px)', overflow: 'auto', boxShadow: '#00000033 0px 0px 5px 0px insets' }}>
+                                        <div className="border border-muted rounded-2 ms-3" style={{ height: 'calc(100% - 60px)', overflow: 'hidden', boxShadow: '#00000033 0px 0px 5px 0px inset' }}>
+                                            {/* Header with subtopic name and content type */}
+                                            <div className="border-bottom border-muted p-3 d-flex justify-content-between align-items-center">
+                                                <div className="d-flex align-items-center">
+                                                    <span className="me-2 fs-4">{getContentTypeIcon('lesson')}</span>
+                                                    <h5 className="m-0">{getCurrentSubTopicName()}</h5>
+                                                </div>
+                                                <div className="text-muted">
+                                                    <small>{getContentLabel('lesson', 1)}</small>
+                                                </div>
+                                            </div>
                                             {renderLessonContent()}
                                         </div>
                                     </div>
                                 )}
                                 {currentView === 'notes' && (
                                     <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-3" style={{ height: 'calc(100% - 10px)', overflow: 'auto', boxShadow: '#00000033 0px 0px 5px 0px insets' }}>
+                                        <div className="border border-muted rounded-2 ms-3" style={{ height: 'calc(100% - 60px)', overflow: 'hidden', boxShadow: '#00000033 0px 0px 5px 0px inset' }}>
+                                            {/* Header with subtopic name and content type */}
+                                            <div className="border-bottom border-muted p-3 d-flex justify-content-between align-items-center">
+                                                <div className="d-flex align-items-center">
+                                                    <span className="me-2 fs-4">{getContentTypeIcon('notes')}</span>
+                                                    <h5 className="m-0">{getCurrentSubTopicName()}</h5>
+                                                </div>
+                                                <div className="text-muted">
+                                                    <small>{getContentLabel('notes', 1)}</small>
+                                                </div>
+                                            </div>
                                             {renderNotesContent()}
                                         </div>
                                     </div>
@@ -2050,31 +2141,72 @@ return (
                                     if (mcqQuestions.length > 0) {
                                         return (
                                             <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                                <div className="rounded-2" style={{ height: 'calc(100% - 10px)', overflow: 'auto' }}>
+                                                <div className="rounded-2" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
+                                                    {/* Header with subtopic name and content type */}
+                                                    <div className="border-bottom border-muted p-3 d-flex justify-content-between align-items-center">
+                                                        <div className="d-flex align-items-center">
+                                                            <span className="me-2 fs-4">{getContentTypeIcon('mcq')}</span>
+                                                            <h5 className="m-0">{getCurrentSubTopicName()}</h5>
+                                                        </div>
+                                                        <div className="text-muted">
+                                                            <small>{getContentLabel('mcq', 1)}</small>
+                                                        </div>
+                                                    </div>
                                                     {renderMCQContent()}
                                                 </div>
                                             </div>
                                         );
                                     } else {
                                         return (
-                                            <div className="d-flex justify-content-center align-items-center h-100 pe-3" style={{ width: '100%' }}>
-                                                <MCQSkeletonCode />
+                                            <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
+                                                <div className="rounded-2" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
+                                                    {/* Header with subtopic name and content type */}
+                                                    <div className="border-bottom border-muted p-3 d-flex justify-content-between align-items-center">
+                                                        <div className="d-flex align-items-center">
+                                                            <span className="me-2 fs-4">{getContentTypeIcon('mcq')}</span>
+                                                            <h5 className="m-0">{getCurrentSubTopicName()}</h5>
+                                                        </div>
+                                                        <div className="text-muted">
+                                                            <small>{getContentLabel('mcq', 1)}</small>
+                                                        </div>
+                                                    </div>
+                                                    <div></div>
+                                                </div>
                                             </div>
                                         );
                                     }
                                 })()}
                                 {currentView === 'coding' && (codingQuestions.length > 0 ? (
                                     <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-3" style={{ height: 'calc(100% - 10px)', overflow: 'hide', boxShadow: '#00000033 0px 0px 5px 0px inset' }}>
-                                            <div className="border-bottom border-muted p-3">
-                                                <h5 style={{ cursor: 'default' }} className="m-0">Practice Coding</h5>
+                                        <div className="border border-muted rounded-2 ms-3" style={{ height: 'calc(100% - 60px)', overflow: 'hidden', boxShadow: '#00000033 0px 0px 5px 0px inset' }}>
+                                            {/* Header with subtopic name and content type */}
+                                            <div className="border-bottom border-muted p-3 d-flex justify-content-between align-items-center">
+                                                <div className="d-flex align-items-center">
+                                                    <span className="me-2 fs-4">{getContentTypeIcon('coding')}</span>
+                                                    <h5 className="m-0">{getCurrentSubTopicName()}</h5>
+                                                </div>
+                                                <div className="text-muted">
+                                                    <small>{getContentLabel('coding', 1)}</small>
+                                                </div>
                                             </div>
                                             {renderCodingContent()}
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="d-flex justify-content-center align-items-center h-100 pe-3" style={{ width: '100%' }}>
-                                        <CodingSkeletonCode />
+                                    <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
+                                        <div className="border border-muted rounded-2 ms-3" style={{ height: 'calc(100% - 60px)', overflow: 'hidden', boxShadow: '#00000033 0px 0px 5px 0px inset' }}>
+                                            {/* Header with subtopic name and content type */}
+                                            <div className="border-bottom border-muted p-3 d-flex justify-content-between align-items-center">
+                                                <div className="d-flex align-items-center">
+                                                    <span className="me-2 fs-4">{getContentTypeIcon('coding')}</span>
+                                                    <h5 className="m-0">{getCurrentSubTopicName()}</h5>
+                                                </div>
+                                                <div className="text-muted">
+                                                    <small>{getContentLabel('coding', 1)}</small>
+                                                </div>
+                                            </div>
+                                            <div></div>
+                                        </div>
                                     </div>
                                 ))}
                                 {isActive ? SidebarComponent() : SidebarComponentBar()}
