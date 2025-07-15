@@ -2,7 +2,7 @@ name: Frontend CI & Deploy
 
 on:
   push:
-    branches: [ dev ]  # or main if preferred
+    branches: [ Code ]  # or main if preferred
 
 jobs:
   build-and-push:
