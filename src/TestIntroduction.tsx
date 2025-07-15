@@ -28,9 +28,6 @@ const TestIntroduction: React.FC = () => {
   const [sectionCount1, setSectionCount1] = useState<number>(0);
   const [sectionCount2, setSectionCount2] = useState<number>(0);
   const [testDuration, setTestDuration] = useState<number>(0);
-  const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
   const [responseLoading, setResponseLoading] = useState<boolean>(false);
 
   useEffect(() => {

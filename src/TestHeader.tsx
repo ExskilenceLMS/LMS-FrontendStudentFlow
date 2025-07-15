@@ -10,6 +10,7 @@ import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { getApiClient } from './utils/apiAuth';
 import { performLogout } from './utils/apiAuth';
+import { IoArrowBackCircleOutline } from "react-icons/io5";
 
 const TestHeader: React.FC = () => {
   const location = useLocation();
@@ -229,10 +230,24 @@ useEffect(() => {
     navigate('/test-report');
   }, [navigate]);
 
+  const handleBackBtn = () => {
+    if (location.pathname.includes("Subject Roadmap")) {
+      navigate(`/SubjectOverview`);
+      return ;
+    }
+    if (location.pathname.includes("SubjectOverview")) {
+      navigate(`/Dashboard`);
+      return ;
+    }
+    navigate(-1)
+   }
+
   return (
     <div className='pe-2'>
       <div className="container-fluid bg-white border rounded-2 p-2 d-flex justify-content-between align-items-center">
         <span className="text-center fs-6">
+        <IoArrowBackCircleOutline size={30} className="me-1 pb-1 cursor-pointer" onClick={handleBackBtn} style={{ cursor: 'pointer'}} />
+          
           {formattedTitle === "Test Section" || formattedTitle === "Mcq Temp" || formattedTitle === "Coding Temp" ?
             <> <span className='fw-bold'>{sessionStorage.getItem("TestType") || ""}</span> </>
             :

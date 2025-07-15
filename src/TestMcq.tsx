@@ -65,7 +65,7 @@ const TestMcq: React.FC = () => {
   const [skippedQuestions, setSkippedQuestions] = useState<boolean[]>([]);
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState<boolean>(false);
   const [showSkipConfirmation, setShowSkipConfirmation] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submittingQuestions, setSubmittingQuestions] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState<boolean>(true);
 
   // Encryption/Decryption functions for sessionStorage
@@ -190,7 +190,8 @@ const TestMcq: React.FC = () => {
 
   const handleSubmit = async () => {
     if (selectedOption) {
-      setIsSubmitting(true);
+      // Add current question to submitting set
+      setSubmittingQuestions(prev => new Set([...prev, currentQuestion]));
 
       // Encrypt and store the answer in sessionStorage
       if (questions[currentQuestion]?.Qn_name) {
@@ -223,7 +224,12 @@ const TestMcq: React.FC = () => {
         setSelectedOption(selectedOption);
         console.error("Error submitting MCQ answer:", innerError);
       } finally {
-        setIsSubmitting(false);
+        // Remove current question from submitting set
+        setSubmittingQuestions(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(currentQuestion);
+          return newSet;
+        });
         setShowSubmitConfirmation(false);
       }
     }
@@ -284,7 +290,19 @@ const TestMcq: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container-fluid p-0" style={{ height: "100vh", maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
+      <div className="container-fluid p-0" style={{ 
+        position: "fixed", 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        zIndex: 9999, 
+        backgroundColor: "#f2eeee",
+        height: "100vh",
+        maxWidth: "100%", 
+        overflowX: "hidden", 
+        overflowY: "auto" 
+      }}>
         <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
           <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
             <div className="row g-2">
@@ -330,14 +348,14 @@ const TestMcq: React.FC = () => {
   }
 
   return (
-    <div className="container-fluid p-0" style={{ height: "100vh", maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
+    <div className="container-fluid p-0" style={{ height: "100%", maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
       <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
         <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
           <div className="row g-2">
             <div className="col-12">
-              <div className="bg-white border rounded-2 py-3 ps-3" style={{ height: "calc(100vh - 60px)", overflowY: "auto" }}>
+              <div className="bg-white border rounded-2 py-3 ps-3" style={{ height: "calc(100vh - 100px)", overflowY: "auto" }}>
                 <div className="d-flex h-100">
-                  <div className="d-flex flex-column align-items-center" style={{ width: "80px", marginLeft: "-20px" }}>
+                  <div className="d-flex flex-column align-items-center" style={{ width: "80px", marginLeft: "-20px",overflowY: "auto" }}>
                     {questions.map((_, index) => (
                       <button
                         key={index}
@@ -356,7 +374,7 @@ const TestMcq: React.FC = () => {
                     ))}
                   </div>
                   <div className="col-11 lg-8 me-3" style={{ height: "100%", flex: 1 }}>
-                    <div className="border border-dark rounded-2 d-flex flex-column" style={{ height: "calc(100% - 5px)", backgroundColor: "#E5E5E533" }}>
+                    <div className="border border-dark rounded-2 d-flex flex-column" style={{ height: "calc(100% - 100px)", backgroundColor: "#E5E5E533" }}>
                       <div className="p-3 mt-2">
                         <h4>{questions[currentQuestion].question}</h4>
                         {questions[currentQuestion].options.map((option, index) => (
@@ -408,11 +426,11 @@ const TestMcq: React.FC = () => {
                           height: "35px"
                         }}
                         onClick={handleSubmit}
-                        disabled={!selectedOption || answeredQuestions[currentQuestion] !== null || isSubmitting || questions[currentQuestion].question_status === "Submitted"}
+                        disabled={!selectedOption || answeredQuestions[currentQuestion] !== null || submittingQuestions.has(currentQuestion) || questions[currentQuestion].question_status === "Submitted"}
                       >
                         {answeredQuestions[currentQuestion] !== null || questions[currentQuestion].question_status === "Submitted"
                           ? "Submitted"
-                          : isSubmitting
+                          : submittingQuestions.has(currentQuestion)
                           ? "Submitting..."
                           : "Submit"}
                       </button>
@@ -431,7 +449,7 @@ const TestMcq: React.FC = () => {
                                 setSelectedOption(null);
                               }
                             }}
-                            disabled={isSubmitting}
+                            disabled={submittingQuestions.has(currentQuestion)}
                           >
                             Next
                           </button>

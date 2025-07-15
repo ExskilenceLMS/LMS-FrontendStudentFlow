@@ -68,6 +68,7 @@
     const [showModal, setShowModal] = useState(false);
     const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
     const [questionStatuses, setQuestionStatuses] = useState<{[key: string]: string}>({});
+    const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
 
     // Use useLocation from react-router-dom to access location.state safely
     const location = useLocation() as { state?: { sectionData?: any } };
@@ -171,6 +172,16 @@
       }
     }, [navigate, sectionData]);
 
+    // Add window resize listener for responsive text truncation
+    useEffect(() => {
+      const handleResize = () => {
+        setWindowWidth(window.innerWidth);
+      };
+
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const handleSubmitTest = async () => {
       setShowSubmitConfirmation(true);
     };
@@ -221,17 +232,41 @@
       return <SkeletonLoading />;
     }
 
-    const truncateText = (text: string | null | undefined, maxLength: number) => {
+    const truncateText = (text: string | null | undefined) => {
       if (!text) return ""; // Handle null, undefined, or empty string
+      
+      // Use the windowWidth state for responsive truncation
+      let maxLength: number;
+      
+      if (windowWidth < 480) {
+        // Extra small devices (phones)
+        maxLength = 15;
+      } else if (windowWidth < 768) {
+        // Small devices (tablets)
+        maxLength = 20;
+      } else if (windowWidth < 992) {
+        // Medium devices (small laptops)
+        maxLength = 60;
+      } else if (windowWidth < 1200) {
+        // Large devices (desktops)
+        maxLength = 80;
+      } else if (windowWidth < 1400) {
+        // Extra large devices
+        maxLength = 110;
+      } else {
+        // Extra large devices
+        maxLength = 120;
+      }
+      
       return text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
     };
 
     return (
-      <div style={{ backgroundColor: "#F2EEEE", height: `calc(100vh - 90px)` }}>
+      <div style={{ backgroundColor: "#F2EEEE", height: `calc(100vh - 200px)` }}>
         <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
           <div
             className="container-fluid bg-white mt-3 rounded-1 py-2"
-            style={{ height: `calc(100vh - 70px)`, overflowY: "auto" }}
+            style={{ height: `calc(100vh - 100px)`, overflowY: "auto" }}
           >
             <div className="mb-3">
               <span className="fs-5">Section 1: MCQ</span>
@@ -256,13 +291,13 @@
                     >
                       <div className="text-truncate" style={{ maxWidth: "100%" }}>
                         <span>
-                          {truncateText(question?.question || "", window.innerWidth < 600 ? 30 : 50)}
+                          {truncateText(question?.question || "")}
                         </span>
                       </div>
                       <div className="d-flex justify-content-start text-center mt-2 mt-md-0">
-                        <span style={{ minWidth: "70px" }} className="me-3">
+                        {/* <span style={{ minWidth: "70px" }} className="me-3">
                           MCQ
-                        </span>
+                        </span> */}
                         <span style={{ minWidth: "70px" }} className="me-3">
                           {question?.Level || ""}
                         </span>
@@ -310,13 +345,13 @@
                     >
                       <div className="text-truncate" style={{ maxWidth: "100%" }}>
                         <span>
-                          {truncateText(question?.question || "", window.innerWidth < 600 ? 30 : 50)}
+                          {truncateText(question?.question || "")}
                         </span>
                       </div>
                       <div className="d-flex justify-content-start text-center mt-2 mt-md-0">
-                        <span style={{ minWidth: "70px" }} className="me-3">
+                        {/* <span style={{ minWidth: "70px" }} className="me-3">
                           Coding
-                        </span>
+                        </span> */}
                         <span style={{ minWidth: "70px" }} className="me-3">
                           {question?.Level || ""}
                         </span>

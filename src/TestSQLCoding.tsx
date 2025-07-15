@@ -532,15 +532,15 @@ const TestSQLCoding: React.FC = () => {
   }
 
   return (
-    <div className="container-fluid p-0" style={{ height: 'calc(100vh - 70px)', overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
+    <div className="container-fluid p-0" style={{ height: '100%', overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
       <div className="p-0 my-0" style={{ backgroundColor: "#F2EEEE", marginRight: '10px' }}>
         <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
           <div className="row g-2">
             <div className="col-12">
-              <div className="" style={{ height: "100vh", overflow: "hidden", padding: '0px 0px 65px 0px' }}>
+              <div className="" style={{ height: `calc(100vh - 90px)`, overflow: "hidden", padding: '0px 0px 15px 0px' }}>
                 <div className="d-flex" style={{ height: '100%', width: '100%' }}>
                   {/* Question List */}
-                  <div className="col-1 lg-8" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px" }}>
+                  <div className="col-1 lg-8" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px", height: "100%", overflowY: "auto" }}>
                     {questions.map((_, index) => (
                       <button
                         key={index}
@@ -602,7 +602,7 @@ const TestSQLCoding: React.FC = () => {
                           </li>
                         </ul>
                         <div className="tab-content">
-                          <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "table" ? "active show" : ""}`} style={{ height: "40vh", overflowX: "auto" }}>
+                          <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "table" ? "active show" : ""}`} style={{ height: "35vh", overflowX: "auto" }}>
                             <div className="d-flex flex-row">
                               <div className="inline-block" style={{ marginBottom: "-1px" }}>
                                 <div
