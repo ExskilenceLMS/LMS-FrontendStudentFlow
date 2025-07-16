@@ -191,13 +191,19 @@ const SQLEditor: React.FC = () => {
 
   const initializeQuestionData = (question: Question, tables: { tab_name: string; data: Data[] }[]) => {
     const tableNames = question.Table.split(',').map(name => name.trim());
-    const initialTables = tableNames.map(tableName =>
-      tables.find(table => table.tab_name === tableName)
-    ).filter(table => table !== undefined);
-
-    if (initialTables.length > 0 && initialTables[0]) {
-      setTableData(initialTables[0].data || []);
-      setTableName(initialTables[0].tab_name);
+    // Use question-specific tables if available, otherwise fall back to global tables
+    const tablesToUse = question.Tables && question.Tables.length > 0 ? question.Tables : tables;
+    // Set selectedTable to the first table name (case-insensitive)
+    const firstTableName = tableNames[0];
+    setSelectedTable(firstTableName);
+    // Find the data for the selected table (case-insensitive)
+    const selectedTableData = tablesToUse.find(table => table.tab_name.toLowerCase() === firstTableName.toLowerCase());
+    if (selectedTableData) {
+      setTableData(selectedTableData.data || []);
+      setTableName(selectedTableData.tab_name);
+    } else {
+      setTableData([]);
+      setTableName(firstTableName);
     }
     setExpectedOutput(question.ExpectedOutput || []);
     setTestCases(question.TestCases || []);
@@ -230,13 +236,18 @@ const SQLEditor: React.FC = () => {
     setStatus(submissionStatus ? decryptData(submissionStatus) === "submitted" : questions[index].status);
 
     const question = questions[index];
-    if (!Array.isArray(availableTables)) {
+    
+    const tableNames = question.Table.split(',').map(name => name.trim());
+    
+    // Use question-specific tables if available, otherwise fall back to global tables
+    const tablesToUse = question.Tables && question.Tables.length > 0 ? question.Tables : availableTables;
+    
+    if (!Array.isArray(tablesToUse)) {
       return;
     }
     
-    const tableNames = question.Table.split(',').map(name => name.trim());
     const initialTables = tableNames.map(tableName =>
-      availableTables.find(table => table.tab_name === tableName)
+      tablesToUse.find(table => table.tab_name.toLowerCase() === tableName.toLowerCase())
     ).filter(table => table !== undefined);
 
     if (initialTables.length > 0 && initialTables[0]) {
@@ -283,13 +294,17 @@ const SQLEditor: React.FC = () => {
     setEnteredAns(codeToSet);
     setAns(codeToSet);
 
-    if (!Array.isArray(availableTables)) {
+    const tableNames = nextQuestion.Table.split(',').map(name => name.trim());
+    
+    // Use question-specific tables if available, otherwise fall back to global tables
+    const tablesToUse = nextQuestion.Tables && nextQuestion.Tables.length > 0 ? nextQuestion.Tables : availableTables;
+    
+    if (!Array.isArray(tablesToUse)) {
       return;
     }
     
-    const tableNames = nextQuestion.Table.split(',').map(name => name.trim());
     const initialTables = tableNames.map(tableName =>
-      availableTables.find(table => table.tab_name === tableName)
+      tablesToUse.find(table => table.tab_name.toLowerCase() === tableName.toLowerCase())
     ).filter(table => table !== undefined);
 
     if (initialTables.length > 0 && initialTables[0]) {
@@ -314,13 +329,21 @@ const SQLEditor: React.FC = () => {
 
     if (tab === "table") {
       const currentQuestion = questions[currentQuestionIndex];
-      if (!currentQuestion || !Array.isArray(availableTables)) {
+      if (!currentQuestion) {
         return;
       }
       
       const tableNames = currentQuestion.Table.split(',').map(name => name.trim());
+      
+      // Use question-specific tables if available, otherwise fall back to global tables
+      const tablesToUse = currentQuestion.Tables && currentQuestion.Tables.length > 0 ? currentQuestion.Tables : availableTables;
+      
+      if (!Array.isArray(tablesToUse)) {
+        return;
+      }
+      
       const initialTables = tableNames.map(tableName =>
-        availableTables.find(table => table.tab_name === tableName)
+        tablesToUse.find(table => table.tab_name.toLowerCase() === tableName.toLowerCase())
       ).filter(table => table !== undefined);
 
       if (initialTables.length > 0 && initialTables[0]) {
@@ -523,48 +546,49 @@ const SQLEditor: React.FC = () => {
                                         className={`nav-link me-2 custom-tab ${selectedTable === tableName ? "active" : ""}`}
                                         onClick={() => {
                                           setSelectedTable(tableName);
-                                          if (!Array.isArray(availableTables)) {
-                                            return;
-                                          }
-                                          const selectedTableData = availableTables.find(table => table.tab_name === tableName);
-                                          if (selectedTableData) {
-                                            setTableData(selectedTableData.data || []);
-                                            setTableName(tableName);
-                                          }
                                         }}
                                       >
                                         {tableName}
                                       </button>
-
                                     </li>
                                   ))}
                                 </ul>
-                                {selectedTable && tableData.length > 0 && tableData[0] && (
-                                  <div className="table-responsive">
-                                    <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "auto", fontSize: "12px" }}>
-                                      <thead>
-                                        <tr>
-                                          {Object.keys(tableData[0] || {}).map((header) => (
-                                            <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(tableData[0] || {}).length}vw` }}>
-                                              {header}
-                                            </th>
-                                          ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {tableData.map((row, index) => (
-                                          <tr key={index}>
-                                            {Object.keys(row || {}).map((header) => (
-                                              <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
-                                                {row[header]}
-                                              </td>
+                                {/* Always display the data for selectedTable, not just tableData */}
+                                {(() => {
+                                  const currentQuestion = questions[currentQuestionIndex];
+                                  const tablesToUse = currentQuestion?.Tables && currentQuestion.Tables.length > 0 ? currentQuestion.Tables : availableTables;
+                                  const selectedTableData = tablesToUse.find(table => table.tab_name.toLowerCase() === selectedTable.toLowerCase());
+                                  if (selectedTable && selectedTableData && selectedTableData.data && selectedTableData.data.length > 0) {
+                                    return (
+                                      <div className="table-responsive">
+                                        <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "auto", fontSize: "12px" }}>
+                                          <thead>
+                                            <tr>
+                                              {Object.keys(selectedTableData.data[0] || {}).map((header) => (
+                                                <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(selectedTableData.data[0] || {}).length}vw` }}>
+                                                  {header}
+                                                </th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {selectedTableData.data.map((row, index) => (
+                                              <tr key={index}>
+                                                {Object.keys(row || {}).map((header) => (
+                                                  <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                                    {row[header]}
+                                                  </td>
+                                                ))}
+                                              </tr>
                                             ))}
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    );
+                                  } else {
+                                    return null;
+                                  }
+                                })()}
                               </div>
                               <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "output" ? "active show" : ""}`} style={{ height: "40vh", overflowX: "auto", fontSize: "12px" }}>
                                 <div className="table-responsive" style={{ height: "100%" }}>

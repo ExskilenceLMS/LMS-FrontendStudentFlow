@@ -1109,8 +1109,9 @@ useEffect(() => {
                     lineHeight: "1.6",
                     margin: "40px",
                     marginTop: "0px",
+                    paddingBottom: "100px",
                     color: "#333",
-                    height: "calc(100% - 10px)",
+                    height: "100%",
                     overflow: "auto"
                 }}
                 dangerouslySetInnerHTML={{ __html: `

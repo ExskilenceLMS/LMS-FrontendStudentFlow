@@ -128,7 +128,7 @@ const TestReport: React.FC = () => {
           },
           result: {
             pass: apiData.test_summary.status === "Passed",
-            status: apiData.test_summary.percentage >= 40 ? "Passed" : "Failed",
+            status: apiData.test_summary.status || (apiData.test_summary.percentage >= 40 ? "Passed" : "Failed"),
             cutoff: ">=40%",
           },
           problems: {
@@ -136,12 +136,12 @@ const TestReport: React.FC = () => {
             total: apiData.test_summary.total_questions.toString(),
           },
           rank: {
-            college: "",
-            overall: "",
+            college: apiData.test_summary.college_rank?.toString() || "--",
+            overall: apiData.test_summary.overall_rank?.toString() || "--",
           },
           time: {
-            start: apiData.test_summary.test_start_time.toString(),
-            end: apiData.test_summary.test_end_time.toString(),
+            start: apiData.test_summary.test_start_time || "Not started",
+            end: apiData.test_summary.test_end_time || "Not completed",
           },
           good: apiData.topics.good || [],
           average: apiData.topics.average || [],
@@ -166,10 +166,10 @@ const TestReport: React.FC = () => {
           id: index + 1,
           question: q.Qn,
           answer: {
-            user: q.user_answer,
+            user: q.user_answer || "Not attempted",
             correct: q.Ans,
           },
-          testcase: q.testcases,
+          testcase: q.testcases || "0/0",
           score: `${q.score_secured}/${q.max_score}`,
           status: q.status.toLowerCase(),
           topic: q.topic,
@@ -377,14 +377,14 @@ const TestReport: React.FC = () => {
                                     question.status === "skipped" ? (
                                       <td className="text-danger">Skipped</td>
                                     ) : (
-                                      <td style={{ color: 'orange' }}>{question.status.toLowerCase() == "not attempted" ? "Not Attempted" : question.status}</td>
+                                      <td style={{ color: 'orange' }}>{question.status === "not attempted" ? "Not Attempted" : question.status}</td>
                                     )
                                   )
                                 )
                               )}
                             </tr>
                           ))
-                      ) : (
+                      ) : questionsData[choice].length > 0 ? (
                         questionsData[choice].map((question) => (
                           <tr key={question.id}>
                             <td>{question.id}</td>
@@ -411,13 +411,19 @@ const TestReport: React.FC = () => {
                                   question.status === "skipped" ? (
                                     <td className="text-danger">Skipped</td>
                                   ) : (
-                                    <td style={{ color: 'orange' }}>{question.status.toLowerCase() == "not attempted" ? "Not Attempted" : question.status}</td>
+                                    <td style={{ color: 'orange' }}>{question.status === "not attempted" ? "Not Attempted" : question.status}</td>
                                   )
                                 )
                               )
                             )}
                           </tr>
                         ))
+                      ) : (
+                        <tr>
+                          <td colSpan={choice === "coding" ? 6 : 5} className="text-center">
+                            No questions available for this category.
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>

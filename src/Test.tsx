@@ -389,7 +389,7 @@ const isTestTimeMatch = (test: TestDetail) => {
                             <tr>
                               <td colSpan={7} className="text-center">
                                 <p className="text-muted fs-6">
-                                  `No {filterState.testStatus.toLowerCase()} tests found`
+                                  No {filterState.testStatus.toLowerCase()} tests found
                                  
                                 </p>
                               </td>
