@@ -71,7 +71,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
     }
   
     setLoading(true);
-  const url='${process.env.REACT_APP_BACKEND_URL}api/student/ticket/comments/'
+  const url=`${process.env.REACT_APP_BACKEND_URL}api/student/ticket/comments/`
     try {
       const response = await apiClient.put(
         url,
@@ -125,9 +125,7 @@ finally {
               flexDirection: 'column',
             }}
           >
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-              User request details
-            </Typography>
+          
             <Typography variant="body1" paragraph sx={{ fontSize: '0.9rem', mb: 2 }}>
               <strong>Description:</strong> {bug.BugDescription}
             </Typography>
@@ -143,8 +141,8 @@ finally {
                 src={bug.Img_path}
                 alt="Issue Preview"
                 style={{
-                  maxWidth: '60%',
-                  maxHeight: '70%',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
                   objectFit: 'contain',
                   cursor: 'pointer',
                 }}
