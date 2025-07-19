@@ -59,7 +59,7 @@ const Profile: React.FC = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/student/profile/${studentId}/`
+      const url=`${process.env.REACT_APP_BACKEND_URL}api/student/profile/${studentId}`
       try {
         const response = await getApiClient().get<ProfileType>(
           url

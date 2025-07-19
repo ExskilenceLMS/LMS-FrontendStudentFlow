@@ -87,7 +87,7 @@ const EditProfile: React.FC = () => {
     : '';
 
   const fetchColleges = useCallback(async () => {
-    const url=`${API_BASE_URL}/colleges/`
+    const url=`${API_BASE_URL}/colleges`
     try {
       const response = await apiClient.get(url);
       setColleges(response.data);
@@ -100,7 +100,7 @@ const EditProfile: React.FC = () => {
 
   const fetchProfileData = useCallback(async () => {
     if (!studentId) return;
-    const url=`${API_BASE_URL}/student/profile/${studentId}/`
+    const url=`${API_BASE_URL}/student/profile/${studentId}`
     try {
       setLoading(true);
       const response = await apiClient.get(url);
