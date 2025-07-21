@@ -12,13 +12,22 @@
     background: linear-gradient(135deg, #3f48fd, #444dfa); 
     border: none;
     color: #ffffff;
-    border-radius: 10px;
-    padding: 5px 25px;
-    transition: background 0.2s ease-in-out;
-    width: 80px;
-    height: 40px;
-    margin-left: 15px; 
-  }
+    border-radius: 12px;
+    padding: 10px 22px;
+    transition: all 0.3s ease-in-out;
+    width: 90px;
+    height: 42px;
+    margin-left: 18px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.PN-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    background: linear-gradient(135deg, #2d35e8, #3a42e6);
+}
 
   .ndfHFb-c4YZDc-Wrql6b {
     height: 0px !important;
@@ -89,22 +98,70 @@
 }
 
 ::-webkit-scrollbar {
-  width: 4px;  
+  width: 6px;  
   height: 6px; 
   color: #000000;
-  background-color: #a6a896;
+  background-color: #f0f0f0;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #ffffff62;
+  background-color: #c1c1c1;
   border-radius: 3px;
+  transition: background-color 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #000000;
+  background-color: #a8a8a8;
 }
 
 ::-webkit-scrollbar-track {
-  background: #ffffff62;
+  background: #f8f8f8;
   border-radius: 3px;
+}
+
+/* Smooth transitions for content switching */
+.content-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+.video-container {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Improved sidebar styling */
+.sidebar-item {
+  transition: all 0.2s ease-in-out;
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+
+.sidebar-item:hover {
+  background-color: #f8f9fa;
+  transform: translateX(2px);
+}
+
+.sidebar-item.active {
+  background-color: #e3f2fd;
+  border-left: 3px solid #2196f3;
+}
+
+/* Professional button styling */
+.btn-modern {
+  transition: all 0.3s ease-in-out;
+  border-radius: 8px;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-modern:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Prevent page scrolling */
+html, body {
+  overflow: hidden;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
 }
