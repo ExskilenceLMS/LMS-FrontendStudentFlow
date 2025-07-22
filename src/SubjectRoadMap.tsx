@@ -1216,13 +1216,26 @@ const renderMCQContent = () => {
                     <div className="p-3">
                         <div className="mb-4">
                             <div className="d-flex justify-content-between mb-3">
-                                <pre style={{
+                                <div style={{
                                     whiteSpace: 'pre-wrap',
                                     wordWrap: 'break-word',
                                     overflowWrap: 'break-word',
-                                    width: '100%'
-                                }}>{currentQuestion.question}</pre>
-                                <div>Score : {score}</div>
+                                    width: '70%',
+                                    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                                    fontSize: "16px",
+                                    lineHeight: "1.6",
+                                    color: "#333"
+                                }}>{currentQuestion.question}</div>
+                                <div style={{
+                                    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                                    fontSize: "16px",
+                                    fontWeight: "600",
+                                    color: "#333",
+                                    display: "inline-block",
+                                    whiteSpace: "nowrap",
+                                    minWidth: "120px",
+                                    textAlign: "right"
+                                }}>Score : {score}</div>
                             </div>
 
                             <div className="row g-2">
@@ -1244,7 +1257,12 @@ const renderMCQContent = () => {
 
                                     return (
                                         <div key={index} className="col-6 d-flex align-items-center mb-2">
-                                            <div className="me-2 mx-3">
+                                            <div className="me-2 mx-3" style={{
+                                                fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                                                fontSize: "14px",
+                                                fontWeight: "600",
+                                                color: "#333"
+                                            }}>
                                             {String.fromCharCode(65 + (index as number))}.                                            </div>
 
                                             <button
@@ -1256,6 +1274,10 @@ const renderMCQContent = () => {
                                                     overflowWrap: 'break-word',
                                                     whiteSpace: 'normal',
                                                     boxShadow: '#00000033 0px 5px 4px',
+                                                    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                                                    fontSize: "14px",
+                                                    fontWeight: "500",
+                                                    color: "#333"
                                                 }}
                                                 onClick={() => {
                                                     if (!isAnswered) {
@@ -1281,9 +1303,26 @@ const renderMCQContent = () => {
                                 </button>
                             }
                             {isAnswered && !isCorrect && currentQuestion.Explanation && (
-                                <div className="mt-4 border rounded-2 p-2" style={{ backgroundColor: 'white', boxShadow: "#00000033 0px 5px 4px" }} >
-                                    <strong>Explanation:</strong>
-                                    <div>{currentQuestion.Explanation}</div>
+                                <div className="mt-4 border rounded-2 p-2" style={{ 
+                                    backgroundColor: 'white', 
+                                    boxShadow: "#00000033 0px 5px 4px",
+                                    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                                    fontSize: "14px",
+                                    color: "#333"
+                                }} >
+                                    <strong style={{
+                                        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                                        fontSize: "14px",
+                                        fontWeight: "600",
+                                        color: "#333"
+                                    }}>Explanation:</strong>
+                                    <div style={{
+                                        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+                                        fontSize: "14px",
+                                        lineHeight: "1.5",
+                                        color: "#333",
+                                        marginTop: "8px"
+                                    }}>{currentQuestion.Explanation}</div>
                                 </div>
                             )}
                         </div>
@@ -2010,8 +2049,8 @@ const handlePrevious = useCallback(async () => {
     const SidebarComponentBar = () => {
 
         return (
-            <div className=" me-3 d-flex flex-column" style={{ flexShrink: 0 }}>
-                <div className=" me-1 mt-2">
+            <div className="  d-flex flex-column" style={{ flexShrink: 0 }}>
+                <div className="  ">
                     <button className='btn' onClick={handleToggle}>< TfiMenuAlt size={25}/></button>
                 </div>
             </div>
