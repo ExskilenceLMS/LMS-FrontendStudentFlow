@@ -215,8 +215,17 @@ const SubjectOverview: React.FC = () => {
  
   if (loading) {
     return (
-      <div className="bg-white mt-3 border rounded-1 pt-4 p- px-2 mx-2" style={{ backgroundColor: "#F2EEEE", height: `calc(100vh - 90px)`, overflowY: "auto" }}>
+      <div className="bg-white mt-2 border rounded-1 pt-2 p- px-2 me-2" style={{ backgroundColor: "#F2EEEE", height: `calc(100vh - 58px)`, overflowY: "auto" }}>
         <div className="table-container p-1 mb-3 mt-4 border rounded-1">
+          <Skeleton height={35} style={{ backgroundColor: "#D7DCFF" }} />
+        </div>
+        <div className="table-container p-1 mb-3 border rounded-1">
+          <Skeleton height={35} style={{ backgroundColor: "#D7DCFF" }} />
+        </div>
+        <div className="table-container p-1 mb-3 border rounded-1">
+          <Skeleton height={35} style={{ backgroundColor: "#D7DCFF" }} />
+        </div>
+        <div className="table-container p-1 mb-3 border rounded-1">
           <Skeleton height={35} style={{ backgroundColor: "#D7DCFF" }} />
         </div>
         <div className="table-container p-1 mb-3 border rounded-1">
@@ -243,7 +252,7 @@ const SubjectOverview: React.FC = () => {
   return (
     <div className="" style={{ backgroundColor: "#F2EEEE", height: `calc(100vh - 90px)` }}>
       <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
-        <div className="container-fluid bg-white mt-2 rounded-1 pt-2" style={{ height: `calc(100vh - 80px)`, overflowY: "auto", border: '1px solid #ABABAB' }}>
+        <div className="container-fluid bg-white mt-2 rounded-1 pt-2" style={{ height: `calc(100vh - 58px)`, overflowY: "auto", border: '1px solid #ABABAB', paddingTop: '8px', paddingBottom: '8px' }}>
           {data.map((week) => (
             <div className="mb-2 rounded p-1" key={week.weekNumber} style={{ border: '1px solid #ABABAB' }}>
               <div className="p-2 rounded-2 d-flex justify-content-between align-items-center" style={{ backgroundColor: "#D7DCFF" }}>

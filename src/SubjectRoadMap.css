@@ -169,6 +169,18 @@
   overflow: hidden !important;
 }
 
+/* Allow scrolling for content areas */
+.scrollable-content {
+  overflow: auto !important;
+}
+
+/* Specific rule for notes content */
+.scrollable-content[style*="overflow: auto"] {
+  overflow: auto !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
 /* Ensure body and html are also controlled when SubjectRoadMap is active */
 .subject-roadmap-page ~ body,
 .subject-roadmap-page ~ html,

@@ -1015,7 +1015,7 @@ useEffect(() => {
     const renderLessonContent = () => {
         if (loading) {
             return (
-                <div className='d-flex justify-content-center' style={{ paddingTop: '8px', paddingBottom: '8px' }}>
+                <div className='d-flex justify-content-center'>
                     <div style={{ height: 'calc(100%)', overflow: 'auto' }}>
                         <Skeleton />
                     </div>
@@ -1025,7 +1025,7 @@ useEffect(() => {
 
         if (error || !chapters.length || !chapters[0].sub_topic_data[currentSubTopicIndex]?.lesson?.length) {
             return (
-                <div className='d-flex justify-content-center' style={{ paddingTop: '8px', paddingBottom: '8px' }}>
+                <div className='d-flex justify-content-center'>
                     <div style={{ height: 'calc(100% - 60px)', overflow: 'auto' }}>
                         <Skeleton />
                     </div>
@@ -1081,7 +1081,7 @@ useEffect(() => {
     const renderNotesContent = () => {
         if (loading || error || !chapters.length || !chapters[0].sub_topic_data[currentSubTopicIndex]?.notes?.length) {
             return (
-                <div style={{ paddingTop: '8px', paddingBottom: '8px' }}>
+                <div>
                     {/* <Skeleton count={6} height={20} width={100} />
                     <Skeleton count={6} height={20} /> */}
                 </div>
@@ -1094,7 +1094,7 @@ useEffect(() => {
 
         if (!noteData) {
             return (
-                <div className="d-flex justify-content-center align-items-center h-100" style={{ paddingTop: '8px', paddingBottom: '8px' }}>
+                <div className="d-flex justify-content-center align-items-center h-100">
                     <Skeleton count={6} height={20} />
                 </div>
             );
@@ -1102,16 +1102,14 @@ useEffect(() => {
 
         // Display HTML content directly in div using dangerouslySetInnerHTML
         return (
-            <div className='p-0 m-0 ps-3'
+            <div className='p-0 m-0 ps-3 scrollable-content'
                 style={{
                     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
                     fontSize: "16px",
                     lineHeight: "1.6",
-                    margin: "40px",
-                    marginTop: "0px",
-                    paddingBottom: "100px",
+                    padding: "20px",
                     color: "#333",
-                    height: "100%",
+                    minHeight: "100%",
                     overflow: "auto"
                 }}
                 dangerouslySetInnerHTML={{ __html: `
@@ -1181,7 +1179,7 @@ const renderMCQContent = () => {
 
     if (error || !mcqQuestions.length) {
         console.log('MCQ render condition:', { error, mcqQuestionsLength: mcqQuestions.length, currentView });
-        return <div style={{ paddingTop: '8px', paddingBottom: '8px' }}></div>;
+        return <div></div>;
     }
 
     const currentQuestion = mcqQuestions[currentMCQIndex];
@@ -1212,8 +1210,8 @@ const renderMCQContent = () => {
                 ))}
             </div>
 
-            <div className="flex-grow-1 d-flex flex-column" style={{ height: '100%', width:'min-content' }}>
-                <div className="border border-muted rounded-2" style={{ height: '100%', overflow: 'auto', boxShadow: "#00000033 0px 0px 5px 0px inset" }}>
+                                        <div className="flex-grow-1 d-flex flex-column" style={{ height: '100%', width:'min-content' }}>
+                                <div className="border border-muted rounded-2" style={{ height: '100%', overflow: 'auto', boxShadow: "#00000033 0px 0px 5px 0px inset", maxHeight: '100%' }}>
 
                     <div className="p-3">
                         <div className="mb-4">
@@ -1298,11 +1296,11 @@ const renderMCQContent = () => {
 
     const renderCodingContent = () => {
         if (error || !codingQuestions || !codingQuestions.length) {
-            return <div style={{ paddingTop: '8px', paddingBottom: '8px' }}></div>;
+            return <div></div>;
         }
 
         return (
-            <div className="p-3 CodingInfo" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
+            <div className="p-3 CodingInfo" style={{ height: 'calc(100% - 60px)', overflow: 'auto' }}>
                 {codingQuestions.map((question) => (
                     <div key={question.id} className="mb-4">
                         <div className="d-flex align-items-start justify-content-between">
@@ -1851,7 +1849,7 @@ const handlePrevious = useCallback(async () => {
         if (error || !chapters.length) {
             return (
                 <div className="border border-muted rounded-2 me-3 d-flex flex-column" style={{ width: '25%', height: 'calc(100% - 10px)', overflow: 'auto', flexShrink: 0 }}>
-                    <div className="border-bottom border-muted p-3 text-center" style={{ paddingTop: '8px', paddingBottom: '8px' }}>
+                    <div className="border-bottom border-muted p-3 text-center">
                         <Skeleton height={20} />
                     </div>
                 </div>
@@ -2119,7 +2117,7 @@ return (
             <div className="container-fluid p-0 pt-2 pe-2" style={{ maxWidth: "100%", overflow: "hidden", backgroundColor: "#f0f0f0", height: "100%" }}>
                 <div className='row g-0' style={{ height: "100%" }}>
                     <div className='col-12' style={{ height: "100%" }}>
-                        <div className="bg-white border border-muted rounded-2 py-2" style={{ height: 'calc(100vh - 55px)', overflowY: "hidden", paddingTop: '8px', paddingBottom: '8px' }}>
+                        <div className="bg-white border border-muted rounded-2 py-2" style={{ height: 'calc(100vh - 55px)', overflow: "hidden", paddingTop: '8px', paddingBottom: '8px' }}>
                             <div className="d-flex" style={{ height: 'calc(100vh - 110px)' }}>
                                 {currentView === 'lesson' && (
                                     <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
@@ -2134,7 +2132,7 @@ return (
                                                     <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('lesson', 1)}</small>
                                                 </div>
                                             </div>
-                                            <div className="flex-grow-1" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%' }}>
+                                            <div className="flex-grow-1" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
                                                 {renderLessonContent()}
                                             </div>
                                         </div>
@@ -2153,7 +2151,7 @@ return (
                                                     <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('notes', 1)}</small>
                                                 </div>
                                             </div>
-                                            <div className="flex-grow-1" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%' }}>
+                                            <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', height: 'calc(100vh - 200px)', overflow: 'auto' }}>
                                                 {renderNotesContent()}
                                             </div>
                                         </div>
@@ -2164,7 +2162,7 @@ return (
                                     if (mcqQuestions.length > 0) {
                                         return (
                                             <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
-                                                <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                                <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent', maxHeight: '100%' }}>
                                                     {/* Header with subtopic name and content type */}
                                                     <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                         <div className="d-flex align-items-center">
@@ -2175,7 +2173,7 @@ return (
                                                             <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('mcq', 1)}</small>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-grow-1" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%' }}>
+                                                    <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
                                                         {renderMCQContent()}
                                                     </div>
                                                 </div>
@@ -2184,7 +2182,7 @@ return (
                                     } else {
                                         return (
                                             <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
-                                                <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                                <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent', maxHeight: '100%' }}>
                                                     {/* Header with subtopic name and content type */}
                                                     <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                         <div className="d-flex align-items-center">
@@ -2195,7 +2193,7 @@ return (
                                                             <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('mcq', 1)}</small>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-grow-1" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%' }}>
+                                                    <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
                                                         <div></div>
                                                     </div>
                                                 </div>
@@ -2205,7 +2203,7 @@ return (
                                 })()}
                                 {currentView === 'coding' && (codingQuestions.length > 0 ? (
                                     <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                        <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent', maxHeight: '100%' }}>
                                             {/* Header with subtopic name and content type */}
                                             <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                 <div className="d-flex align-items-center">
@@ -2216,14 +2214,14 @@ return (
                                                     <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('coding', 1)}</small>
                                                 </div>
                                             </div>
-                                            <div className="flex-grow-1" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%' }}>
+                                            <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
                                                 {renderCodingContent()}
                                             </div>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                        <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent', maxHeight: '100%' }}>
                                             {/* Header with subtopic name and content type */}
                                             <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                 <div className="d-flex align-items-center">
@@ -2234,7 +2232,7 @@ return (
                                                     <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('coding', 1)}</small>
                                                 </div>
                                             </div>
-                                            <div className="flex-grow-1" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%' }}>
+                                            <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
                                                 <div></div>
                                             </div>
                                         </div>
