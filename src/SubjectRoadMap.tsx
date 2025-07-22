@@ -1015,7 +1015,7 @@ useEffect(() => {
     const renderLessonContent = () => {
         if (loading) {
             return (
-                <div className='d-flex justify-content-center'>
+                <div className='d-flex justify-content-center' style={{ paddingTop: '8px', paddingBottom: '8px' }}>
                     <div style={{ height: 'calc(100%)', overflow: 'auto' }}>
                         <Skeleton />
                     </div>
@@ -1025,7 +1025,7 @@ useEffect(() => {
 
         if (error || !chapters.length || !chapters[0].sub_topic_data[currentSubTopicIndex]?.lesson?.length) {
             return (
-                <div className='d-flex justify-content-center'>
+                <div className='d-flex justify-content-center' style={{ paddingTop: '8px', paddingBottom: '8px' }}>
                     <div style={{ height: 'calc(100% - 60px)', overflow: 'auto' }}>
                         <Skeleton />
                     </div>
@@ -1081,7 +1081,7 @@ useEffect(() => {
     const renderNotesContent = () => {
         if (loading || error || !chapters.length || !chapters[0].sub_topic_data[currentSubTopicIndex]?.notes?.length) {
             return (
-                <div>
+                <div style={{ paddingTop: '8px', paddingBottom: '8px' }}>
                     {/* <Skeleton count={6} height={20} width={100} />
                     <Skeleton count={6} height={20} /> */}
                 </div>
@@ -1094,7 +1094,7 @@ useEffect(() => {
 
         if (!noteData) {
             return (
-                <div className="d-flex justify-content-center align-items-center h-100">
+                <div className="d-flex justify-content-center align-items-center h-100" style={{ paddingTop: '8px', paddingBottom: '8px' }}>
                     <Skeleton count={6} height={20} />
                 </div>
             );
@@ -1181,7 +1181,7 @@ const renderMCQContent = () => {
 
     if (error || !mcqQuestions.length) {
         console.log('MCQ render condition:', { error, mcqQuestionsLength: mcqQuestions.length, currentView });
-        return <div></div>;
+        return <div style={{ paddingTop: '8px', paddingBottom: '8px' }}></div>;
     }
 
     const currentQuestion = mcqQuestions[currentMCQIndex];
@@ -1298,7 +1298,7 @@ const renderMCQContent = () => {
 
     const renderCodingContent = () => {
         if (error || !codingQuestions || !codingQuestions.length) {
-            return <div></div>;
+            return <div style={{ paddingTop: '8px', paddingBottom: '8px' }}></div>;
         }
 
         return (
@@ -1851,7 +1851,7 @@ const handlePrevious = useCallback(async () => {
         if (error || !chapters.length) {
             return (
                 <div className="border border-muted rounded-2 me-3 d-flex flex-column" style={{ width: '25%', height: 'calc(100% - 10px)', overflow: 'auto', flexShrink: 0 }}>
-                    <div className="border-bottom border-muted p-3 text-center">
+                    <div className="border-bottom border-muted p-3 text-center" style={{ paddingTop: '8px', paddingBottom: '8px' }}>
                         <Skeleton height={20} />
                     </div>
                 </div>
@@ -1862,14 +1862,29 @@ const handlePrevious = useCallback(async () => {
         const currentSubTopicId = sessionStorage.getItem("currentSubTopicId") || "";
     
         return (
-            <div className="border border-muted rounded-2 me-3 d-flex flex-column content-transition" style={{ width: '25%', height: '100%', overflow: 'auto', flexShrink: 0, boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+            <div className="border border-muted rounded-2 me-2 d-flex flex-column content-transition" style={{ width: '25%', height: '100%', overflow: 'auto', flexShrink: 0, boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
                 <div className="border-bottom border-muted">
                     <div className="d-flex justify-content-between align-items-center px-3 pe-1 py-2">
-                        <h6 className="mb-0 fw-semibold">
+                        <h6 className="mb-0 fw-semibold" 
+                            style={{ 
+                                overflow: 'hidden', 
+                                textOverflow: 'ellipsis', 
+                                whiteSpace: 'nowrap',
+                                maxWidth: '68%',
+                                flex: '1',
+                                cursor: 'default'
+                            }}
+                            onMouseEnter={(e) => {
+                                const target = e.currentTarget;
+                                if (target.scrollWidth > target.clientWidth) {
+                                    target.title = `${chapters[0].Day}: ${chapters[0].title}`;
+                                }
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.title = '';
+                            }}>
                             {chapters[0].Day}:{" "}
-                            {chapters[0].title.length > 10
-                                ? `${chapters[0].title.substring(0, 10)}...`
-                                : chapters[0].title}
+                            {chapters[0].title}
                         </h6>
                         <div className='d-flex align-items-center'>
                             <span className='badge bg-primary me-2'>{chapters[0].duration}hr</span>
@@ -1885,7 +1900,7 @@ const handlePrevious = useCallback(async () => {
                     {chapters[0].sub_topic_data.map((subTopic, index) => (
                         <Accordion.Item key={index} eventKey={index.toString()}>
                             <Accordion.Header className="py-1">
-                                <span style={{ fontSize: '14px', width: '80%', fontWeight: '500' }}><span style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>{index + 1}:</span> {subTopic.sub_topic}</span>
+                                <span style={{ fontSize: '14px', width: '80%', fontWeight: '500' }}><span style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>{index + 1}.</span> {subTopic.sub_topic}</span>
                                 <CiSquareChevUp size={16} className="accordion-icon" /> 
                             </Accordion.Header>
                             <Accordion.Body className="py-1">
@@ -2099,16 +2114,16 @@ useEffect(() => {
 
 
 return (
-    <div className="container-fluid p-0" style={{ height: "100vh", overflow: "hidden", backgroundColor: "#f2eeee" }}>
-        <div className="p-0 my-0 me-2" style={{ backgroundColor: "#f0f0f0", height: "100%", overflow: "hidden" }}>
-            <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflow: "hidden", backgroundColor: "#f0f0f0", height: "100%" }}>
-                <div className='row g-2' style={{ height: "100%" }}>
+    <div className="subject-roadmap-page container-fluid p-0" style={{ height: "100vh", overflow: "hidden", backgroundColor: "#f2eeee" }}>
+        <div className="p-0 my-0" style={{ backgroundColor: "#f0f0f0", height: "100%", overflow: "hidden", padding: "7px" }}>
+            <div className="container-fluid p-0 pt-2 pe-2" style={{ maxWidth: "100%", overflow: "hidden", backgroundColor: "#f0f0f0", height: "100%" }}>
+                <div className='row g-0' style={{ height: "100%" }}>
                     <div className='col-12' style={{ height: "100%" }}>
-                        <div className="bg-white border border-muted rounded-2 py-3" style={{ height: 'calc(100vh - 55px)', overflowY: "hidden", paddingBottom: '8px' }}>
-                            <div className="d-flex" style={{ height: 'calc(100vh - 120px)' }}>
+                        <div className="bg-white border border-muted rounded-2 py-2" style={{ height: 'calc(100vh - 55px)', overflowY: "hidden", paddingTop: '8px', paddingBottom: '8px' }}>
+                            <div className="d-flex" style={{ height: 'calc(100vh - 110px)' }}>
                                 {currentView === 'lesson' && (
-                                    <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-3 d-flex flex-column content-transition video-container" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                    <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
+                                        <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition video-container" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
                                             {/* Header with subtopic name and content type */}
                                             <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                 <div className="d-flex align-items-center">
@@ -2126,8 +2141,8 @@ return (
                                     </div>
                                 )}
                                 {currentView === 'notes' && (
-                                    <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-3 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                    <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
+                                        <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
                                             {/* Header with subtopic name and content type */}
                                             <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                 <div className="d-flex align-items-center">
@@ -2148,8 +2163,8 @@ return (
                                     console.log('MCQ view condition:', { currentView, mcqQuestionsLength: mcqQuestions.length });
                                     if (mcqQuestions.length > 0) {
                                         return (
-                                            <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                                <div className="border border-muted rounded-2 ms-3 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                            <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
+                                                <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
                                                     {/* Header with subtopic name and content type */}
                                                     <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                         <div className="d-flex align-items-center">
@@ -2168,8 +2183,8 @@ return (
                                         );
                                     } else {
                                         return (
-                                            <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                                <div className="border border-muted rounded-2 ms-3 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                            <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
+                                                <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
                                                     {/* Header with subtopic name and content type */}
                                                     <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                         <div className="d-flex align-items-center">
@@ -2189,8 +2204,8 @@ return (
                                     }
                                 })()}
                                 {currentView === 'coding' && (codingQuestions.length > 0 ? (
-                                    <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-3 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                    <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
+                                        <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
                                             {/* Header with subtopic name and content type */}
                                             <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                 <div className="d-flex align-items-center">
@@ -2207,8 +2222,8 @@ return (
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="flex-grow-1 me-3 d-flex flex-column" style={{ height: '100%' }}>
-                                        <div className="border border-muted rounded-2 ms-3 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
+                                    <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
+                                        <div className="border border-muted rounded-2 ms-2 d-flex flex-column content-transition" style={{ height: '100%', overflow: 'hidden', boxShadow: '0px 4px 12px rgba(0,0,0,0.08)', backgroundColor: 'transparent' }}>
                                             {/* Header with subtopic name and content type */}
                                             <div className="border-bottom border-muted px-3 py-2 d-flex justify-content-between align-items-center" style={{ minHeight: '35px' }}>
                                                 <div className="d-flex align-items-center">
@@ -2227,11 +2242,11 @@ return (
                                 ))}
                                 {isActive ? SidebarComponent() : SidebarComponentBar()}
                             </div>
-                            <div className="d-flex justify-content-between px-3 py-2" style={{ height: '45px', marginTop: '2px', marginBottom: '5px' }}>
-                                <button className="btn btn-sm btn-outline-light PN-button text-light px-3 py-1 rounded-2" style={{ fontSize: '13px', height: '35px', width: '80px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }} onClick={handlePrevious} disabled={isPreviousButtonDisabled() || disablePreviousBtn}>
+                            <div className="d-flex justify-content-between  py-1" style={{ height: '45px', marginTop: '2px', marginBottom: '5px' }}>
+                                <button className="btn btn-sm btn-outline-light PN-button text-light px-3 py-1 mx-2 rounded-2" style={{ fontSize: '13px', height: '35px', width: '80px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }} onClick={handlePrevious} disabled={isPreviousButtonDisabled() || disablePreviousBtn}>
                                     Previous
                                 </button>
-                                <button className="btn btn-sm btn-outline-light PN-button text-light px-3 py-1 rounded-2" style={{ fontSize: '13px', height: '35px', width: '80px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }} onClick={handleNext} disabled={disableStatusNextBtn}>
+                                <button className="btn btn-sm btn-outline-light PN-button text-light px-3 py-1 mx-2 rounded-2" style={{ fontSize: '13px', height: '35px', width: '80px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }} onClick={handleNext} disabled={disableStatusNextBtn}>
                                     Next
                                 </button>
                             </div>

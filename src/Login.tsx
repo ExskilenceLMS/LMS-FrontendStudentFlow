@@ -354,10 +354,7 @@ const Login: React.FC = () => {
           <div className="col-12 col-md-10 col-lg-4 mt-5 d-flex flex-column justify-content-center align-items-center p-4">
             <div className="loginCard glow card">
               <div className="loginCardBody card-body d-flex flex-column align-items-center">
-                <h3 className="card-title text-center pb-3 mx-1">Login with your Google account</h3>
-                <div style={{ position: 'relative', width: '100%', height: '400px', marginBottom: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  <img src={Loginpic} alt="Login" style={{ width: '100%', height: '100%' }} />
-                </div>
+                <h3 className="card-title text-center  mx-1">Login with your Google account</h3>
                 <div className="text-center">
                   {loading ? (
                     <div className="d-flex justify-content-center text-center align-items-center">
@@ -400,6 +397,10 @@ const Login: React.FC = () => {
                     </button>
                   )}
                 </div>
+                <div style={{ position: 'relative', width: '100%', height: '400px', marginBottom: '20px', marginTop: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <img src={Loginpic} alt="Login" style={{ width: '100%', height: '100%' }} />
+                </div>
+                
               </div>
             </div>
           </div>

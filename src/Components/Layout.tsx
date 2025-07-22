@@ -29,7 +29,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       )}
       <div
         style={{
-          marginLeft: shouldHideSidebar ? "10px" : showSidebar ? "180px" : "70px",
+          marginLeft: shouldHideSidebar ? "10px" : showSidebar ? "178px" : "68px",
           backgroundColor: "#f0f0f0",
         }}
       >

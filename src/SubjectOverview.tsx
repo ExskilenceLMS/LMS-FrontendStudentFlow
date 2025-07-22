@@ -243,9 +243,9 @@ const SubjectOverview: React.FC = () => {
   return (
     <div className="" style={{ backgroundColor: "#F2EEEE", height: `calc(100vh - 90px)` }}>
       <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
-        <div className="container-fluid bg-white mt-3 rounded-1 pt-5" style={{ height: `calc(100vh - 80px)`, overflowY: "auto", border: '1px solid #ABABAB' }}>
+        <div className="container-fluid bg-white mt-2 rounded-1 pt-2" style={{ height: `calc(100vh - 80px)`, overflowY: "auto", border: '1px solid #ABABAB' }}>
           {data.map((week) => (
-            <div className="mb-4 rounded p-1" key={week.weekNumber} style={{ border: '1px solid #ABABAB' }}>
+            <div className="mb-2 rounded p-1" key={week.weekNumber} style={{ border: '1px solid #ABABAB' }}>
               <div className="p-2 rounded-2 d-flex justify-content-between align-items-center" style={{ backgroundColor: "#D7DCFF" }}>
                 <div className="d-flex p-0 justify-content-between flex-wrap" style={{ cursor: 'default' }}>
                   {week.topics ? (
