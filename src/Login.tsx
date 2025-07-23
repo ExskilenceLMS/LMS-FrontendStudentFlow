@@ -5,11 +5,11 @@ import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import './Login.css';
 import GoogleLogo from './Components/images/search.png';
-import Loginpic from './Components/images/img9 1.png';
 import CryptoJS from 'crypto-js';
 import { secretKey } from './constants';
-
 import { createAxiosWithActivityTracking, performLogout } from './utils/apiAuth';
+
+// const Logo = process.env.PUBLIC_URL + '/Fav-icon.png';
 
 interface UserData {
   access_token: string;
@@ -340,69 +340,69 @@ const Login: React.FC = () => {
   }, []); 
  
   return (
-    <div className='login'>
-      <div className="container-fluid h-100 d-flex align-items-center justify-content-center">
-        <div className="row w-100">
-          <div className="col-12 col-md-12 col-lg-7 d-flex align-items-center justify-content-center">
-            <div className="p-4 text-center" style={{ borderRadius: '15px', color: '#003e80', backgroundColor: 'transparent' }}>
-              <h2 className="font-weight-bold mb-4">Welcome to Exskilence Upskilling Program</h2>
-              <p style={{ fontSize: '1.25rem', lineHeight: '1.8', textAlign:'justify' }}>
-                Upskilling refers to the process of acquiring new skills or enhancing existing ones to stay relevant in the ever-evolving job market. As industries rapidly change due to technological advancements and shifting economic landscapes, continuous learning has become essential for career growth and adaptability. By engaging in upskilling, individuals can improve their expertise, increase job opportunities, and remain competitive in their field. For organizations, investing in employee upskilling fosters innovation, boosts productivity, and helps retain top talent, ensuring that the workforce remains agile and future-ready.
-              </p>
-            </div>
-          </div>
-          <div className="col-12 col-md-10 col-lg-4 mt-5 d-flex flex-column justify-content-center align-items-center p-4">
-            <div className="loginCard glow card">
-              <div className="loginCardBody card-body d-flex flex-column align-items-center">
-                <h3 className="card-title text-center  mx-1">Login with your Google account</h3>
-                <div className="text-center">
-                  {loading ? (
-                    <div className="d-flex justify-content-center text-center align-items-center">
-                      <Spinner color="#0d6efd" size="sm" className='me-2' /> Signing in...
-                    </div>
-                  ) : verifyingSession ? (
-                    <div className="d-flex justify-content-center text-center align-items-center">
-                      <Spinner color="#0d6efd" size="sm" className='me-2' /> Verifying...
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => handleLogin()} 
-                      className="btn d-flex justify-content-center align-items-center" 
-                      style={{ 
+    <div className='login container-fluid h-100 d-flex align-items-center justify-content-center'>
+      <div className="row w-100 justify-content-center">
+        {/* Login Card - Shows first on small screens, second on large screens */}
+        <div className="col-12 col-lg-4 order-1 order-lg-2 d-flex justify-content-center align-items-center px-3 py-4">
+          <div className="loginCard glow card">
+            <div className="loginCardBody card-body d-flex flex-column align-items-center justify-content-center p-0">
+              <div className="text-center">
+                {/* <img src={Logo} alt="Exskilence Logo" style={{ width: '50px', height: '50px', marginBottom: '12px' }} /> */}
+                <h4 className="card-title text-center pb-2 mx-1">Login with your Google account</h4>
+              </div>
+              <div className="text-center">
+                {loading ? (
+                  <div className="d-flex justify-content-center text-center align-items-center">
+                    <Spinner color="#0d6efd" size="sm" className='me-2' /> Signing in...
+                  </div>
+                ) : verifyingSession ? (
+                  <div className="d-flex justify-content-center text-center align-items-center">
+                    <Spinner color="#0d6efd" size="sm" className='me-2' /> Verifying...
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => handleLogin()} 
+                    className="btn d-flex justify-content-center align-items-center" 
+                    style={{ 
+                      color: 'white', 
+                      fontWeight: 'bold', 
+                      borderRadius: '100%', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      padding: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ 
+                        backgroundColor: '#6f42c1', 
                         color: 'white', 
-                        fontWeight: 'bold', 
-                        borderRadius: '100%', 
-                        cursor: 'pointer', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        padding: '10px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ 
-                          backgroundColor: '#6f42c1', 
-                          color: 'white', 
-                          padding: '20px', 
-                          textAlign: 'center', 
-                          borderRadius: '20px',
-                          height: '40px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          width: '250px' 
-                        }}>
-                          <img className='me-3' src={GoogleLogo} alt="Google Logo" height={32} width={32} style={{backgroundColor:'white',borderRadius:'0px',padding:"5px"}} />
-                          Sign in with Google
-                        </span>
-                      </div>
-                    </button>
-                  )}
-                </div>
-                <div style={{ position: 'relative', width: '100%', height: '400px', marginBottom: '20px', marginTop: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                  <img src={Loginpic} alt="Login" style={{ width: '100%', height: '100%' }} />
-                </div>
-                
+                        padding: '20px', 
+                        textAlign: 'center', 
+                        borderRadius: '20px',
+                        height: '40px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%' 
+                      }}>
+                        {/* <img className='me-3' src={GoogleLogo} alt="Google Logo" height={32} width={32} style={{backgroundColor:'white',borderRadius:'0px',padding:"5px"}} /> */}
+                        Sign in with Google
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
+          </div>
+        </div>
+        
+        {/* Welcome Text - Shows second on small screens, first on large screens */}
+        <div className="col-12 col-lg-8 order-2 order-lg-1 d-flex align-items-center justify-content-center px-3 py-4">
+          <div className="text-center" style={{ borderRadius: '15px', color: '#003e80', backgroundColor: 'transparent' }}>
+            <h2 className="font-weight-bold mb-4">Welcome to Exskilence Upskilling Program</h2>
+            <p style={{ fontSize: '1.25rem', lineHeight: '1.8', textAlign:'justify' }}>
+              Upskilling refers to the process of acquiring new skills or enhancing existing ones to stay relevant in the ever-evolving job market. As industries rapidly change due to technological advancements and shifting economic landscapes, continuous learning has become essential for career growth and adaptability. By engaging in upskilling, individuals can improve their expertise, increase job opportunities, and remain competitive in their field. For organizations, investing in employee upskilling fosters innovation, boosts productivity, and helps retain top talent, ensuring that the workforce remains agile and future-ready.
+            </p>
           </div>
         </div>
       </div>

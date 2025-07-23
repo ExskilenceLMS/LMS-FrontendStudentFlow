@@ -53,10 +53,10 @@ interface CodingQuestion {
 }
 
 
-  interface VideoLesson {
+    interface VideoLesson {
     otp: string;
     playback_info: string;
-}
+  }
 
 interface NoteContent {
     content: string;
@@ -70,7 +70,7 @@ interface NoteData {
 interface SubTopic {
     subtopicid: string;
     sub_topic: string;
-    lesson: VideoLesson[];
+    lesson: number[]; // Array of video IDs, similar to notes
     notes: number[];
     mcqQuestions: number;
     codingQuestions: number;
@@ -125,12 +125,21 @@ const SubjectRoadMap: React.FC = () => {
     const [isActive, setIsActive] = useState<boolean>(true);
     const [currentContentType, setCurrentContentType] = useState<'lesson' | 'notes' | 'mcq' | 'coding'>('lesson');
     const [mcqInteracted, setMcqInteracted] = useState<{ [key: string]: boolean }>({});
+    const [videoData, setVideoData] = useState<{ [key: number]: { otp: string; playback_info: string } }>({});
     const navigate = useNavigate();
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
     const decryptedCourseId = CryptoJS.AES.decrypt(sessionStorage.getItem('CourseId')!, secretKey).toString(CryptoJS.enc.Utf8);
     // Helper function to build video URL from lesson data
-    const buildVideoUrl = (lesson: VideoLesson): string => {
-        return `https://player.vdocipher.com/v2/?otp=${lesson.otp}&playbackInfo=${lesson.playback_info}`;
+
+
+    const fetchVideoData = async (videoId: number): Promise<{ otp: string; playback_info: string }> => {
+        try {
+            const response = await getApiClient().get(`${process.env.REACT_APP_BACKEND_URL}api/student/videos/${videoId}/`);
+            return response.data;
+        } catch (error) {
+            console.error("Error fetching video data:", error);
+            throw error;
+        }
     };
 
     const isDirectVideoUrl = (url: string): boolean => {
@@ -405,8 +414,8 @@ const fetchRoadmapData = async () => {
                 
                 if (actualCurrentView === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
                     console.log('Setting lesson content');
-                    const firstLesson = subTopic.lesson[0] as VideoLesson;
-                    setSelectedContent(firstLesson.otp);
+                    const firstVideoId = subTopic.lesson[0];
+                    setSelectedContent(`Video ${firstVideoId}`);
                 } else if (actualCurrentView === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
                     console.log('Setting notes content');
                     // Fetch notes content for initial load
@@ -1033,9 +1042,52 @@ useEffect(() => {
             );
         }
 
-        // Build video URL from lesson data
-        const currentLesson = chapters[0].sub_topic_data[currentSubTopicIndex].lesson[currentLessonIndex];
-        const videoUrl = buildVideoUrl(currentLesson);
+        // Get current lesson video ID
+        const currentVideoId = chapters[0].sub_topic_data[currentSubTopicIndex].lesson[currentLessonIndex];
+        
+        // Check if we have cached video data for this video ID
+        const hasCachedVideoData = videoData[currentVideoId];
+        
+        // If we don't have cached data, fetch it from backend
+        if (!hasCachedVideoData) {
+            // Fetch video data from backend
+            fetchVideoData(currentVideoId)
+                .then(data => {
+                    setVideoData(prev => ({
+                        ...prev,
+                        [currentVideoId]: data
+                    }));
+                })
+                .catch(error => {
+                    console.error("Failed to fetch video data:", error);
+                });
+            
+            // Show loading while fetching
+            return (
+                <div className='d-flex justify-content-center align-items-center' style={{ height: 'calc(100% - 60px)' }}>
+                    <div className="text-center">
+                        <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <p className="mt-2">Loading video...</p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Build video URL from cached data
+        const videoDataForCurrentVideo = videoData[currentVideoId];
+        const videoUrl = `https://player.vdocipher.com/v2/?otp=${videoDataForCurrentVideo.otp}&playbackInfo=${videoDataForCurrentVideo.playback_info}`;
+
+        if (!videoUrl) {
+            return (
+                <div className='d-flex justify-content-center align-items-center' style={{ height: 'calc(100% - 60px)' }}>
+                    <div className="text-center">
+                        <p>Video not available</p>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="h-100 overflow-hidden p-0" style={{ backgroundColor: "transparent", height: "100%" }}>

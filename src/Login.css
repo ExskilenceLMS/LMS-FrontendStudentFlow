@@ -6,8 +6,43 @@
     background-size: cover; 
     margin: 0; 
     font-family: 'Poppins', sans-serif; 
-    padding-top: 10px;
-    padding-bottom:10px;
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+    .login {
+        padding: 10px 0;
+    }
+    
+    .loginCard {
+        margin-bottom: 20px;
+        min-height: 300px;
+        max-height: 350px;
+        max-width: 350px;
+    }
+    
+    .loginCardBody {
+        padding: 15px;
+    }
+    
+    .card-title {
+        font-size: 1rem;
+    }
+    
+    .text-center p {
+        font-size: 1rem !important;
+        line-height: 1.6 !important;
+    }
+    
+    .text-center h2 {
+        font-size: 1.5rem;
+    }
+    
+    /* Reduce padding on small screens */
+    .col-12 {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
 }
 html, body {
     height: 100%;
@@ -18,20 +53,24 @@ html, body {
 .loginCard {
     border-radius: 15px;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    /* background: inherit; */
     background-image: url('https://img.freepik.com/free-vector/purple-watercolour-background-2_78370-1872.jpg?t=st=1727787562~exp=1727791162~hmac=5f04f5ddade14f2ab3cfb527f7e0f1605955988d4112de35e800587441fb2f74&w=1380');
     transition: transform 0.2s ease-in-out;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; 
-    height: 100%; 
+    justify-content: center;
+    min-height: 250px;
+    max-height: 300px;
+    width: 100%;
+    /* border: none; */
+    max-width: 400px;
 }
     
 .loginCardBody {
-    padding: 30px;
     display: flex;
     flex-direction: column; 
     justify-content: space-between; 
-    height: 100%; 
+
 }
 
 
