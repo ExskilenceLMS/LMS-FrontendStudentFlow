@@ -779,13 +779,28 @@ const handleNext = () => {
    */
 const handleSubmit = async () => {
   setIsSubmitted(true);
-  setProcessing(true);
+    setProcessing(true);
   const url = `${process.env.REACT_APP_BACKEND_URL}api/student/coding/`;
 
   try {
     // Get course_id from session storage
     const encryptedCourseId = sessionStorage.getItem('CourseId');
     const courseId = encryptedCourseId ? CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : "course19";
+
+        // Prepare test case results - always send the same number of test cases as available in the question
+    let submissionTestCases = runResponseTestCases;
+    
+    if (runResponseTestCases.length === 0) {
+      // If no test cases were run, create failed test cases based on the current question's test cases
+      const currentQuestion = questions[currentQuestionIndex];
+      if (currentQuestion && currentQuestion.TestCases && currentQuestion.TestCases.length > 0) {
+        const failedTestCases = currentQuestion.TestCases.map((_, index) => ({
+          [`TestCase${index + 1}`]: "Failed"
+        }));
+        const finalResult = { Result: "Failed" };
+        submissionTestCases = [...failedTestCases, finalResult];
+      }
+    }
 
     const postData = {
       student_id: studentId,
@@ -796,7 +811,7 @@ const handleSubmit = async () => {
       Qn: questions[currentQuestionIndex].Qn_name,
       Ans: Ans,
       CallFunction: "",
-      Result: runResponseTestCases,
+      Result: submissionTestCases,
       Attempt: 0,
       final_score: "0/0",
       course_id: courseId
@@ -950,7 +965,7 @@ const handleSubmit = async () => {
                             onClick={handleRunCode}
                             disabled={processing || !Ans.trim() || !backendHealthy}
                           >
-                            RUN CODE
+                            RUN TESTCASES
                           </button>
                           
                           {/* Submit Code Button */}

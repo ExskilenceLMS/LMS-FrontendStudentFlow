@@ -2264,9 +2264,9 @@ return (
                                                             <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('mcq', 1)}</small>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
-                                                        {renderMCQContent()}
-                                                    </div>
+                                                                                                <div className="flex-grow-1 scrollable-content mcq-container" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
+                                                {renderMCQContent()}
+                                            </div>
                                                 </div>
                                             </div>
                                         );
@@ -2284,7 +2284,7 @@ return (
                                                             <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('mcq', 1)}</small>
                                                         </div>
                                                     </div>
-                                                    <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
+                                                    <div className="flex-grow-1 scrollable-content mcq-container" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
                                                         <div></div>
                                                     </div>
                                                 </div>
@@ -2305,7 +2305,7 @@ return (
                                                     <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('coding', 1)}</small>
                                                 </div>
                                             </div>
-                                            <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
+                                            <div className="flex-grow-1 scrollable-content coding-container" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
                                                 {renderCodingContent()}
                                             </div>
                                         </div>
@@ -2323,7 +2323,7 @@ return (
                                                     <small className="badge bg-light text-dark px-2 py-1 rounded-pill">{getContentLabel('coding', 1)}</small>
                                                 </div>
                                             </div>
-                                            <div className="flex-grow-1 scrollable-content" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
+                                            <div className="flex-grow-1 scrollable-content coding-container" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
                                                 <div></div>
                                             </div>
                                         </div>

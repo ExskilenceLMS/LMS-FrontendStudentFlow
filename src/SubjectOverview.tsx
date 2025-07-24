@@ -137,7 +137,7 @@ const SubjectOverview: React.FC = () => {
     const encryptedWeekNumber = CryptoJS.AES.encrypt(weekNumber.toString(), secretKey).toString();
     sessionStorage.setItem("DayNumber", encryptedDayKey);
     sessionStorage.setItem("WeekNumber", encryptedWeekNumber);
-    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/weekly/${studentId}/${weekNumber}/${subjectId}/`;
+    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/weekly/${studentId}/${weekNumber}/${subjectId}`;
     const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/add/days/`;
     try {
       if (topics && topics.includes("Weekly Test")) {
@@ -181,7 +181,7 @@ const SubjectOverview: React.FC = () => {
     const encryptedWeekNumber = CryptoJS.AES.encrypt(weekNumber.toString(), secretKey).toString();
     sessionStorage.setItem("DayNumber", encryptedDayKey);
     sessionStorage.setItem("WeekNumber", encryptedWeekNumber);
-    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/weekly/${studentId}/${weekNumber}/${subjectId}/`;
+    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/weekly/${studentId}/${weekNumber}/${subjectId}`;
     const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/add/days/`;
     try {
       if (topics && topics.includes("Weekly Test")) {

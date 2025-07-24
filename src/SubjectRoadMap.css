@@ -165,20 +165,26 @@
   padding: 0 !important;
 }
 
-.subject-roadmap-page * {
-  overflow: hidden !important;
-}
-
-/* Allow scrolling for content areas */
-.scrollable-content {
+/* Allow scrolling for content areas - with higher specificity */
+.subject-roadmap-page .scrollable-content {
   overflow: auto !important;
+  height: 100% !important;
+  max-height: 100% !important;
 }
 
 /* Specific rule for notes content */
-.scrollable-content[style*="overflow: auto"] {
+.subject-roadmap-page .scrollable-content[style*="overflow: auto"] {
   overflow: auto !important;
   height: auto !important;
   max-height: none !important;
+}
+
+/* Ensure MCQ and coding containers are scrollable */
+.subject-roadmap-page .mcq-container,
+.subject-roadmap-page .coding-container {
+  overflow: auto !important;
+  height: 100% !important;
+  max-height: 100% !important;
 }
 
 /* Ensure body and html are also controlled when SubjectRoadMap is active */
