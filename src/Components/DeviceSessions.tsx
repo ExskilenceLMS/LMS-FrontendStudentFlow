@@ -45,7 +45,7 @@ const DeviceSessions: React.FC = () => {
       
       const currentDevice = localStorage.getItem('current_device');
       const currentSession = response.data.sessions.find(
-        session => session.device_name === currentDevice
+        (session: DeviceSession) => session.device_name === currentDevice
       );
       
       if (currentSession) {

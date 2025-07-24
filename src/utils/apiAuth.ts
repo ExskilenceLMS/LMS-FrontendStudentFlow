@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { apiCache, createCachedApi, generateCacheKey } from './apiCache';
 
 // Create axios instance with default configuration
 const apiClient = axios.create();
@@ -120,6 +121,60 @@ export const createAxiosWithActivityTracking = () => {
   return axiosInstance;
 };
 
+// Cached API client for dashboard APIs
+export const getCachedApiClient = () => {
+  const axiosInstance = createAxiosWithActivityTracking();
+  
+  return {
+    get: async (url: string, config?: any) => {
+      const cacheKey = generateCacheKey(url, config?.params);
+      
+      // Cache all dashboard APIs
+      if (!url.includes('/api/studentdashboard/') && !url.includes('/api/student/dashboard/') && !url.includes('/api/dashboard/')) {
+        return axiosInstance.get(url, config);
+      }
+      
+      // Check cache first
+      const cachedData = apiCache.get(cacheKey);
+      if (cachedData !== null) {
+        console.log(`📦 Cache hit for dashboard API: ${cacheKey}`);
+        return { data: cachedData };
+      }
+      
+      // Fetch from API
+      console.log(`🌐 Dashboard API call for: ${cacheKey}`);
+      try {
+        const response = await axiosInstance.get(url, config);
+        apiCache.set(cacheKey, response.data);
+        return response;
+      } catch (error) {
+        console.error(`❌ Dashboard API error for ${cacheKey}:`, error);
+        throw error;
+      }
+    },
+    
+    post: async (url: string, data?: any, config?: any) => {
+      // POST requests are not cached
+      return axiosInstance.post(url, data, config);
+    },
+    
+    put: async (url: string, data?: any, config?: any) => {
+      // PUT requests are not cached
+      return axiosInstance.put(url, data, config);
+    },
+    
+    patch: async (url: string, data?: any, config?: any) => {
+      // PATCH requests are not cached
+      return axiosInstance.patch(url, data, config);
+    },
+    
+    delete: async (url: string, config?: any) => {
+      // DELETE requests are not cached
+      return axiosInstance.delete(url, config);
+    }
+  };
+};
+
 // Standardized logout function
 export const performLogout = async (studentId: string, isInactivityLogout: boolean = false, forceLogout: boolean = false) => {
   let url = `${process.env.REACT_APP_BACKEND_URL}api/logout/${studentId}`;
@@ -174,11 +229,15 @@ export const performLogout = async (studentId: string, isInactivityLogout: boole
   } catch (error) {
     console.error("Error clearing localStorage session:", error);
   }
+  
+  // Clear all API cache on logout
+  apiCache.clear();
 };
 
-// Helper function to get the default API client with authorization
+// Function to get the API client
 export const getApiClient = () => {
   return apiClient;
 };
 
+// Export the original apiClient for backward compatibility
 export default apiClient; 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, Dropdown } from "react-bootstrap";
 import Skeleton from "react-loading-skeleton";
-import { getApiClient } from "../utils/apiAuth";
+import { useDashboardSWR } from "../utils/swrConfig";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 
@@ -70,85 +70,76 @@ function Progress() {
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
+  const url = `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}`;
+  const { data, error, isLoading } = useDashboardSWR<ApiResponse>(url);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}`
-      try {
-        const response = await getApiClient().get<ApiResponse>(
-          url
-        );
-        const data = response.data;
-        setApiData(data);
-        setDelay({ delay: data.delay.All });
+    if (data) {
+      setApiData(data);
+      setDelay({ delay: data.delay.All });
 
-        const subjectsData = data.filters_subject.filter(subject => subject !== "All").map((subject) => ({
-          id: subject,
-          name: subject,
-        }));
-        setSubjects([{ id: "All", name: "All" }, ...subjectsData]);
+      const subjectsData = data.filters_subject.filter((subject: string) => subject !== "All").map((subject: string) => ({
+        id: subject,
+        name: subject,
+      }));
+      setSubjects([{ id: "All", name: "All" }, ...subjectsData]);
 
-        const weeksData = Object.keys(data.All).filter(week => week !== "All").map((week) => ({
-          id: week,
-          name: week,
-        }));
-        setWeeks([{ id: "All", name: "All" }, ...weeksData]);
+      const weeksData = Object.keys(data.All).filter(week => week !== "All").map((week) => ({
+        id: week,
+        name: week,
+      }));
+      setWeeks([{ id: "All", name: "All" }, ...weeksData]);
 
-        updateProgressData(data, "All", "All");
-      } catch (error) {
-        console.error("Error fetching progress data:", error);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-const updateProgressData = (data: ApiResponse, subject: string, week: string) => {
-  let filteredData: { [key: string]: string } = {};
-
-  if (subject === "All" && week === "All") {
-    const allData = data.All as { [key: string]: string };
-    filteredData = { ...allData };
-  } else if (subject === "All" && week === "Practice MCQs") {
-    filteredData = { "Practice MCQs": data.All["Practice MCQs"] as string };
-  } else if (subject === "All" && week === "Practice Codings") {
-    filteredData = { "Practice Codings": data.All["Practice Codings"] as string };
-  } else if (subject === "All" && week === "Weekly Test") {
-    filteredData = { "Weekly Test": data.All["Weekly Test"] as string };
-  } else if (subject !== "All" && week === "All") {
-    filteredData = {
-      "Practice MCQs": data.mcqScores[subject]?.All || "0/0",
-      "Practice Codings": data.codingScore[subject]?.All || "0/0",
-      "Tests": data.tests[subject]?.All || "0/0",
-    };
-  } else if (subject !== "All" && week !== "All") {
-    const weekData = {
-      ...(data.mcqScores[subject]?.[week] && { "Practice MCQs": data.mcqScores[subject][week] }),
-      ...(data.codingScore[subject]?.[week] && { "Practice Codings": data.codingScore[subject][week] }),
-      ...(data.tests[subject]?.[week] && { "Tests": data.tests[subject][week] }),
-    };
-    if (Object.keys(weekData).length > 0) {
-      filteredData = weekData;
+      updateProgressData(data, "All", "All");
     }
-  }
+  }, [data]);
 
-  const progressData = Object.entries(filteredData).map(([label, value], index) => {
-    if (typeof value === "string") {
-      const [score, max] = value.split("/").map(Number);
-      const colors = ["#fff", "#12B500", "#f42a2a"];
-      return {
-        id: (index + 1).toString(),
-        label,
-        value: score,
-        max,
-        color: colors[index % colors.length],
+  const updateProgressData = (data: ApiResponse, subject: string, week: string) => {
+    let filteredData: { [key: string]: string } = {};
+
+    if (subject === "All" && week === "All") {
+      const allData = data.All as { [key: string]: string };
+      filteredData = { ...allData };
+    } else if (subject === "All" && week === "Practice MCQs") {
+      filteredData = { "Practice MCQs": data.All["Practice MCQs"] as string };
+    } else if (subject === "All" && week === "Practice Codings") {
+      filteredData = { "Practice Codings": data.All["Practice Codings"] as string };
+    } else if (subject === "All" && week === "Weekly Test") {
+      filteredData = { "Weekly Test": data.All["Weekly Test"] as string };
+    } else if (subject !== "All" && week === "All") {
+      filteredData = {
+        "Practice MCQs": data.mcqScores[subject]?.All || "0/0",
+        "Practice Codings": data.codingScore[subject]?.All || "0/0",
+        "Tests": data.tests[subject]?.All || "0/0",
       };
+    } else if (subject !== "All" && week !== "All") {
+      const weekData = {
+        ...(data.mcqScores[subject]?.[week] && { "Practice MCQs": data.mcqScores[subject][week] }),
+        ...(data.codingScore[subject]?.[week] && { "Practice Codings": data.codingScore[subject][week] }),
+        ...(data.tests[subject]?.[week] && { "Tests": data.tests[subject][week] }),
+      };
+      if (Object.keys(weekData).length > 0) {
+        filteredData = weekData;
+      }
     }
-    return null;
-  }).filter(Boolean) as ProgressData[];
 
-  setProgressData(progressData);
-};
+    const progressData = Object.entries(filteredData).map(([label, value], index) => {
+      if (typeof value === "string") {
+        const [score, max] = value.split("/").map(Number);
+        const colors = ["#fff", "#12B500", "#f42a2a"];
+        return {
+          id: (index + 1).toString(),
+          label,
+          value: score,
+          max,
+          color: colors[index % colors.length],
+        };
+      }
+      return null;
+    }).filter(Boolean) as ProgressData[];
+
+    setProgressData(progressData);
+  };
 
   const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const subject = e.target.value;
@@ -173,6 +164,7 @@ const updateProgressData = (data: ApiResponse, subject: string, week: string) =>
       updateProgressData(apiData, subject, "All");
     }
   };
+
   const handleWeekChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const week = e.target.value;
     setSelectedWeek(week);
@@ -180,6 +172,23 @@ const updateProgressData = (data: ApiResponse, subject: string, week: string) =>
       updateProgressData(apiData, selectedSubject, week);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="container ms-3">
+        <Skeleton height={20} width={100} />
+        <Skeleton height={200} width={400} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container ms-3">
+        <p>Error loading progress data</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container ms-3">
@@ -223,7 +232,7 @@ const updateProgressData = (data: ApiResponse, subject: string, week: string) =>
         <div className="col-md-6 d-flex justify-content-center">
           <div style={{ position: "relative", width: "200px", height: "200px" }}>
             <svg className="" viewBox="0 0 200 200">
-              {progressData.map((data, index) => {
+              {progressData?.map((data, index) => {
                 const strokeWidth = 12;
                 const radius = 90 - index * 30;
                 const circumference = 2 * Math.PI * radius;
@@ -266,7 +275,7 @@ const updateProgressData = (data: ApiResponse, subject: string, week: string) =>
 
         <div className="col-md-6 text-white ps-5 pt-2">
           <ul className="list-unstyled">
-            {progressData.map((data) => (
+            {progressData?.map((data) => (
               <li
                 key={data.id}
                 className="d-flex justify-content-between align-items-center mb-2 ps-2"

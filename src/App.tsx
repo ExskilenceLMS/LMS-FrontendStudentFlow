@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Detector } from "react-detect-offline";
+import { SWRConfig } from 'swr';
 import apiClient from "./utils/apiAuth";
+import { swrConfig } from "./utils/swrConfig";
 import { Modal } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -228,7 +230,9 @@ function AppContent() {
 
   return (
     <>
-      <AppRoutes />
+      <SWRConfig value={swrConfig}>
+        <AppRoutes />
+      </SWRConfig>
    
       <Modal show={showLogoutWarning} onHide={resetTimer}>
         <Modal.Header closeButton>

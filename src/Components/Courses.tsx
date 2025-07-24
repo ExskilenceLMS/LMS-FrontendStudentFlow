@@ -4,7 +4,7 @@ import { FaClock } from "react-icons/fa";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleRight } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
-import apiClient from "../utils/apiAuth";
+import { useDashboardSWR } from "../utils/swrConfig";
 import { AxiosError } from "axios";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import CryptoJS from "crypto-js";
@@ -25,6 +25,10 @@ interface Course {
   };
   student_progress: number;
   status: string;
+}
+
+interface CoursesResponse {
+  subjects: Course[];
 }
 
 const Courses: React.FC = () => {
@@ -66,38 +70,31 @@ const Courses: React.FC = () => {
     navigate("/SubjectOverview", { state: { title: courseTitle } });
   };
 
+  const { data: coursesData, error: coursesError } = useDashboardSWR<CoursesResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}`);
+
   useEffect(() => {
-    const fetchCourses = async () => {
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}`;
-      try {
-        const response = await apiClient.get(url);
+    if (coursesData) {
+      const colorMapping: { [key: string]: string } = {
+        "HTML CSS": "#B6BAFE",
+        "JavaScript": "#F0DC54",
+        "Python": "#B5FEB5",
+        "Python8": "#B5FEB5",
+        "Data Structures with C++ and Object-Oriented Programming with C++": "#B6FEB5",
+        "Data Structures and Algorithms": "#B6BAFE",
+        "SQL": "#FFB5B5",
+        "SQL8": "#FFB5B5",
+      };
 
-        const colorMapping: { [key: string]: string } = {
-          "HTML CSS": "#B6BAFE",
-          "JavaScript": "#F0DC54",
-          "Python": "#B5FEB5",
-          "Python8": "#B5FEB5",
-          "Data Structures with C++ and Object-Oriented Programming with C++": "#B6FEB5",
-          "Data Structures and Algorithms": "#B6BAFE",
-          "SQL": "#FFB5B5",
-          "SQL8": "#FFB5B5",
-        };
+      const courseData = (coursesData.subjects || []).map((course: Course) => ({
+        ...course,
+        color: colorMapping[course.title] || "#D3D3D3",
+      }));
 
-        const courseData = (response.data.subjects || []).map((course: any) => ({
-          ...course,
-          color: colorMapping[course.title] || "#D3D3D3",
-        }));
+      setCourses(courseData);
 
-        setCourses(courseData);
-
-        setTimeout(checkScrollStatus, 100);
-      } catch (error) {
-        console.error("Error fetching courses:", error);
-      }
-    };
-
-    fetchCourses();
-  }, [studentId]);
+      setTimeout(checkScrollStatus, 100);
+    }
+  }, [coursesData]);
 
   const checkScrollStatus = () => {
     if (scrollContainerRef.current) {

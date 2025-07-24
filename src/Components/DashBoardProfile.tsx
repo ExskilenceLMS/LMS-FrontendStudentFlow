@@ -1,16 +1,16 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Rank from "./images/Rank.png";
 import ProgressMeter from "./images/ProgressMeter.png";
 import Badge from "./images/Badge.png";
 import Hourglass from "./images/Hourglass.png";
 import Skeleton from "react-loading-skeleton";
-import apiClient from "../utils/apiAuth";
 import ph_star from "./images/ph_star-four-fill.png";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 import { LiaEditSolid } from "react-icons/lia";
 import UserPic from "./images/UserPic.jpg";
+import { useDashboardSWR } from '../utils/swrConfig';
 
 interface ProfileData {
   score?: string;
@@ -24,30 +24,15 @@ interface ProfileData {
 
 function DashBoardProfile() {
   const navigate = useNavigate();
-  const [data, setData] = useState<ProfileData>({});
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
-const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
+  const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const url =`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/summary/${studentId}/`
-      try {
-        const response = await apiClient.get(
-          url
-        );
-        setData(response.data);
-      } 
-      catch (innerError: any) {
- 
-            console.error("Error fetching DashboardProfile data:", innerError);
-            }
-    };
-    fetchData();
-  }, [studentId]);
+  const url = `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/summary/${studentId}/`;
+  const { data, error, isLoading } = useDashboardSWR<ProfileData>(url);
 
   return (
     <div
@@ -65,7 +50,7 @@ const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!
           <LiaEditSolid size={20} className="ps-5 ms-3 d-flex flex-end pr-auto justify-content-end text-end" style={{ cursor: "pointer" }} title="Edit Profile" onClick={() => navigate('/Profile')} />
         </div>
         <div className="row mt-2">
-          {data.name ? (
+          {data?.name ? (
             <div className="col text-center">
               <h5>{data.name}</h5>
               <p>{data.student_id}</p>
@@ -89,7 +74,7 @@ const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!
                       <img src={ProgressMeter} className="" alt="Profile" />
                     </div>
                     <div className="p-0 m-0 ps-4 pt-1 text-center">
-                      {data.score !== undefined && data.score !== null ? (
+                      {data?.score !== undefined && data?.score !== null ? (
                         <>
                           <h6 className="text-start">{data.score}</h6>
                           <p className="mb-0 fw-light" style={{ fontSize: "12px" }}>
@@ -118,7 +103,7 @@ const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!
                       <img src={Rank} className="" alt="rank" />
                     </div>
                     <div className="p-0 m-0 ps-3 pt-1 text-center">
-                      {data.college_rank !== undefined && data.college_rank !== null ? (
+                      {data?.college_rank !== undefined && data?.college_rank !== null ? (
                         <div className="d-flex flex-row">
                           <div>
                             <h6 className="text-start">{data.college_rank}</h6>
@@ -127,7 +112,7 @@ const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!
                             </p>
                           </div>
                           <div className="ps-2">
-                            {data.overall_rank !== undefined && data.overall_rank !== null ? (
+                            {data?.overall_rank !== undefined && data?.overall_rank !== null ? (
                               <>
                                 <h6 className="text-start">{data.overall_rank}</h6>
                                 <p className="mb-0 fw-light" style={{ fontSize: "12px" }}>
@@ -189,7 +174,7 @@ const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!
                       <img src={Badge} className="" alt="badge" />
                     </div>
                     <div className="p-0 ps-3 pt-1 m-0 text-start">
-                      {data.category !== undefined && data.category !== null ? (
+                      {data?.category !== undefined && data?.category !== null ? (
                         <>
                           <h6>{data.category}</h6>
                           <p className="mb-0 fw-light" style={{ fontSize: "12px" }}>
@@ -215,7 +200,7 @@ const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!
                       <img src={Hourglass} className="" alt="Hourglass" />
                     </div>
                     <div className="p-0 m-0 ps-3 pt-1 text-center">
-                      {data.hour_spent !== undefined && data.hour_spent !== null ? (
+                      {data?.hour_spent !== undefined && data?.hour_spent !== null ? (
                         <>
                           <h6 className="text-start">{data.hour_spent}</h6>
                           <p className="mb-0 fw-light" style={{ fontSize: "12px" }}>

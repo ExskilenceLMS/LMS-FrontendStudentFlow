@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Card } from "react-bootstrap";
 import Skeleton from "react-loading-skeleton";
-import { getApiClient } from "../utils/apiAuth";
-import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
+import { secretKey } from "../constants";
+import { getCachedApiClient } from "../utils/apiAuth";
 
 interface Events {
   title: string;
@@ -41,7 +41,7 @@ const Upcoming: React.FC = () => {
     const fetchDiscussions = async () => {
       const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}`
       try {
-        const response = await getApiClient().get(url);
+        const response = await getCachedApiClient().get(url);
         if (response.data && response.data.sessions && Array.isArray(response.data.sessions)) {
           setDiscussions(response.data.sessions.map((item: any) => ({
             title: item.title,
@@ -64,7 +64,7 @@ const Upcoming: React.FC = () => {
     const fetchEvents = async () => {
         const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}`
       try {
-        const response = await getApiClient().get(url);
+        const response = await getCachedApiClient().get(url);
         if (response.data && response.data.events && Array.isArray(response.data.events)) {
           setEvents(response.data.events.map((event: any) => ({
             title: event.title,
