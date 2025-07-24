@@ -263,7 +263,7 @@ const decryptData = (encryptedData: string) => {
    */
   const checkBackendHealth = async () => {
     try {
-      const response = await fetch('http://localhost:8002/health');
+      const response = await fetch('https://pyexe.exskilence.com/health');
       const data: FastAPIHealthResponse = await response.json();
       setBackendHealthy(data.status === 'healthy');
     } catch (error) {
@@ -310,7 +310,7 @@ const decryptData = (encryptedData: string) => {
       user_id: timeout === 10 ? "test_user_123" : "test_user_456" // HARDCODED: Will be replaced with real user ID later
     };
 
-    const response = await fetch('http://localhost:8002/api/v1/submit', {
+    const response = await fetch('https://pyexe.exskilence.com/api/v1/submit', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -338,7 +338,7 @@ const decryptData = (encryptedData: string) => {
 
     while (Date.now() - startTime < maxWaitTime * 1000) {
       try {
-        const response = await fetch(`http://localhost:8002/api/v1/status/${submissionId}`);
+        const response = await fetch(`https://pyexe.exskilence.com/api/v1/status/${submissionId}`);
         const data: FastAPIStatusResponse = await response.json();
         
         if (data.status === 'completed') {
