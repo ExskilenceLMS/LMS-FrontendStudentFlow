@@ -343,68 +343,70 @@ const Login: React.FC = () => {
     <div className='login container-fluid h-100 d-flex align-items-center justify-content-center'>
       <div className="row w-100 justify-content-center">
         {/* Login Card - Shows first on small screens, second on large screens */}
-        <div className="col-12 col-lg-4 order-1 order-lg-2 d-flex justify-content-center align-items-center px-3 py-4">
-          <div className="loginCard glow card">
-            <div className="loginCardBody card-body d-flex flex-column align-items-center justify-content-center p-0">
-              <div className="text-center">
-                {/* <img src={Logo} alt="Exskilence Logo" style={{ width: '50px', height: '50px', marginBottom: '12px' }} /> */}
-                <h4 className="card-title text-center pb-2 mx-1">Login with your Google account</h4>
-              </div>
-              <div className="text-center">
-                {loading ? (
-                  <div className="d-flex justify-content-center text-center align-items-center">
-                    <Spinner color="#0d6efd" size="sm" className='me-2' /> Signing in...
-                  </div>
-                ) : verifyingSession ? (
-                  <div className="d-flex justify-content-center text-center align-items-center">
-                    <Spinner color="#0d6efd" size="sm" className='me-2' /> Verifying...
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => handleLogin()} 
-                    className="btn d-flex justify-content-center align-items-center" 
-                    style={{ 
-                      color: 'white', 
-                      fontWeight: 'bold', 
-                      borderRadius: '100%', 
-                      cursor: 'pointer', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      padding: '10px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ 
-                        backgroundColor: '#6f42c1', 
-                        color: 'white', 
-                        padding: '20px', 
-                        textAlign: 'center', 
-                        borderRadius: '20px',
-                        height: '40px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%' 
-                      }}>
-                        {/* <img className='me-3' src={GoogleLogo} alt="Google Logo" height={32} width={32} style={{backgroundColor:'white',borderRadius:'0px',padding:"5px"}} /> */}
-                        Sign in with Google
-                      </span>
+                  <div className="col-12 col-lg-4 order-1 order-lg-2 d-flex justify-content-center align-items-center px-3 py-4">
+            <div className="card" style={{ 
+              border: 'none', 
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)', 
+              borderRadius: '12px',
+              maxWidth: '400px',
+              width: '100%'
+            }}>
+              <div className="card-body p-4 d-flex flex-column align-items-center justify-content-center">
+                <h4 className="text-center mb-4" style={{ color: '#333', fontWeight: '600' }}>Login with your Google account</h4>
+                <div className="text-center w-100">
+                  {loading ? (
+                    <div className="d-flex justify-content-center align-items-center">
+                      <Spinner color="#6f42c1" size="sm" className='me-2' /> Signing in...
                     </div>
-                  </button>
-                )}
+                  ) : verifyingSession ? (
+                    <div className="d-flex justify-content-center align-items-center">
+                      <Spinner color="#6f42c1" size="sm" className='me-2' /> Verifying...
+                    </div>
+                  ) : (
+                    <button 
+                      onClick={() => handleLogin()} 
+                      className="btn w-100" 
+                      style={{ 
+                        backgroundColor: '#4168a3', 
+                        color: 'white', 
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '12px 24px',
+                        fontWeight: '500',
+                        fontSize: '16px'
+                      }}
+                    >
+                      Sign in with Google
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
         
-        {/* Welcome Text - Shows second on small screens, first on large screens */}
-        <div className="col-12 col-lg-8 order-2 order-lg-1 d-flex align-items-center justify-content-center px-3 py-4">
-          <div className="text-center" style={{ borderRadius: '15px', color: '#003e80', backgroundColor: 'transparent' }}>
-            <h2 className="font-weight-bold mb-4">Welcome to Exskilence Upskilling Program</h2>
-            <p style={{ fontSize: '1.25rem', lineHeight: '1.8', textAlign:'justify' }}>
-              Upskilling refers to the process of acquiring new skills or enhancing existing ones to stay relevant in the ever-evolving job market. As industries rapidly change due to technological advancements and shifting economic landscapes, continuous learning has become essential for career growth and adaptability. By engaging in upskilling, individuals can improve their expertise, increase job opportunities, and remain competitive in their field. For organizations, investing in employee upskilling fosters innovation, boosts productivity, and helps retain top talent, ensuring that the workforce remains agile and future-ready.
-            </p>
+                  {/* Welcome Text - Shows second on small screens, first on large screens */}
+          <div className="col-12 col-lg-8 order-2 order-lg-1 d-flex align-items-center justify-content-center">
+            <div className="">
+              <span className="block text-start fw-bolder" style={{ color: '#fff', fontSize: '60px' }}>Exskilence</span>
+              <p className='ps-5 text-start mb-3'  style={{
+        background: "linear-gradient(to right, #f5d547, #48e28f)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        fontWeight: "bold",
+        fontStyle: "italic",
+        fontSize: "24px",
+        fontFamily:'Poppins, sans-serif'
+      }}><i>...Because Opportunity is a Right</i></p>
+              <div style={{ textAlign: 'left', maxWidth: '600px', margin: '0 auto' }}>
+                <p style={{ fontSize: '18px', lineHeight: '1.8', marginBottom: '1.5rem', color: '#fff', fontFamily:'Poppins, sans-serif' }}>
+                  We are a Social Enterprise focused on providing Skilling and Placement Assistance to undergraduate students, from Computer Science Engineering and related streams, particularly from Tier 2 and Tier 3 colleges.
+                </p>
+                <p style={{ fontSize: '18px', lineHeight: '1.8', color: '#fff', fontFamily:'Poppins, sans-serif' }}>
+                  At Exskilence, we are on a mission to empower individuals, transform careers, and unlock potential. We believe that quality tech education and real-world experience should be within everyone's reach, regardless of their background.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
       </div>
       <Modal show={showAlert} onHide={handleCloseAlert} aria-labelledby="contained-modal-title-vcenter" centered>
         <Modal.Header closeButton className='bg-primary'>
