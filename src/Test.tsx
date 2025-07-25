@@ -206,6 +206,7 @@ const isTestTimeMatch = (test: TestDetail) => {
   }
 
   const { hours: startHour, minutes: startMinute } = convertTo24HourFormat(test.starttime);
+  const { hours: endHour, minutes: endMinute } = convertTo24HourFormat(test.endtime);
 
   const currentHour = currentTime.hour;
   const currentMinute = currentTime.minute;
@@ -213,27 +214,53 @@ const isTestTimeMatch = (test: TestDetail) => {
   const currentDateParts = currentTime.date.split('/');
   const currentDateFormatted = `${currentDateParts[2]}-${currentDateParts[0].padStart(2, '0')}-${currentDateParts[1].padStart(2, '0')}`;
 
-  const isSameDate = test.startdate === currentDateFormatted;
+  // Check if current date is between start and end dates
+  const isDateInRange = currentDateFormatted >= test.startdate && currentDateFormatted <= test.enddate;
 
-  if (!isSameDate) {
-    console.log(`Date mismatch: Test date ${test.startdate} vs Current date ${currentDateFormatted}`);
+  if (!isDateInRange) {
+    console.log(`Date out of range: Current ${currentDateFormatted}, Test range ${test.startdate} to ${test.enddate}`);
     return false;
   }
 
-  const testStartTotalMinutes = startHour * 60 + startMinute;
-  const currentTotalMinutes = currentHour * 60 + currentMinute;
-  const isTimeMatch = currentTotalMinutes >= testStartTotalMinutes;
+  // If we're on the start date, check if current time is after start time
+  if (currentDateFormatted === test.startdate) {
+    const testStartTotalMinutes = startHour * 60 + startMinute;
+    const currentTotalMinutes = currentHour * 60 + currentMinute;
+    const isTimeMatch = currentTotalMinutes >= testStartTotalMinutes;
 
-  console.log(`Time check for test ${test.test_id}:`, {
-    testStartTime: `${test.starttime} (${startHour}:${startMinute})`,
-    currentTime: `${currentTime.time} (${currentHour}:${currentMinute})`,
-    testStartTotalMinutes,
-    currentTotalMinutes,
-    isTimeMatch,
-    minutesLeft: testStartTotalMinutes - currentTotalMinutes
-  });
+    console.log(`Time check for test ${test.test_id} on start date:`, {
+      testStartTime: `${test.starttime} (${startHour}:${startMinute})`,
+      currentTime: `${currentTime.time} (${currentHour}:${currentMinute})`,
+      testStartTotalMinutes,
+      currentTotalMinutes,
+      isTimeMatch,
+      minutesLeft: testStartTotalMinutes - currentTotalMinutes
+    });
 
-  return isTimeMatch;
+    return isTimeMatch;
+  }
+
+  // If we're on the end date, check if current time is before end time
+  if (currentDateFormatted === test.enddate) {
+    const testEndTotalMinutes = endHour * 60 + endMinute;
+    const currentTotalMinutes = currentHour * 60 + currentMinute;
+    const isTimeMatch = currentTotalMinutes <= testEndTotalMinutes;
+
+    console.log(`Time check for test ${test.test_id} on end date:`, {
+      testEndTime: `${test.endtime} (${endHour}:${endMinute})`,
+      currentTime: `${currentTime.time} (${currentHour}:${currentMinute})`,
+      testEndTotalMinutes,
+      currentTotalMinutes,
+      isTimeMatch,
+      minutesLeft: testEndTotalMinutes - currentTotalMinutes
+    });
+
+    return isTimeMatch;
+  }
+
+  // If we're between start and end dates, time is always valid
+  console.log(`Date in range for test ${test.test_id}: Current ${currentDateFormatted} between ${test.startdate} and ${test.enddate}`);
+  return true;
 };
 
   const SkeletonLoader = () => {
