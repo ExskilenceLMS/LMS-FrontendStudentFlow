@@ -64,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ show, toggleSidebar }) => {
 
   const sidebarItems: Menu[] = [
     { icon: <BiBookReader size={20} />, label: "My Courses", path: "Dashboard", paths: ["/Dashboard"] },
-    { icon: <TbUserScreen size={20} />, label: "Online Sessions", path: "online-session", paths: ["/online-session"] },
+    // { icon: <TbUserScreen size={20} />, label: "Online Sessions", path: "online-session", paths: ["/online-session"] },
     { icon: <SiLintcode size={20} />, label: "Tests", path: "test", paths: ["/test"] },
     {
       icon: <TfiTicket size={20} />,
@@ -76,11 +76,11 @@ const Sidebar: React.FC<SidebarProps> = ({ show, toggleSidebar }) => {
       paths: ["/report-problem"],
       disableClickOnSubMenu: true
     },
-    { icon: <TbProgressHelp size={20} />, label: "FAQ", path: "", paths: [""] },
+    // { icon: <TbProgressHelp size={20} />, label: "FAQ", path: "", paths: [""] },
   ];
 
-  const topItems = sidebarItems.slice(0, -2);
-  const bottomItems = sidebarItems.slice(-2);
+  const topItems = sidebarItems.slice(0, -1);
+  const bottomItems = sidebarItems.slice(-1);
 
   useEffect(() => {
     sidebarItems.forEach((item) => {
@@ -287,7 +287,7 @@ const Sidebar: React.FC<SidebarProps> = ({ show, toggleSidebar }) => {
 
           <div style={{ flexGrow: 1, cursor: "pointer" }} onClick={toggleSidebar}></div>
 
-          <div>{renderMenuItems(bottomItems)}</div>
+          <div className="mb-5">{renderMenuItems(bottomItems)}</div>
         </div>
       </div>
 
