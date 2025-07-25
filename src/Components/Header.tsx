@@ -104,7 +104,7 @@ const Header: React.FC = () => {
           </span>
         </span>
         <span className="text-center fs-6">
-            <HiOutlineBellAlert size={25} className="me-1 cursor-pointer" style={{ cursor: 'pointer'}} />
+            {/* <HiOutlineBellAlert size={25} className="me-1 cursor-pointer" style={{ cursor: 'pointer'}} /> */}
               <div
                 className="position-relative d-inline-block"
                 ref={userMenuRef}
