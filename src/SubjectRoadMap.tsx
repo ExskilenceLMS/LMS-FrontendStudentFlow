@@ -70,7 +70,7 @@ interface NoteData {
 interface SubTopic {
     subtopicid: string;
     sub_topic: string;
-    lesson: number[]; // Array of video IDs, similar to notes
+    lesson: (number | VideoLesson)[]; // Can be array of video IDs or array of video objects
     notes: number[];
     mcqQuestions: number;
     codingQuestions: number;
@@ -1042,92 +1042,151 @@ useEffect(() => {
             );
         }
 
-        // Get current lesson video ID
-        const currentVideoId = chapters[0].sub_topic_data[currentSubTopicIndex].lesson[currentLessonIndex];
+        const currentLesson = chapters[0].sub_topic_data[currentSubTopicIndex].lesson[currentLessonIndex];
         
-        // Check if we have cached video data for this video ID
-        const hasCachedVideoData = videoData[currentVideoId];
-        
-        // If we don't have cached data, fetch it from backend
-        if (!hasCachedVideoData) {
-            // Fetch video data from backend
-            fetchVideoData(currentVideoId)
-                .then(data => {
-                    setVideoData(prev => ({
-                        ...prev,
-                        [currentVideoId]: data
-                    }));
-                })
-                .catch(error => {
-                    console.error("Failed to fetch video data:", error);
-                });
+        // Check if lesson is an array of integers (video IDs) or objects (video data)
+        if (typeof currentLesson === 'number') {
+            // Format 1: Array of integers - need to fetch video data
+            const currentVideoId = currentLesson;
             
-            // Show loading while fetching
-            return (
-                <div className='d-flex justify-content-center align-items-center' style={{ height: 'calc(100% - 60px)' }}>
-                    <div className="text-center">
-                        <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Loading...</span>
+            // Check if we have cached video data for this video ID
+            const hasCachedVideoData = videoData[currentVideoId];
+            
+            // If we don't have cached data, fetch it from backend
+            if (!hasCachedVideoData) {
+                // Fetch video data from backend
+                fetchVideoData(currentVideoId)
+                    .then(data => {
+                        setVideoData(prev => ({
+                            ...prev,
+                            [currentVideoId]: data
+                        }));
+                    })
+                    .catch(error => {
+                        console.error("Failed to fetch video data:", error);
+                    });
+                
+                // Show loading while fetching
+                return (
+                    <div className='d-flex justify-content-center align-items-center' style={{ height: 'calc(100% - 60px)' }}>
+                        <div className="text-center">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                            <p className="mt-2">Loading video...</p>
                         </div>
-                        <p className="mt-2">Loading video...</p>
                     </div>
-                </div>
-            );
-        }
+                );
+            }
 
-        // Build video URL from cached data
-        const videoDataForCurrentVideo = videoData[currentVideoId];
-        const videoUrl = `https://player.vdocipher.com/v2/?otp=${videoDataForCurrentVideo.otp}&playbackInfo=${videoDataForCurrentVideo.playback_info}`;
+            // Build video URL from cached data
+            const videoDataForCurrentVideo = videoData[currentVideoId];
+            const videoUrl = `https://player.vdocipher.com/v2/?otp=${videoDataForCurrentVideo.otp}&playbackInfo=${videoDataForCurrentVideo.playback_info}`;
 
-        if (!videoUrl) {
+            if (!videoUrl) {
+                return (
+                    <div className='d-flex justify-content-center align-items-center' style={{ height: 'calc(100% - 60px)' }}>
+                        <div className="text-center">
+                            <p>Video not available</p>
+                        </div>
+                    </div>
+                );
+            }
+
             return (
-                <div className='d-flex justify-content-center align-items-center' style={{ height: 'calc(100% - 60px)' }}>
-                    <div className="text-center">
-                        <p>Video not available</p>
+                <div className="h-100 overflow-hidden p-0" style={{ backgroundColor: "transparent", height: "100%" }}>
+                    {isDirectVideoUrl(videoUrl) ? (
+                        <video
+                            className="w-100 h-100"
+                            controls
+                            autoPlay={false}
+                            muted={false}
+                            preload="metadata"
+                            style={{ 
+                                boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
+                                borderRadius: "0px",
+                                objectFit: "cover",
+                                backgroundColor: "transparent"
+                            }}
+                        >
+                            <source src={videoUrl} type="video/mp4" />
+                            <source src={videoUrl} type="video/webm" />
+                            <source src={videoUrl} type="video/ogg" />
+                            Your browser does not support the video tag.
+                        </video>
+                    ) : (
+                        <iframe
+                            className="w-100 h-100"
+                            src={videoUrl}
+                            title="Video Player"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
+                            style={{ 
+                                boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
+                                borderRadius: "0px",
+                                backgroundColor: "transparent"
+                            }}
+                        />
+                    )}
+                </div>
+            );
+        } else {
+            // Format 2: Object with video data - use directly
+            const videoLesson = currentLesson as VideoLesson;
+            const videoUrl = `https://player.vdocipher.com/v2/?otp=${videoLesson.otp}&playbackInfo=${videoLesson.playback_info}`;
+
+            if (!videoUrl) {
+                return (
+                    <div className='d-flex justify-content-center align-items-center' style={{ height: 'calc(100% - 60px)' }}>
+                        <div className="text-center">
+                            <p>Video not available</p>
+                        </div>
                     </div>
+                );
+            }
+
+            return (
+                <div className="h-100 overflow-hidden p-0" style={{ backgroundColor: "transparent", height: "100%" }}>
+                    {isDirectVideoUrl(videoUrl) ? (
+                        <video
+                            className="w-100 h-100"
+                            controls
+                            autoPlay={false}
+                            muted={false}
+                            preload="metadata"
+                            style={{ 
+                                boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
+                                borderRadius: "0px",
+                                objectFit: "cover",
+                                backgroundColor: "transparent"
+                            }}
+                        >
+                            <source src={videoUrl} type="video/mp4" />
+                            <source src={videoUrl} type="video/webm" />
+                            <source src={videoUrl} type="video/ogg" />
+                            Your browser does not support the video tag.
+                        </video>
+                    ) : (
+                        <iframe
+                            className="w-100 h-100"
+                            src={videoUrl}
+                            title="Video Player"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
+                            style={{ 
+                                boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
+                                borderRadius: "0px",
+                                backgroundColor: "transparent"
+                            }}
+                        />
+                    )}
                 </div>
             );
         }
-
-        return (
-            <div className="h-100 overflow-hidden p-0" style={{ backgroundColor: "transparent", height: "100%" }}>
-                {isDirectVideoUrl(videoUrl) ? (
-                    <video
-                        className="w-100 h-100"
-                        controls
-                        autoPlay={false}
-                        muted={false}
-                        preload="metadata"
-                        style={{ 
-                            boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-                            borderRadius: "0px",
-                            objectFit: "cover",
-                            backgroundColor: "transparent"
-                        }}
-                    >
-                        <source src={videoUrl} type="video/mp4" />
-                        <source src={videoUrl} type="video/webm" />
-                        <source src={videoUrl} type="video/ogg" />
-                        Your browser does not support the video tag.
-                    </video>
-                ) : (
-                    <iframe
-                        className="w-100 h-100"
-                        src={videoUrl}
-                        title="Video Player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerPolicy="strict-origin-when-cross-origin"
-                        allowFullScreen
-                        style={{ 
-                            boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-                            borderRadius: "0px",
-                            border: "none"
-                        }}
-                    />
-                )}
-            </div>
-        );
     };
 
     const renderNotesContent = () => {
