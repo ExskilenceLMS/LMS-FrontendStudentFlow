@@ -789,7 +789,7 @@ const handleSubmit = async () => {
 
         // Prepare test case results - always send the same number of test cases as available in the question
     let submissionTestCases = runResponseTestCases;
-    
+
     if (runResponseTestCases.length === 0) {
       // If no test cases were run, create failed test cases based on the current question's test cases
       const currentQuestion = questions[currentQuestionIndex];
@@ -799,7 +799,7 @@ const handleSubmit = async () => {
         }));
         const finalResult = { Result: "Failed" };
         submissionTestCases = [...failedTestCases, finalResult];
-      }
+            }
     }
 
     const postData = {

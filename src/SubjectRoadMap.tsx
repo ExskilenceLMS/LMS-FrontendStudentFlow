@@ -2324,8 +2324,8 @@ return (
                                                         </div>
                                                     </div>
                                                                                                 <div className="flex-grow-1 scrollable-content mcq-container" style={{ minHeight: '0', flex: '1 1 auto', maxHeight: '100%', overflow: 'auto' }}>
-                                                {renderMCQContent()}
-                                            </div>
+                                                        {renderMCQContent()}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
