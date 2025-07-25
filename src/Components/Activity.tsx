@@ -14,12 +14,20 @@ import apiClient from "../utils/apiAuth";
 import './Activity.css';
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
+import { useAPISWR } from "../utils/swrConfig";
+import { Card } from "react-bootstrap";
 
 interface DataItem {
   day_name: string;
   hours: number;
   isUpcoming?: boolean;
   isCurrent?: boolean;
+}
+
+interface ActivityResponse {
+  hours: DataItem[];
+  weekly_limit: number;
+  daily_limit: number;
 }
 
 const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
@@ -53,47 +61,34 @@ const Activity: React.FC = () => {
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
-  const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
+
+  // Use SWR for hourspent API with 5-minute cache
+  const { data: activityData, error } = useAPISWR<ActivityResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/n/`);
+
+  // Use SWR for weekly hourspent API with 5-minute cache
+  const { data: weeklyData, error: weeklyError } = useAPISWR<ActivityResponse>(
+    selectedWeek > 0 ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/${selectedWeek}/` : null
+  );
 
   useEffect(() => {
-    const fetchData = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/n/`
-      try {
-        const response = await apiClient.get(url);
-        setData(response.data.hours);
-        setWeeklyLimit(response.data.weekly_limit);
-        setMinThreshold(response.data.daily_limit);
-        setSelectedWeek(response.data.weekly_limit);
-        const maxHourValue = Math.max(...response.data.hours.map((hour: { hours: number }) => hour.hours));
+    if (activityData) {
+      setData(activityData.hours);
+      setWeeklyLimit(activityData.weekly_limit);
+      setMinThreshold(activityData.daily_limit);
+      setSelectedWeek(activityData.weekly_limit);
+      const maxHourValue = Math.max(...activityData.hours.map((hour: { hours: number }) => hour.hours));
         setMaxHours(maxHourValue);
-      } catch (innerError: any) {
-        console.error("Error fetching initial data:", innerError);
       }
-    };
-
-    fetchData();
-  }, [studentId]);
+  }, [activityData]);
 
   useEffect(() => {
-    if (selectedWeek > 0) {
-      fetchHoursSpentForWeek(selectedWeek);
-    }
-  }, [selectedWeek]);
-
-  const fetchHoursSpentForWeek = async (weekNumber: number) => {
-    const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/${weekNumber}/`
-    try {
-      const response = await apiClient.get(url);
-      setData(response.data.hours);
-      setMinThreshold(response.data.daily_limit);
-      const maxHourValue = Math.max(...response.data.hours.map((hour: { hours: number }) => hour.hours));
+    if (weeklyData && selectedWeek > 0) {
+      setData(weeklyData.hours);
+      setMinThreshold(weeklyData.daily_limit);
+      const maxHourValue = Math.max(...weeklyData.hours.map((hour: { hours: number }) => hour.hours));
       setMaxHours(maxHourValue);
-    } catch (innerError: any) {
-      console.error("Error fetching data for week", weekNumber, ":", innerError);
     }
-  };
+  }, [weeklyData, selectedWeek]);
 
   const total = data ? (data.reduce((acc, curr) => acc + curr.hours, 0)).toFixed(1) : 0;
 

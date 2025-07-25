@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { getApiClient } from "./utils/apiAuth";
-import { useNavigate, useLocation } from "react-router-dom";
-import { secretKey } from './constants';
-import CryptoJS from 'crypto-js';
+import { useLocation, useNavigate } from "react-router-dom";
+import CryptoJS from "crypto-js";
+import { secretKey } from "./constants";
+import TestHeader from "./TestHeader";
+import { Container, Card, Button, Spinner, Modal } from "react-bootstrap";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 interface QuestionData {
   Tags: string[];
@@ -133,6 +136,11 @@ const TestMcq: React.FC = () => {
       }
 
       setLoading(false);
+      
+      // Update test duration synchronously on refresh/load
+      if ((window as any).updateTimerSync) {
+        (window as any).updateTimerSync();
+      }
     } else {
       // If no test data available, redirect back to test section
       console.error("No test data found, redirecting to test section");
@@ -276,6 +284,11 @@ const TestMcq: React.FC = () => {
     }
     
     sessionStorage.setItem("mcqCurrentQuestionIndex", index.toString());
+    
+    // Update test duration asynchronously in header
+    if ((window as any).updateTimerAsync) {
+      (window as any).updateTimerAsync();
+    }
   };
 
   const handleTestSectionPage = () => {
@@ -447,6 +460,10 @@ const TestMcq: React.FC = () => {
                               if (currentQuestion < questions.length - 1) {
                                 setCurrentQuestion(currentQuestion + 1);
                                 setSelectedOption(null);
+                                // Update test duration asynchronously in header
+                                if ((window as any).updateTimerAsync) {
+                                  (window as any).updateTimerAsync();
+                                }
                               }
                             }}
                             disabled={submittingQuestions.has(currentQuestion)}

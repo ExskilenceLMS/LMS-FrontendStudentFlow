@@ -33,6 +33,7 @@ const TestHeader: React.FC = () => {
     return 0;
   });
   const [showModal, setShowModal] = useState(false);
+  const [isTimerLoading, setIsTimerLoading] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(false);
@@ -47,6 +48,77 @@ const TestHeader: React.FC = () => {
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
+
+  // Function to update timer from API response
+  const updateTimerFromAPI = useCallback(async () => {
+    try {
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/duration/${studentId}/${testId}/`;
+      const response = await getApiClient().patch(url);
+      const { time_left } = response.data;
+      
+      if (time_left !== undefined && time_left >= 0) {
+        setTimeInSeconds(time_left);
+        sessionStorage.setItem("timer", time_left.toString());
+        const encryptedDuration = CryptoJS.AES.encrypt(time_left.toString(), secretKey).toString();
+        sessionStorage.setItem("testDuration", encryptedDuration);
+        console.log("Timer updated from API:", time_left, "seconds");
+      }
+    } catch (error) {
+      console.error("Error updating timer from API:", error);
+    }
+  }, [studentId, testId]);
+
+  // Function to update timer asynchronously (for next button clicks)
+  const updateTimerAsync = useCallback(async () => {
+    try {
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/duration/${studentId}/${testId}/`;
+      const response = await getApiClient().patch(url);
+      const { time_left } = response.data;
+      
+      if (time_left !== undefined && time_left >= 0) {
+        setTimeInSeconds(time_left);
+        sessionStorage.setItem("timer", time_left.toString());
+        const encryptedDuration = CryptoJS.AES.encrypt(time_left.toString(), secretKey).toString();
+        sessionStorage.setItem("testDuration", encryptedDuration);
+        console.log("Timer updated asynchronously from API:", time_left, "seconds");
+      }
+    } catch (error) {
+      console.error("Error updating timer asynchronously:", error);
+    }
+  }, [studentId, testId]);
+
+  // Function to update timer synchronously with loading (for page refresh)
+  const updateTimerSync = useCallback(async () => {
+    setIsTimerLoading(true);
+    try {
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/duration/${studentId}/${testId}/`;
+      const response = await getApiClient().patch(url);
+      const { time_left } = response.data;
+      
+      if (time_left !== undefined && time_left >= 0) {
+        setTimeInSeconds(time_left);
+        sessionStorage.setItem("timer", time_left.toString());
+        const encryptedDuration = CryptoJS.AES.encrypt(time_left.toString(), secretKey).toString();
+        sessionStorage.setItem("testDuration", encryptedDuration);
+        console.log("Timer updated synchronously from API:", time_left, "seconds");
+      }
+    } catch (error) {
+      console.error("Error updating timer synchronously:", error);
+    } finally {
+      setIsTimerLoading(false);
+    }
+  }, [studentId, testId]);
+
+  // Expose functions globally for other components to use
+  useEffect(() => {
+    (window as any).updateTimerAsync = updateTimerAsync;
+    (window as any).updateTimerSync = updateTimerSync;
+    
+    return () => {
+      delete (window as any).updateTimerAsync;
+      delete (window as any).updateTimerSync;
+    };
+  }, [updateTimerAsync, updateTimerSync]);
  
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -260,7 +332,7 @@ useEffect(() => {
                 <div className="row text-center align-items-center m-0">
                   <div className="col-3">
                     <h4 className="text-danger mb-0">
-                      {timeInSeconds > 0 ? formatTime(timeInSeconds).hours : "00"}
+                      {timeInSeconds > 0 ? formatTime(timeInSeconds).hours : "--"}
                     </h4>
                     <p className="small mb-0">Hours</p>
                   </div>
@@ -269,7 +341,7 @@ useEffect(() => {
                   </div>
                   <div className="col-3">
                     <h4 className="text-danger mb-0">
-                      {timeInSeconds > 0 ? formatTime(timeInSeconds).minutes : "00"}
+                      {timeInSeconds > 0 ? formatTime(timeInSeconds).minutes : "--"}
                     </h4>
                     <p className="small mb-0">Mins</p>
                   </div>
@@ -278,7 +350,7 @@ useEffect(() => {
                   </div>
                   <div className="col-3">
                     <h4 className="text-danger mb-0">
-                      {timeInSeconds > 0 ? formatTime(timeInSeconds).seconds : "00"}
+                      {timeInSeconds > 0 ? formatTime(timeInSeconds).seconds : "--"}
                     </h4>
                     <p className="small mb-0">Sec</p>
                   </div>

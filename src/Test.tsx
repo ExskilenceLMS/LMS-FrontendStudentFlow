@@ -33,18 +33,8 @@ interface FilterState {
 }
 
 interface CurrentTime {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-  seconds: number;
-  dateTime: string;
-  date: string;
-  time: string;
-  timeZone: string;
-  dayOfWeek: string;
-  dstActive: boolean;
+  datetime: string;
+  timezone: string;
 }
 
 const statusMapping: { [key: string]: string } = {
@@ -104,7 +94,7 @@ const Test: React.FC = () => {
   useEffect(() => {
     const fetchCurrentTime = async () => {
       try {
-        const response = await axios.get(`https://timeapi.io/api/time/current/zone?timeZone=Asia/Kolkata`);
+        const response = await getApiClient().get(`${process.env.REACT_APP_BACKEND_URL}api/current-time-ist`);
         setCurrentTime(response.data);
       } catch (error) {
         console.error(error);
@@ -202,18 +192,21 @@ const Test: React.FC = () => {
   };
 
 const isTestTimeMatch = (test: TestDetail) => {
-  if (!currentTime) {
-    return false;
-  }
+  if (!currentTime) return false;
 
   const { hours: startHour, minutes: startMinute } = convertTo24HourFormat(test.starttime);
   const { hours: endHour, minutes: endMinute } = convertTo24HourFormat(test.endtime);
 
-  const currentHour = currentTime.hour;
-  const currentMinute = currentTime.minute;
+  // Parse datetime string: "2025-07-25T18:10:32.671284+05:30"
+  const datetimeParts = currentTime.datetime.split('T');
+  const datePart = datetimeParts[0]; // "2025-07-25"
+  const timePart = datetimeParts[1].split('.')[0]; // "18:10:32"
+  const timeComponents = timePart.split(':');
+  
+  const currentHour = parseInt(timeComponents[0]);
+  const currentMinute = parseInt(timeComponents[1]);
 
-  const currentDateParts = currentTime.date.split('/');
-  const currentDateFormatted = `${currentDateParts[2]}-${currentDateParts[0].padStart(2, '0')}-${currentDateParts[1].padStart(2, '0')}`;
+  const currentDateFormatted = datePart; // Already in YYYY-MM-DD format
 
   // Check if current date is between start and end dates
   const isDateInRange = currentDateFormatted >= test.startdate && currentDateFormatted <= test.enddate;
@@ -231,7 +224,7 @@ const isTestTimeMatch = (test: TestDetail) => {
 
     console.log(`Time check for test ${test.test_id} on start date:`, {
       testStartTime: `${test.starttime} (${startHour}:${startMinute})`,
-      currentTime: `${currentTime.time} (${currentHour}:${currentMinute})`,
+      currentTime: `${currentTime.datetime} (${currentHour}:${currentMinute})`,
       testStartTotalMinutes,
       currentTotalMinutes,
       isTimeMatch,
@@ -249,7 +242,7 @@ const isTestTimeMatch = (test: TestDetail) => {
 
     console.log(`Time check for test ${test.test_id} on end date:`, {
       testEndTime: `${test.endtime} (${endHour}:${endMinute})`,
-      currentTime: `${currentTime.time} (${currentHour}:${currentMinute})`,
+      currentTime: `${currentTime.datetime} (${currentHour}:${currentMinute})`,
       testEndTotalMinutes,
       currentTotalMinutes,
       isTimeMatch,

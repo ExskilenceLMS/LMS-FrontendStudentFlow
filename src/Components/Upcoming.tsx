@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Card } from "react-bootstrap";
-import Skeleton from "react-loading-skeleton";
-import { getApiClient } from "../utils/apiAuth";
-import { secretKey } from "../constants";
+import { useAPISWR } from "../utils/swrConfig";
 import CryptoJS from "crypto-js";
+import { secretKey } from "../constants";
+import Skeleton from "react-loading-skeleton";
+
+interface Discussion {
+  title: string;
+  week: string;
+  date: string;
+  time: string;
+}
 
 interface Events {
   title: string;
@@ -11,11 +18,12 @@ interface Events {
   time: string;
 }
 
-interface Discussion {
-  title: string; 
-  week: string;
-  date: string;
-  time: string;
+interface SessionsResponse {
+  sessions: any[];
+}
+
+interface EventsResponse {
+  events: any[];
 }
 
 const Upcoming: React.FC = () => {
@@ -32,60 +40,45 @@ const Upcoming: React.FC = () => {
   const encryptedBatchId = sessionStorage.getItem('BatchId');
   const decryptedBatchId = CryptoJS.AES.decrypt(encryptedBatchId!, secretKey).toString(CryptoJS.enc.Utf8);
   const batchId = decryptedBatchId;
-  const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
+  // Use SWR for upcomming sessions API with 1-hour cache
+  const { data: sessionsData, error: sessionsError } = useAPISWR<SessionsResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}`);
+
+  // Use SWR for upcomming events API with 3-hour cache
+  const { data: eventsData, error: eventsError } = useAPISWR<EventsResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}`);
 
   useEffect(() => {
-    const fetchDiscussions = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}`
-      try {
-        const response = await getApiClient().get(url);
-        if (response.data && response.data.sessions && Array.isArray(response.data.sessions)) {
-          setDiscussions(response.data.sessions.map((item: any) => ({
-            title: item.title,
-            week: item.title,
-            date: item.date,
-            time: item.time,
-          })));
-        } else {
-          console.error("Expected sessions array but got:", typeof response.data, response.data);
-          setDiscussions([]);
-        }
-      } catch (error) {
-        console.error("Error fetching discussions:", error);
+    if (sessionsData) {
+      if (sessionsData.sessions && Array.isArray(sessionsData.sessions)) {
+        setDiscussions(sessionsData.sessions.map((item: any) => ({
+          title: item.title,
+          week: item.title,
+          date: item.date,
+          time: item.time,
+        })));
+      } else {
+        console.error("Expected sessions array but got:", typeof sessionsData, sessionsData);
         setDiscussions([]);
-      } finally {
-        setLoadingDiscussions(false);
       }
-    };
+      setLoadingDiscussions(false);
+    }
+  }, [sessionsData]);
 
-    const fetchEvents = async () => {
-        const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}`
-      try {
-        const response = await getApiClient().get(url);
-        if (response.data && response.data.events && Array.isArray(response.data.events)) {
-          setEvents(response.data.events.map((event: any) => ({
-            title: event.title,
-            date: event.date,
-            time: event.time,
-          })));
-        } else {
-          console.error("Expected events array but got:", typeof response.data, response.data);
-          setEvents([]);
-        }
-      } catch (error) {
-        console.error("Error fetching events:", error);
+  useEffect(() => {
+    if (eventsData) {
+      if (eventsData.events && Array.isArray(eventsData.events)) {
+        setEvents(eventsData.events.map((event: any) => ({
+          title: event.title,
+          date: event.date,
+          time: event.time,
+        })));
+      } else {
+        console.error("Expected events array but got:", typeof eventsData, eventsData);
         setEvents([]);
-      } finally {
-        setLoadingEvents(false);
       }
-    };
-
-    fetchDiscussions();
-    fetchEvents();
-  }, [batchId, courseId, studentId]);
+      setLoadingEvents(false);
+    }
+  }, [eventsData]);
 
   return (
     <div className="" style={{marginTop: "1px"}}>

@@ -1,6 +1,7 @@
   import React, { useEffect, useState } from "react";
   import { useLocation, useNavigate } from "react-router-dom";
   import { getApiClient } from "./utils/apiAuth";
+  import { useAPISWR } from "./utils/swrConfig";
   import CryptoJS from "crypto-js";
   import { secretKey } from "./constants";
   import SkeletonLoading from "./SkeletonTestSection";
@@ -70,6 +71,12 @@
     const [questionStatuses, setQuestionStatuses] = useState<{[key: string]: string}>({});
     const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
 
+    // Use SWR for tables API with 1-day cache
+    const tablesUrl = sessionStorage.getItem('TestSubject') === 'SQL' 
+      ? `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/tables/`
+      : null;
+    const { data: tablesData } = useAPISWR<{ tables: any[] }>(tablesUrl);
+
     // Use useLocation from react-router-dom to access location.state safely
     const location = useLocation() as { state?: { sectionData?: any } };
     const sectionData = location.state?.sectionData;
@@ -78,6 +85,11 @@
     useEffect(() => {
       // Get the test data from location.state that was passed during navigation from instruction page
       const testData = sectionData;
+
+      // Update test duration synchronously on page load/refresh
+      if ((window as any).updateTimerSync) {
+        (window as any).updateTimerSync();
+      }
 
       const fetchQuestionStatus = async () => {
         const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/status/${studentId}/${testId}/`
@@ -91,32 +103,10 @@
         }
       };
 
-      const fetchTablesForSQL = async () => {
-        // Only fetch tables if subject is SQL
-        console.log('subjectId',sessionStorage.getItem('TestSubject'));
-        if (sessionStorage.getItem('TestSubject') === 'SQL') {
-          try {
-            const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/tables/`;
-            const response = await getApiClient().get(url);
-            const tables = response.data.tables;
-            
-            // Encrypt and store tables in session
-            const encryptedTables = CryptoJS.AES.encrypt(JSON.stringify(tables), secretKey).toString();
-            sessionStorage.setItem('sqlTables', encryptedTables);
-            // console.log('Tables fetched and stored for SQL subject');
-          } catch (error) {
-            console.error("Error fetching tables for SQL:", error);
-          }
-        }
-      };
-      
       if (testData) {
         try {
           // Since sectionData is already an object, we don't need to parse it
           setQuestionList(testData);
-          
-          // Fetch tables for SQL subject
-          fetchTablesForSQL();
           
           // Fetch status and update questions
           fetchQuestionStatus().then((statusData) => {
@@ -170,7 +160,17 @@
         console.error("No test data found in location.state");
         navigate("/test");
       }
-    }, [navigate, sectionData]);
+    }, [testId, studentId, navigate]);
+
+    // Handle tables data when available from SWR
+    useEffect(() => {
+      if (tablesData && tablesData.tables) {
+        // Encrypt and store tables in session
+        const encryptedTables = CryptoJS.AES.encrypt(JSON.stringify(tablesData.tables), secretKey).toString();
+        sessionStorage.setItem('sqlTables', encryptedTables);
+        console.log('Tables fetched and stored for SQL subject via SWR');
+      }
+    }, [tablesData]);
 
     // Add window resize listener for responsive text truncation
     useEffect(() => {
@@ -207,6 +207,11 @@
     };
 
     const handleQuestionClick = (questionType: string, index: number) => {
+      // Update test duration asynchronously when question is clicked
+      if ((window as any).updateTimerAsync) {
+        (window as any).updateTimerAsync();
+      }
+
       if (questionType === "MCQ") {
         // Navigate to MCQ page with test data
         navigate(`/mcq-temp?index=${index}`, { 

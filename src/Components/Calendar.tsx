@@ -2,12 +2,18 @@ import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "react-bootstrap";
 import Skeleton from "react-loading-skeleton";
-import apiClient from "../utils/apiAuth";
+import { useAPISWR } from "../utils/swrConfig";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 
 interface SpecialDates {
   [key: string]: { title: string; subject: string }[];
+}
+
+interface CalendarResponse {
+  year: string;
+  month: string;
+  calendar: { datetime: string; title: string; subject: string }[];
 }
 
 const Calendar: React.FC = () => {
@@ -23,32 +29,27 @@ const Calendar: React.FC = () => {
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
   
+  // Use SWR for event/calender API with 1-day cache
+  const { data: calendarData, error } = useAPISWR<CalendarResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/event/calender/${studentId}/`);
+
   useEffect(() => {
-    const fetchData = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/event/calender/${studentId}/`
-      try {
-        const response = await apiClient.get(url);
-        setData(response.data);
-        setYear(parseInt(response.data.year));
-        setMonth(parseInt(response.data.month)); 
-        setCurrentDate(new Date(response.data.year, response.data.month)); 
+    if (calendarData) {
+      setData(calendarData);
+      setYear(parseInt(calendarData.year));
+      setMonth(parseInt(calendarData.month)); 
+      setCurrentDate(new Date(parseInt(calendarData.year), parseInt(calendarData.month))); 
 
-        const transformedSpecialDates: SpecialDates = {};
-        response.data.calendar.forEach((event: { datetime: string; title: string; subject: string }) => {
-          if (!transformedSpecialDates[event.datetime]) {
-            transformedSpecialDates[event.datetime] = [];
-          }
-          transformedSpecialDates[event.datetime].push({ title: event.title, subject: event.subject });
-        });
+      const transformedSpecialDates: SpecialDates = {};
+      calendarData.calendar.forEach((event: { datetime: string; title: string; subject: string }) => {
+        if (!transformedSpecialDates[event.datetime]) {
+          transformedSpecialDates[event.datetime] = [];
+        }
+        transformedSpecialDates[event.datetime].push({ title: event.title, subject: event.subject });
+      });
 
-        setSpecialDates(transformedSpecialDates);
-      }  
-      catch (innerError: any) {
-        console.error("Error fetching Calendar data:", innerError);
-      }
-    };
-    fetchData();
-  }, [studentId]);
+      setSpecialDates(transformedSpecialDates);
+    }
+  }, [calendarData]);
 
   const daysOfWeek: string[] = ["S", "M", "T", "W", "T", "F", "S"];
 

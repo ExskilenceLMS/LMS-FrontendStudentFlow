@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Card, Dropdown } from "react-bootstrap";
-import Skeleton from "react-loading-skeleton";
-import { getApiClient } from "../utils/apiAuth";
-import { secretKey } from "../constants";
+import { Card, ProgressBar } from "react-bootstrap";
+import { useAPISWR } from "../utils/swrConfig";
 import CryptoJS from "crypto-js";
+import { secretKey } from "../constants";
 
 interface Subject {
   id: string;
@@ -28,31 +27,13 @@ interface Delay {
 }
 
 interface ApiResponse {
+  All: { [key: string]: string };
   filters_subject: string[];
-  filters_subject_week: {
-    [key: string]: string[];
-  };
-  mcqScores: {
-    [key: string]: {
-      [key: string]: string;
-    };
-  };
-  codingScore: {
-    [key: string]: {
-      [key: string]: string;
-    };
-  };
-  tests: {
-    [key: string]: {
-      [key: string]: string;
-    };
-  };
-  All: {
-    [key: string]: string | { [key: string]: string };
-  };
-  delay: {
-    [key: string]: number;
-  };
+  filters_subject_week: { [key: string]: string[] };
+  mcqScores: { [key: string]: { [key: string]: string } };
+  codingScore: { [key: string]: { [key: string]: string } };
+  tests: { [key: string]: { [key: string]: string } };
+  delay: { All: number };
 }
 
 function Progress() {
@@ -62,93 +43,79 @@ function Progress() {
   const [delay, setDelay] = useState<Delay>({ delay: 0 });
   const [selectedSubject, setSelectedSubject] = useState<string>("All");
   const [selectedWeek, setSelectedWeek] = useState<string>("All");
-  const [apiData, setApiData] = useState<ApiResponse | null>(null);
   const encryptedStudentId = sessionStorage.getItem("StudentId") || "";
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
-  const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
+  // Use SWR for weeklyprogress API with 2-minute cache
+  const { data: apiData, error } = useAPISWR<ApiResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}`);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}`
-      try {
-        const response = await getApiClient().get<ApiResponse>(
-          url
-        );
-        const data = response.data;
-        setApiData(data);
-        setDelay({ delay: data.delay.All });
+    if (apiData) {
+      setDelay({ delay: apiData.delay.All });
 
-        const subjectsData = data.filters_subject.filter(subject => subject !== "All").map((subject) => ({
-          id: subject,
-          name: subject,
-        }));
-        setSubjects([{ id: "All", name: "All" }, ...subjectsData]);
+      const subjectsData = apiData.filters_subject.filter(subject => subject !== "All").map((subject) => ({
+        id: subject,
+        name: subject,
+      }));
+      setSubjects([{ id: "All", name: "All" }, ...subjectsData]);
 
-        const weeksData = Object.keys(data.All).filter(week => week !== "All").map((week) => ({
-          id: week,
-          name: week,
-        }));
-        setWeeks([{ id: "All", name: "All" }, ...weeksData]);
+      const weeksData = Object.keys(apiData.All).filter(week => week !== "All").map((week) => ({
+        id: week,
+        name: week,
+      }));
+      setWeeks([{ id: "All", name: "All" }, ...weeksData]);
 
-        updateProgressData(data, "All", "All");
-      } catch (error) {
-        console.error("Error fetching progress data:", error);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-const updateProgressData = (data: ApiResponse, subject: string, week: string) => {
-  let filteredData: { [key: string]: string } = {};
-
-  if (subject === "All" && week === "All") {
-    const allData = data.All as { [key: string]: string };
-    filteredData = { ...allData };
-  } else if (subject === "All" && week === "Practice MCQs") {
-    filteredData = { "Practice MCQs": data.All["Practice MCQs"] as string };
-  } else if (subject === "All" && week === "Practice Codings") {
-    filteredData = { "Practice Codings": data.All["Practice Codings"] as string };
-  } else if (subject === "All" && week === "Weekly Test") {
-    filteredData = { "Weekly Test": data.All["Weekly Test"] as string };
-  } else if (subject !== "All" && week === "All") {
-    filteredData = {
-      "Practice MCQs": data.mcqScores[subject]?.All || "0/0",
-      "Practice Codings": data.codingScore[subject]?.All || "0/0",
-      "Tests": data.tests[subject]?.All || "0/0",
-    };
-  } else if (subject !== "All" && week !== "All") {
-    const weekData = {
-      ...(data.mcqScores[subject]?.[week] && { "Practice MCQs": data.mcqScores[subject][week] }),
-      ...(data.codingScore[subject]?.[week] && { "Practice Codings": data.codingScore[subject][week] }),
-      ...(data.tests[subject]?.[week] && { "Tests": data.tests[subject][week] }),
-    };
-    if (Object.keys(weekData).length > 0) {
-      filteredData = weekData;
+      updateProgressData(apiData, "All", "All");
     }
-  }
+  }, [apiData]);
 
-  const progressData = Object.entries(filteredData).map(([label, value], index) => {
-    if (typeof value === "string") {
-      const [score, max] = value.split("/").map(Number);
-      const colors = ["#fff", "#12B500", "#f42a2a"];
-      return {
-        id: (index + 1).toString(),
-        label,
-        value: score,
-        max,
-        color: colors[index % colors.length],
+  const updateProgressData = (data: ApiResponse, subject: string, week: string) => {
+    let filteredData: { [key: string]: string } = {};
+
+    if (subject === "All" && week === "All") {
+      const allData = data.All as { [key: string]: string };
+      filteredData = { ...allData };
+    } else if (subject === "All" && week === "Practice MCQs") {
+      filteredData = { "Practice MCQs": data.All["Practice MCQs"] as string };
+    } else if (subject === "All" && week === "Practice Codings") {
+      filteredData = { "Practice Codings": data.All["Practice Codings"] as string };
+    } else if (subject === "All" && week === "Weekly Test") {
+      filteredData = { "Weekly Test": data.All["Weekly Test"] as string };
+    } else if (subject !== "All" && week === "All") {
+      filteredData = {
+        "Practice MCQs": data.mcqScores[subject]?.All || "0/0",
+        "Practice Codings": data.codingScore[subject]?.All || "0/0",
+        "Tests": data.tests[subject]?.All || "0/0",
       };
+    } else if (subject !== "All" && week !== "All") {
+      const weekData = {
+        ...(data.mcqScores[subject]?.[week] && { "Practice MCQs": data.mcqScores[subject][week] }),
+        ...(data.codingScore[subject]?.[week] && { "Practice Codings": data.codingScore[subject][week] }),
+        ...(data.tests[subject]?.[week] && { "Tests": data.tests[subject][week] }),
+      };
+      if (Object.keys(weekData).length > 0) {
+        filteredData = weekData;
+      }
     }
-    return null;
-  }).filter(Boolean) as ProgressData[];
 
-  setProgressData(progressData);
-};
+    const progressData = Object.entries(filteredData).map(([label, value], index) => {
+      if (typeof value === "string") {
+        const [score, max] = value.split("/").map(Number);
+        const colors = ["#fff", "#12B500", "#f42a2a"];
+        return {
+          id: (index + 1).toString(),
+          label,
+          value: score,
+          max,
+          color: colors[index % colors.length],
+        };
+      }
+      return null;
+    }).filter(Boolean) as ProgressData[];
+
+    setProgressData(progressData);
+  };
 
   const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const subject = e.target.value;
@@ -173,6 +140,7 @@ const updateProgressData = (data: ApiResponse, subject: string, week: string) =>
       updateProgressData(apiData, subject, "All");
     }
   };
+
   const handleWeekChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const week = e.target.value;
     setSelectedWeek(week);

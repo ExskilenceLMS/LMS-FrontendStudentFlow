@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { getApiClient } from "./utils/apiAuth";
-import AceEditor from "react-ace";
 import { useNavigate } from "react-router-dom";
+import { getApiClient } from "./utils/apiAuth";
+import { useAPISWR } from "./utils/swrConfig";
+import CryptoJS from "crypto-js";
+import { secretKey } from "./constants";
+import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import SkeletonCode from './Components/EditorSkeletonCode'
-import { secretKey } from "./constants";
-import CryptoJS from "crypto-js";
-import './SQLEditor.css';
+import "./SQLEditor.css";
 
 interface Data {
   [key: string]: any;
@@ -59,6 +60,10 @@ const SQLEditor: React.FC = () => {
   const [availableTables, setAvailableTables] = useState<{ tab_name: string; data: Data[] }[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>("");
 
+  // Use SWR for tables API with 1-day cache
+  const tablesUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/tables/`;
+  const { data: tablesData } = useAPISWR<{ tables: any[] }>(tablesUrl);
+
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
@@ -102,79 +107,51 @@ const SQLEditor: React.FC = () => {
 
   useEffect(() => {
     const fetchQuestions = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/` +
-          `${studentId}/` +
-          `${subject}/` +
-          `${subjectId}/` +
-          `${dayNumber}/` +
-          `${weekNumber}/` +
-          `${sessionStorage.getItem("currentSubTopicId")}/`
       try {
-        const response = await getApiClient().get(
-          url
-        );
-
-        const questionsWithSavedCode = response.data.questions.map((q: Question) => {
-          const savedCodeKey = getUserCodeKey(q.Qn_name);
-          const savedCode = sessionStorage.getItem(savedCodeKey);
-
-          if (savedCode !== null) {
-            return { ...q, entered_ans: decryptData(savedCode) };
-          }
-          return q;
-        });
-
-        setQuestions(questionsWithSavedCode);
-        const initialIndex = parseInt(sessionStorage.getItem("currentQuestionIndex")!) ? parseInt(sessionStorage.getItem("currentQuestionIndex")!) : 0;
-
-        setCurrentQuestionIndex(initialIndex);
-        setStatus(questionsWithSavedCode[initialIndex].status);
-        setEnteredAns(questionsWithSavedCode[initialIndex].entered_ans);
-        setAns(questionsWithSavedCode[initialIndex].entered_ans || "");
-
-        if (response.data.questions.length > 0) {
-          initializeQuestionData(questionsWithSavedCode[initialIndex], availableTables);
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/questions/${subject}/${weekNumber}/${dayNumber}/`;
+        const response = await getApiClient().get(url);
+        const questionsData = response.data.questions;
+        setQuestions(questionsData);
+        
+        if (questionsData.length > 0) {
+          const firstQuestion = questionsData[0];
+          setAns(firstQuestion.entered_ans || "");
+          setEnteredAns(firstQuestion.entered_ans || "");
+          
+          const statusKey = `submissionStatus_${subject}_${weekNumber}_${dayNumber}_${firstQuestion.Qn_name}`;
+          const submissionStatus = sessionStorage.getItem(statusKey);
+          setStatus(submissionStatus ? decryptData(submissionStatus) === "submitted" : firstQuestion.status);
         }
       } catch (error) {
         console.error("Error fetching questions:", error);
       }
     };
 
-    const fetchTables = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/tables/`
-      try {
-        const response = await getApiClient().get(
-          url
-        );
-        const tables = response.data.tables;
-        setAvailableTables(tables);
-
-        if (questions.length > 0) {
-          initializeQuestionData(questions[0], tables);
-        }
-
-        if (tables.length > 0) {
-          const initialTable = tables.find((table: any) =>
-            table.tab_name === tableName
-          );
-
-          if (initialTable) {
-            setTableData(initialTable.data || []);
-          } else {
-            setTableData(tables[0].data || []);
-            setTableName(tables[0].tab_name);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching tables:", error);
-      } finally {
-        setLoading(false);
+    // Use cached tables data from SWR
+    if (tablesData && tablesData.tables) {
+      setAvailableTables(tablesData.tables);
+      
+      if (questions.length > 0) {
+        initializeQuestionData(questions[0], tablesData.tables);
       }
-    };
+
+      if (tablesData.tables.length > 0) {
+        const initialTable = tablesData.tables.find((table: any) =>
+          table.tab_name === tableName
+        );
+
+        if (initialTable) {
+          setTableData(initialTable.data || []);
+        } else {
+          setTableData(tablesData.tables[0].data || []);
+          setTableName(tablesData.tables[0].tab_name);
+        }
+      }
+      setLoading(false);
+    }
 
     fetchQuestions();
-    fetchTables();
-  }, []);
+  }, [tablesData, questions.length]);
 
   const handleCodeChange = (newCode: string) => {
     setAns(newCode);

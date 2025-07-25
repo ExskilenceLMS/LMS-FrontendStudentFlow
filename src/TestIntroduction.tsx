@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import timer from "./Components/images/Timer.png";
 import problems from "./Components/images/problems.png";
 import { getApiClient } from "./utils/apiAuth";
+import { useAPISWR } from "./utils/swrConfig";
 import { secretKey } from './constants';
 import CryptoJS from 'crypto-js';
 import { Spinner } from "react-bootstrap";
@@ -30,43 +31,53 @@ const TestIntroduction: React.FC = () => {
   const [testDuration, setTestDuration] = useState<number>(0);
   const [responseLoading, setResponseLoading] = useState<boolean>(false);
 
+  // Use SWR for test instruction API with 1-hour cache
+  const instructionUrl = testId && studentId 
+    ? `${process.env.REACT_APP_BACKEND_URL}api/student/test/instruction/${studentId}/${testId}/`
+    : null;
+  const { data: instructionData, error: instructionError } = useAPISWR<any>(instructionUrl);
+
+  // Use SWR for test section API with 1-hour cache
+  const sectionUrl = testId && studentId 
+    ? `${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${studentId}/${testId}/`
+    : null;
+  const { data: cachedSectionData, error: sectionError } = useAPISWR<any>(sectionUrl);
+
   useEffect(() => {
     const fetchData = async () => {
       if (testId && studentId) {
         setLoading(true);
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instruction/${studentId}/${testId}/`;
-        // const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/instruction/${studentId}/${"Test1"}/`;
-
-        try {
-          const response = await getApiClient().get(url);
-          setDuration(response.data.test_duration_minutes);
-          setSectionCount(response.data.section_count);
-          setSectionCount1(response.data.mcq_section_count);
-          setSectionCount2(response.data.coding_section_count);
-          setTestDuration(response.data.test_duration_minutes);
+        
+        // Update test duration synchronously on page load
+        if ((window as any).updateTimerSync) {
+          (window as any).updateTimerSync();
+        }
+        
+        // Use cached instruction and section data from SWR
+        if (instructionData && cachedSectionData) {
+          setDuration(instructionData.test_duration_minutes);
+          setSectionCount(instructionData.section_count);
+          setSectionCount1(instructionData.mcq_section_count);
+          setSectionCount2(instructionData.coding_section_count);
+          // setTestDuration(instructionData.test_duration_minutes);
           setLoading(false);
+          
           setResponseLoading(true);
-          const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${studentId}/${testId}/`;
-          const response1 = await getApiClient().get(url1);
-          console.log(response1.data);
-          setSectionData(response1.data);
-          console.log(response.data.test_duration_minutes - response1.data.duration);
-          const calculatedDuration = response.data.test_duration_minutes - response1.data.duration;
-          const encryptedDuration = CryptoJS.AES.encrypt(calculatedDuration.toString(), secretKey).toString();
-          sessionStorage.setItem("testDuration", encryptedDuration);
+          console.log(cachedSectionData);
+          setSectionData(cachedSectionData);
+          // console.log(instructionData.test_duration_minutes - cachedSectionData.duration);
+          // const calculatedDuration = instructionData.test_duration_minutes - cachedSectionData.duration;
+          // const encryptedDuration = CryptoJS.AES.encrypt(calculatedDuration.toString(), secretKey).toString();
+          // sessionStorage.setItem("testDuration", encryptedDuration);
           setResponseLoading(false);
-          const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response1.data), secretKey).toString();
+          const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(cachedSectionData), secretKey).toString();
           sessionStorage.setItem("sectionData", encryptedSectionData);
-        } catch (innerError: any) {
-          console.error("Error fetching test instruction data:", innerError);
-        } finally {
-          setLoading(false);
         }
       }
     };
 
     fetchData();
-  }, [testId, studentId, navigate]);
+  }, [testId, studentId, navigate, instructionData, cachedSectionData]);
 
   const handleStartTest = async () => {
     // sessionStorage.setItem("timer", duration);
