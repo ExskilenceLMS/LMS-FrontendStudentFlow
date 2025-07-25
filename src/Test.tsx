@@ -20,6 +20,7 @@ interface TestDetail {
   endtime: string;
   title: string;
   status: string;
+  teststatus: string;
 }
 
 interface FilterState {
@@ -388,7 +389,7 @@ const isTestTimeMatch = (test: TestDetail) => {
                                           onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
                                           style={{ width: "80px", backgroundColor: "#28a745", color: "white" }}
                                         >
-                                          Start
+                                          {data.teststatus? data.teststatus ==="Pending" ? "Start" :data.teststatus==="Started" ? "Resume" : "Start" : "Start"}
                                         </button>
                                     ) : mappedStatus === "Completed" ? (
                                       <HiOutlineClipboardDocumentList
