@@ -3,8 +3,6 @@ import { getApiClient } from "./utils/apiAuth";
 import { useLocation, useNavigate } from "react-router-dom";
 import CryptoJS from "crypto-js";
 import { secretKey } from "./constants";
-import TestHeader from "./TestHeader";
-import { Container, Card, Button, Spinner, Modal } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 interface QuestionData {
@@ -70,10 +68,27 @@ const TestMcq: React.FC = () => {
   const [showSkipConfirmation, setShowSkipConfirmation] = useState<boolean>(false);
   const [submittingQuestions, setSubmittingQuestions] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState<boolean>(true);
+  const [questionStatuses, setQuestionStatuses] = useState<{[key: string]: string}>({});
 
   // Encryption/Decryption functions for sessionStorage
   const getUserAnswerKey = (qnName: string) => {
     return `userAnswer_${qnName}`;
+  };
+
+  const getQuestionStatusFromSession = () => {
+    const sessionKey = `${testId}_questionStatus`;
+    const sessionStatus = sessionStorage.getItem(sessionKey);
+    
+    if (sessionStatus) {
+      try {
+        const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+        return JSON.parse(decryptedStatuses);
+      } catch (error) {
+        console.error("Error decrypting session status:", error);
+        return {};
+      }
+    }
+    return {};
   };
 
   const encryptData = (data: string): string => {
@@ -127,6 +142,10 @@ const TestMcq: React.FC = () => {
       
       setAnsweredQuestions(initialAnswers);
       setSkippedQuestions(Array(mcqQuestions.length).fill(false));
+
+      // Load question statuses from session storage
+      const statuses = getQuestionStatusFromSession();
+      setQuestionStatuses(statuses);
 
       // Get the question index from URL params
       const urlParams = new URLSearchParams(location.search);
@@ -215,15 +234,40 @@ const TestMcq: React.FC = () => {
       setSelectedOption(null);
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/mcq/`
       try {
-        await getApiClient().put(url, {
+        const response = await getApiClient().put(url, {
           student_id: studentId,
-          question_id: questions[currentQuestion].Qn_name || "ranjitha",
+          question_id: questions[currentQuestion].Qn_name,
           test_id: testId,
           correct_ans: questions[currentQuestion].correct_answer,
           entered_ans: selectedOption,
           subject_id: subjectId,
           week_number: decryptData(sessionStorage.getItem("WeekNumber") || "0") || "0",
         });
+        
+        // Update question status in session storage after successful submission
+        const sessionKey = `${testId}_questionStatus`;
+        const sessionStatus = sessionStorage.getItem(sessionKey);
+        
+        if (sessionStatus) {
+          try {
+            const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+            const statuses = JSON.parse(decryptedStatuses);
+            
+            // Update the status for this question to "Submitted"
+            statuses[`mcq_${questions[currentQuestion].Qn_name}`] = "Submitted";
+            
+            // Re-encrypt and store updated statuses
+            const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
+            sessionStorage.setItem(sessionKey, encryptedStatuses);
+            
+            // Update local state
+            setQuestionStatuses(statuses);
+            
+            console.log('Updated question status to Submitted for:', questions[currentQuestion].Qn_name);
+          } catch (error) {
+            console.error("Error updating session status:", error);
+          }
+        }
       } 
       catch (innerError: any) {
         const revertedAnsweredQuestions = [...answeredQuestions];
@@ -376,9 +420,17 @@ const TestMcq: React.FC = () => {
                         style={{
                           width: "60px",
                           height: "55px",
-                          backgroundColor: currentQuestion === index ? "#42FF58" : "#fff",
-                          color: "#000",
-                          opacity: answeredQuestions[index] !== null || skippedQuestions[index] ? 0.5 : 1
+                          backgroundColor: (() => {
+                            const questionStatus = questionStatuses[`mcq_${questions[index]?.Qn_name}`];
+                            if (questionStatus === "Submitted" || questionStatus === "Attempted") {
+                              return "#42FF58"; // Green for submitted/attempted
+                            } else if (currentQuestion === index) {
+                              return "grey"; // Grey for current question
+                            } else {
+                              return "#fff"; // White for others
+                            }
+                          })(),
+                          color: currentQuestion === index ? "#fff" : "#000",
                         }}
                         onClick={() => handleQuestionClick(index)}
                       >
@@ -387,23 +439,13 @@ const TestMcq: React.FC = () => {
                     ))}
                   </div>
                   <div className="col-11 lg-8 me-3" style={{ height: "100%", flex: 1 }}>
-                    <div className="border border-dark rounded-2 d-flex flex-column" style={{ height: "calc(100% - 100px)", backgroundColor: "#E5E5E533" }}>
-                      <div className="p-3 mt-2">
-                        <h4>{questions[currentQuestion].question}</h4>
+                    <div className="border border-dark rounded-2 overflowY-auto d-flex flex-column" style={{ height :"calc(100% - 100px)", backgroundColor: "#E5E5E533" }}>
+                        <pre className="p-3 pt-4 m-0 mh-50 text-wrap fs-5 overflow-auto">
+                        Q{currentQuestion + 1}. {questions[currentQuestion].question}
+                        </pre>
+                        <div className="p-3 mh-50">
                         {questions[currentQuestion].options.map((option, index) => (
-                          <div key={index} className="form-check">
-                            <input
-                              className="form-check-input"
-                              type="radio"
-                              name="option"
-                              value={option}
-                              checked={selectedOption === option || answeredQuestions[currentQuestion] === option}
-                              onChange={handleOptionChange}
-                              disabled={answeredQuestions[currentQuestion] !== null || skippedQuestions[currentQuestion] || questions[currentQuestion].question_status === "Submitted"}
-                              style={{ cursor: 'pointer', border: '1px solid #000',
-                              borderRadius: '50%',
-                              padding: '2px'  }}
-                              onClick={() => {
+                                                         <button onClick={() => {
                                 if (!answeredQuestions[currentQuestion] && !skippedQuestions[currentQuestion] && questions[currentQuestion].question_status !== "Submitted") {
                                   setSelectedOption(option);
                                   // Encrypt and store the answer in sessionStorage
@@ -413,24 +455,22 @@ const TestMcq: React.FC = () => {
                                     sessionStorage.setItem(answerKey, encryptedAnswer);
                                   }
                                 }
-                              }}
-                            />
-                            <label className="form-check-label" style={{ cursor: 'pointer' }}
-                              onClick={() => {
-                                if (!answeredQuestions[currentQuestion] && !skippedQuestions[currentQuestion] && questions[currentQuestion].question_status !== "Submitted") {
-                                  setSelectedOption(option);
-                                  // Encrypt and store the answer in sessionStorage
-                                  if (questions[currentQuestion]?.Qn_name) {
-                                    const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
-                                    const encryptedAnswer = encryptData(option);
-                                    sessionStorage.setItem(answerKey, encryptedAnswer);
-                                  }
-                                }
-                              }}>{option}</label>
-                          </div>
+                              }} style={{
+                                boxShadow: '#00000033 0px 5px 4px',
+                                maxHeight: "10vh",
+                                overflowY: "auto",
+                                backgroundColor: selectedOption === option ? "#90EE90" : "transparent",
+                                width: "100%",
+                                textAlign: "left"
+                              }} className="border border-muted rounded-2 p-2 mb-3">
+                                <span className="me-2">{String.fromCharCode(65 + (index as number))}.</span>
+                                {option}
+                              </button>
                         ))}
                       </div>
-                      <div className="d-flex justify-content-end ms-2 mt-5 p-2 me-5 pe-5">
+                     
+                    </div>
+                    <div className="d-flex justify-content-end ms-2 mt-1 p-0">
                       <button
                         className="btn btn-sm border btn btn-light border-dark me-2"
                         style={{
@@ -439,9 +479,9 @@ const TestMcq: React.FC = () => {
                           height: "35px"
                         }}
                         onClick={handleSubmit}
-                        disabled={!selectedOption || answeredQuestions[currentQuestion] !== null || submittingQuestions.has(currentQuestion) || questions[currentQuestion].question_status === "Submitted"}
+                        disabled={!selectedOption || questionStatuses[`mcq_${questions[currentQuestion]?.Qn_name}`] === "Submitted" || submittingQuestions.has(currentQuestion)}
                       >
-                        {answeredQuestions[currentQuestion] !== null || questions[currentQuestion].question_status === "Submitted"
+                        {questionStatuses[`mcq_${questions[currentQuestion]?.Qn_name}`] === "Submitted"
                           ? "Submitted"
                           : submittingQuestions.has(currentQuestion)
                           ? "Submitting..."
@@ -466,7 +506,7 @@ const TestMcq: React.FC = () => {
                                 }
                               }
                             }}
-                            disabled={submittingQuestions.has(currentQuestion)}
+                            // disabled={submittingQuestions.has(currentQuestion)}
                           >
                             Next
                           </button>
@@ -484,7 +524,6 @@ const TestMcq: React.FC = () => {
                           </button>
                         )}
                       </div>
-                    </div>
                   </div>
                 </div>
               </div>

@@ -49,31 +49,18 @@ const TestHeader: React.FC = () => {
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
-  // Function to update timer from API response
-  const updateTimerFromAPI = useCallback(async () => {
-    try {
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/duration/${studentId}/${testId}/`;
-      const response = await getApiClient().patch(url);
-      const { time_left } = response.data;
-      
-      if (time_left !== undefined && time_left >= 0) {
-        setTimeInSeconds(time_left);
-        sessionStorage.setItem("timer", time_left.toString());
-        const encryptedDuration = CryptoJS.AES.encrypt(time_left.toString(), secretKey).toString();
-        sessionStorage.setItem("testDuration", encryptedDuration);
-        console.log("Timer updated from API:", time_left, "seconds");
-      }
-    } catch (error) {
-      console.error("Error updating timer from API:", error);
-    }
-  }, [studentId, testId]);
-
   // Function to update timer asynchronously (for next button clicks)
   const updateTimerAsync = useCallback(async () => {
     try {
       const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/duration/${studentId}/${testId}/`;
       const response = await getApiClient().patch(url);
       const { time_left } = response.data;
+      
+      // Check API response status
+      if (response.data.message === "Test Already Completed" || response.data.message === "Completed") {
+        navigate('/test');
+        return;
+      }
       
       if (time_left !== undefined && time_left >= 0) {
         setTimeInSeconds(time_left);
@@ -82,8 +69,12 @@ const TestHeader: React.FC = () => {
         sessionStorage.setItem("testDuration", encryptedDuration);
         console.log("Timer updated asynchronously from API:", time_left, "seconds");
       }
-    } catch (error) {
-      console.error("Error updating timer asynchronously:", error);
+    } catch (error: any) {
+      if (error.response?.status === 500) {
+        alert("Test Already Completed");
+        navigate('/test');
+        return;
+      }
     }
   }, [studentId, testId]);
 
@@ -95,6 +86,11 @@ const TestHeader: React.FC = () => {
       const response = await getApiClient().patch(url);
       const { time_left } = response.data;
       
+      if (response.data.message === "Test Already Completed" || response.data.message === "Completed" || response.status !== 200) {
+        navigate('/test');
+        return;
+      }
+      
       if (time_left !== undefined && time_left >= 0) {
         setTimeInSeconds(time_left);
         sessionStorage.setItem("timer", time_left.toString());
@@ -102,8 +98,12 @@ const TestHeader: React.FC = () => {
         sessionStorage.setItem("testDuration", encryptedDuration);
         console.log("Timer updated synchronously from API:", time_left, "seconds");
       }
-    } catch (error) {
-      console.error("Error updating timer synchronously:", error);
+    } catch (error: any) {
+      if (error.response?.status === 500) {
+        alert("Test Already Completed");
+        navigate('/test');
+        return;
+      }
     } finally {
       setIsTimerLoading(false);
     }

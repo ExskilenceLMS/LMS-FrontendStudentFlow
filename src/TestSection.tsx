@@ -80,7 +80,6 @@
     // Use useLocation from react-router-dom to access location.state safely
     const location = useLocation() as { state?: { sectionData?: any } };
     const sectionData = location.state?.sectionData;
-    // console.log('sectionData',JSON.stringify(sectionData));
 
     useEffect(() => {
       // Get the test data from location.state that was passed during navigation from instruction page
@@ -95,7 +94,6 @@
         const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/status/${studentId}/${testId}/`
         try {
           const response = await getApiClient().get(url);
-          // console.log('response',JSON.stringify(response.data));
           return response.data;
         } catch (innerError: any) {
           console.error("Error submitting test:", innerError);
@@ -113,24 +111,27 @@
             const initialStatuses: {[key: string]: string} = {};
             
             if (testData.qns_data && testData.qns_data.mcq) {
+              
               testData.qns_data.mcq.forEach((question: Question, index: number) => {
-                let questionStatus = question.status || "Pending";
+                let questionStatus = "Pending"; // Default status
                 
                 // Update status from API response if available
                 if (statusData && statusData.sections && statusData.sections.MCQ) {
                   const statusInfo = statusData.sections.MCQ.find((item: any) => item.qn_id === question.Qn_name);
                   if (statusInfo) {
                     questionStatus = statusInfo.status;
+                  } else {
                   }
                 }
                 
-                initialStatuses[`mcq_${index}`] = questionStatus;
+                initialStatuses[`mcq_${question.Qn_name}`] = questionStatus;
               });
             }
             
             if (testData.qns_data && testData.qns_data.coding) {
+              
               testData.qns_data.coding.forEach((question: Question, index: number) => {
-                let questionStatus = question.status || "Pending";
+                let questionStatus = "Pending"; // Default status
                 
                 // Update status from API response if available
                 if (statusData && statusData.sections && statusData.sections.Coding) {
@@ -140,11 +141,16 @@
                   }
                 }
                 
-                initialStatuses[`coding_${index}`] = questionStatus;
+                initialStatuses[`coding_${question.Qn_name}`] = questionStatus;
               });
             }
             
             setQuestionStatuses(initialStatuses);
+            
+            // Store statuses in session storage with test ID
+            const sessionKey = `${testId}_questionStatus`;
+            const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(initialStatuses), secretKey).toString();
+            sessionStorage.setItem(sessionKey, encryptedStatuses);
             
             // Update completed questions count if available
             if (statusData && statusData.completed_questions) {
@@ -168,7 +174,6 @@
         // Encrypt and store tables in session
         const encryptedTables = CryptoJS.AES.encrypt(JSON.stringify(tablesData.tables), secretKey).toString();
         sessionStorage.setItem('sqlTables', encryptedTables);
-        console.log('Tables fetched and stored for SQL subject via SWR');
       }
     }, [tablesData]);
 
@@ -181,6 +186,14 @@
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Expose updateQuestionStatusInSession globally for other components to use
+    useEffect(() => {
+      (window as any).updateQuestionStatusInSession = updateQuestionStatusInSession;
+      return () => {
+        delete (window as any).updateQuestionStatusInSession;
+      };
+    }, [testId]);
 
     const handleSubmitTest = async () => {
       setShowSubmitConfirmation(true);
@@ -229,8 +242,47 @@
       }
     };
 
-    const getQuestionStatus = (questionType: string, index: number) => {
-      return questionStatuses[`${questionType.toLowerCase()}_${index}`] || "Pending";
+    const updateQuestionStatusInSession = (questionType: string, questionId: string, status: string) => {
+      const sessionKey = `${testId}_questionStatus`;
+      const sessionStatus = sessionStorage.getItem(sessionKey);
+      
+      if (sessionStatus) {
+        try {
+          const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+          const statuses = JSON.parse(decryptedStatuses);
+          statuses[`${questionType.toLowerCase()}_${questionId}`] = status;
+          
+          // Re-encrypt and store updated statuses
+          const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
+          sessionStorage.setItem(sessionKey, encryptedStatuses);
+          
+          // Update local state
+          setQuestionStatuses(statuses);
+        } catch (error) {
+          console.error("Error updating session status:", error);
+        }
+      }
+    };
+
+    const getQuestionStatus = (questionType: string, index: number, questionId?: string) => {
+      // First check session storage with test ID
+      const sessionKey = `${testId}_questionStatus`;
+      const sessionStatus = sessionStorage.getItem(sessionKey);
+      if (sessionStatus) {
+        try {
+          const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+          const statuses = JSON.parse(decryptedStatuses);
+          const key = questionId ? `${questionType.toLowerCase()}_${questionId}` : `${questionType.toLowerCase()}_${index}`;
+          const status = statuses[key] || "Pending";
+          return status;
+        } catch (error) {
+          console.error("Error decrypting session status:", error);
+        }
+      }
+      
+      // Fallback to state
+      const key = questionId ? `${questionType.toLowerCase()}_${questionId}` : `${questionType.toLowerCase()}_${index}`;
+      return questionStatuses[key] || "Pending";
     };
 
     if (!questionList) {
@@ -306,24 +358,24 @@
                         <span style={{ minWidth: "70px" }} className="me-3">
                           {question?.Level || ""}
                         </span>
-                        <span style={{ minWidth: "70px" }} className="me-3">
+                        {/* <span style={{ minWidth: "70px" }} className="me-3">
                           Score {question?.score || ""}
-                        </span>
+                        </span> */}
                         <button
                           className={`btn btn-sm px-3 border border-black text-dark`}
                           style={{
                             width: "110px",
                             backgroundColor: 
-                              getQuestionStatus("MCQ", index) === "Pending"
+                              getQuestionStatus("mcq", index, question.qn_id) === "Pending"
                                 ? "#F8F8F8"
-                                : getQuestionStatus("MCQ", index) === "Attempted"
+                                : getQuestionStatus("mcq", index, question.qn_id) === "Attempted"
                                 ? "#FEFFBE"
                                 : "#CFF7C9",
                             cursor: "pointer"
                           }}
                           onClick={() => handleQuestionClick("MCQ", index)}
                         >
-                          {getQuestionStatus("MCQ", index)}
+                          {getQuestionStatus("mcq", index, question.qn_id)}
                         </button>
                       </div>
                     </div>
@@ -339,7 +391,7 @@
                 {questionList.sections.Coding.map((question, index) => (
                   <div
                     className="d-flex flex-column flex-md-row justify-content-between align-items-center py-2"
-                    key={question.Qn_name}
+                    key={question?.qn_id}
                   >
                     <span className="px-1 border-black border-end me-2" style={{width: "30px"}}>
                       {index + 1}
@@ -360,24 +412,24 @@
                         <span style={{ minWidth: "70px" }} className="me-3">
                           {question?.Level || ""}
                         </span>
-                        <span style={{ minWidth: "70px" }} className="me-3">
+                        {/* <span style={{ minWidth: "70px" }} className="me-3">
                           Score {question?.score || ""}
-                        </span>
+                        </span> */}
                         <button
                           className={`btn btn-sm px-3 border border-black text-dark`}
                           style={{
                             width: "110px",
                             backgroundColor:
-                              getQuestionStatus("Coding", index) === "Pending"
+                              getQuestionStatus("Coding", index, question.qn_id) === "Pending"
                                 ? "#F8F8F8"
-                                : getQuestionStatus("Coding", index) === "Attempted"
+                                : getQuestionStatus("Coding", index, question.qn_id) === "Attempted"
                                 ? "#FEFFBE"
                                 : "#CFF7C9",
                             cursor: "pointer",
                           }}
                           onClick={() => handleQuestionClick("Coding", index)}
                         >
-                          {getQuestionStatus("Coding", index)}
+                          {getQuestionStatus("Coding", index, question.qn_id)}
                         </button>
                       </div>
                     </div>

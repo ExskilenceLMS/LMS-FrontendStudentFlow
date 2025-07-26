@@ -77,6 +77,7 @@ const TestSQLCoding: React.FC = () => {
   const [isNextBtn, setIsNextBtn] = useState<boolean>(false);
   const [availableTables, setAvailableTables] = useState<{ tab_name: string; data: Data[] }[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [questionStatuses, setQuestionStatuses] = useState<{[key: string]: string}>({});
 
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
@@ -96,6 +97,22 @@ const TestSQLCoding: React.FC = () => {
  
   const getUserCodeKey = (qnName: string) => {
     return `userCode_${qnName}`;
+  };
+
+  const getQuestionStatusFromSession = () => {
+    const sessionKey = `${testId}_questionStatus`;
+    const sessionStatus = sessionStorage.getItem(sessionKey);
+    
+    if (sessionStatus) {
+      try {
+        const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+        return JSON.parse(decryptedStatuses);
+      } catch (error) {
+        console.error("Error decrypting session status:", error);
+        return {};
+      }
+    }
+    return {};
   };
 
   const encryptData = (data: string): string => {
@@ -178,6 +195,10 @@ const TestSQLCoding: React.FC = () => {
         setCurrentQuestionIndex(initialIndex);
         setStatus(codingQuestions[initialIndex].status);
         setEnteredAns(codingQuestions[initialIndex].entered_ans);
+
+        // Load question statuses from session storage
+        const statuses = getQuestionStatusFromSession();
+        setQuestionStatuses(statuses);
 
         const savedCodeKey = getUserCodeKey(codingQuestions[initialIndex].Qn_name);
         const savedCode = sessionStorage.getItem(savedCodeKey);
@@ -284,6 +305,7 @@ const TestSQLCoding: React.FC = () => {
 
   setRunResponseTable([]);
   setRunResponseTestCases([]);
+  setRunResponse(null);
   setSuccessMessage("");
   setAdditionalMessage("");
   setActiveTab("table");
@@ -354,6 +376,7 @@ const TestSQLCoding: React.FC = () => {
 
       setRunResponseTable([]);
       setRunResponseTestCases([]);
+      setRunResponse(null);
       setSuccessMessage("");
       setAdditionalMessage("");
       setIsSubmitted(false);
@@ -382,13 +405,24 @@ const TestSQLCoding: React.FC = () => {
       if (!Array.isArray(availableTables)) {
         return;
       }
-      const initialTable = availableTables.find((table: any) =>
-        table.tab_name === (currentQuestion.Tables?.[0]?.tab_name || currentQuestion.Table)
-      ) || availableTables[0];
+      
+      const questionTableName = (currentQuestion.question_data?.Table || currentQuestion.Table || "").toLowerCase();
+      const matchingTable = availableTables.find((table: any) =>
+        table.tab_name.toLowerCase() === questionTableName
+      );
 
-      if (initialTable) {
-        setTableData(initialTable.data || []);
-        setTableName(initialTable.tab_name);
+      if (matchingTable) {
+        setTableData(matchingTable.data || []);
+        setTableName(matchingTable.tab_name);
+      } else {
+        const initialTable = availableTables.find((table: any) =>
+          table.tab_name === (currentQuestion.Tables?.[0]?.tab_name || currentQuestion.Table)
+        ) || availableTables[0];
+
+        if (initialTable) {
+          setTableData(initialTable.data || []);
+          setTableName(initialTable.tab_name);
+        }
       }
     }
   };
@@ -419,7 +453,6 @@ const TestSQLCoding: React.FC = () => {
     try {
       setActiveTab("output");
       const updatedSqlQuery = sqlQuery.trim().replace(/\n/g, " ").replace(/;$/, "");
-      console.log('Current question TestCases:', questions[currentQuestionIndex]?.question_data?.TestCases);
       const sendData = {
         student_id: studentId,
         query: updatedSqlQuery.replace("/*Write a all SQl commands/clauses in UPPERCASE*/", "").replace(/\s*\n\s*/g, " \n "),
@@ -491,6 +524,31 @@ const TestSQLCoding: React.FC = () => {
     if(responseData.message == "Test Already Completed"){
     navigate('/test')
     }
+    
+    // Update question status in session storage after successful submission
+    const sessionKey = `${testId}_questionStatus`;
+    const sessionStatus = sessionStorage.getItem(sessionKey);
+    
+    if (sessionStatus) {
+      try {
+        const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+        const statuses = JSON.parse(decryptedStatuses);
+        
+        // Update the status for this question to "Submitted"
+        statuses[`coding_${questions[currentQuestionIndex].Qn_name}`] = "Submitted";
+        
+        // Re-encrypt and store updated statuses
+        const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
+        sessionStorage.setItem(sessionKey, encryptedStatuses);
+        
+        // Update local state
+        setQuestionStatuses(statuses);
+        
+      } catch (error) {
+        console.error("Error updating session status:", error);
+      }
+    }
+    
     const codeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
     const encryptedCode = encryptData(sqlQuery);
     sessionStorage.setItem(codeKey, encryptedCode);
@@ -548,13 +606,22 @@ const TestSQLCoding: React.FC = () => {
                         style={{
                           width: "50px",
                           height: "50px",
-                          backgroundColor: currentQuestionIndex === index ? "#42FF58" : "#FFFFFF",
-                          color: "#000",
+                          backgroundColor: (() => {
+                            const questionStatus = questionStatuses[`coding_${questions[index]?.Qn_name}`];
+                            if (questionStatus === "Submitted" || questionStatus === "Attempted") {
+                              return "#42FF58"; // Green for submitted/attempted
+                            } else if (currentQuestionIndex === index) {
+                              return "grey"; // Grey for current question
+                            } else {
+                              return "#fff"; // White for others
+                            }
+                          })(),
+                          color: currentQuestionIndex === index ? "#fff" : "#000",
                           cursor: "pointer",
                           boxShadow: "#888 1px 2px 5px 0px"
                         }}
                         onClick={() => handleQuestionChange(index)}
-                        disabled={isProcessing}
+                        // disabled={isProcessing}
                       >
                         Q{index + 1}
                       </button>
