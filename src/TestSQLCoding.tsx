@@ -81,6 +81,8 @@ const TestSQLCoding: React.FC = () => {
   const [questionStatuses, setQuestionStatuses] = useState<{[key: string]: string}>({});
   const [questionResponses, setQuestionResponses] = useState<{[key: string]: any}>({});
   const [lastRunCode, setLastRunCode] = useState<{[key: string]: string}>({});
+  const [questionTableNames, setQuestionTableNames] = useState<string[]>([]);
+  const [currentTableIndex, setCurrentTableIndex] = useState<number>(0);
 
 
   const encryptedStudentId = sessionStorage.getItem('StudentId');
@@ -143,23 +145,37 @@ const TestSQLCoding: React.FC = () => {
         setAvailableTables(decryptedTables);
 
         if (decryptedTables.length > 0) {
-          // Get the table name from question data and convert to lowercase for comparison
-          const questionTableName = (question.question_data?.Table || question.Table || "").toLowerCase();
-          console.log('Question table name for update:', questionTableName);
+          // Parse comma-separated table names
+          const tableNamesString = question.question_data?.Table || question.Table || "";
+          const tableNames = tableNamesString.split(',').map(name => name.trim()).filter(name => name);
+          setQuestionTableNames(tableNames);
           
-          // Find table that matches the question table name (case-insensitive)
-          const matchingTable = decryptedTables.find((table: any) =>
-            table.tab_name.toLowerCase() === questionTableName
-          );
+          if (tableNames.length > 0) {
+            // Find the first matching table
+            let matchingTable = null;
+            for (const tableName of tableNames) {
+              matchingTable = decryptedTables.find((table: any) =>
+                table.tab_name.toLowerCase() === tableName.toLowerCase()
+              );
+              if (matchingTable) {
+                break;
+              }
+            }
 
-          if (matchingTable) {
-            setTableData(matchingTable.data || []);
-            setTableName(matchingTable.tab_name);
-            console.log('Updated to matching table:', matchingTable.tab_name);
+            if (matchingTable) {
+              setTableData(matchingTable.data || []);
+              setTableName(matchingTable.tab_name);
+              setCurrentTableIndex(0); // Reset to first table
+            } else {
+              // Fallback to first available table
+              setTableData(decryptedTables[0].data || []);
+              setTableName(decryptedTables[0].tab_name);
+              setCurrentTableIndex(0);
+            }
           } else {
             setTableData([]);
-            setTableName(question.question_data?.Table || question.Table || "Table");
-            console.log('No matching table found for question');
+            setTableName("Table");
+            setCurrentTableIndex(0);
           }
         }
       } catch (error) {
@@ -175,7 +191,6 @@ const TestSQLCoding: React.FC = () => {
     
     if (testData && testData.qns_data && testData.qns_data.coding) {
       try {
-          console.log('testData.qns_data.coding',testData.qns_data.coding);
         // Use the coding questions from the test data
         const codingQuestions = testData.qns_data.coding.map((q: Question) => {
           const savedCodeKey = getUserCodeKey(q.Qn_name);
@@ -251,25 +266,20 @@ const TestSQLCoding: React.FC = () => {
     const currentCodeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
     const encryptedCode = encryptData(sqlQuery);
     sessionStorage.setItem(currentCodeKey, encryptedCode);
-    console.log('Saved query for question:', questions[currentQuestionIndex].Qn_name, 'Key:', currentCodeKey);
   }
 
   const nextQuestionKey = getUserCodeKey(questions[index].Qn_name);
   const savedCode = sessionStorage.getItem(nextQuestionKey);
-  console.log('Loading query for question:', questions[index].Qn_name, 'Key:', nextQuestionKey, 'Saved:', !!savedCode);
 
   if (savedCode !== null) {
     const decryptedCode = decryptData(savedCode);
     if (decryptedCode) {
     setSqlQuery(decryptedCode);
-      console.log('Loaded saved query:', decryptedCode.substring(0, 50) + '...');
     } else {
       setSqlQuery(questions[index].user_answer || '');
-      console.log('Failed to decrypt saved query, using default');
     }
   } else {
     setSqlQuery(questions[index].user_answer || '');
-    console.log('Loaded default query:', (questions[index].user_answer || '').substring(0, 50) + '...');
   }
 
   setCurrentQuestionIndex(index);
@@ -430,7 +440,6 @@ const TestSQLCoding: React.FC = () => {
       const codeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
       const encryptedCode = encryptData(newCode);
       sessionStorage.setItem(codeKey, encryptedCode);
-      console.log('Auto-saved query for question:', questions[currentQuestionIndex].Qn_name, 'Key:', codeKey);
     }
   };
 
@@ -483,6 +492,18 @@ const TestSQLCoding: React.FC = () => {
 
   const handleTableNameClick = () => {
     setIsSelected(!isSelected);
+  };
+
+  const handleTableTabClick = (tableName: string, index: number) => {
+    const matchingTable = availableTables.find((table: any) =>
+      table.tab_name.toLowerCase() === tableName.toLowerCase()
+    );
+
+    if (matchingTable) {
+      setTableData(matchingTable.data || []);
+      setTableName(matchingTable.tab_name);
+      setCurrentTableIndex(index);
+    }
   };
 
   const handleRun = async () => {
@@ -765,22 +786,48 @@ const TestSQLCoding: React.FC = () => {
                         <div className="tab-content">
                           <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "table" ? "active show" : ""}`} style={{ height: "35vh", overflowX: "auto" }}>
                             <div className="d-flex flex-row">
-                              <div className="inline-block" style={{ marginBottom: "-1px" }}>
-                                <div
-                                  className="px-3 py-2 text-white "
-                                  style={{
-                                    fontSize: "12px",
-                                    backgroundColor: "#333",
-                                    borderTopLeftRadius: "8px",
-                                    borderTopRightRadius: "8px",
-                                    boxShadow: "0 -2px 4px rgba(0,0,0,0.1)",
-                                    position: "relative",
-                                    zIndex: 1
-                                  }}
-                                >
-                                  {tableName}
+                              {questionTableNames.length > 1 ? (
+                                // Multiple tables - show tabs
+                                questionTableNames.map((tableName, index) => (
+                                  <div key={index} className="inline-block" style={{ marginBottom: "-1px" }}>
+                                    <div
+                                      className="px-3 py-2 text-white"
+                                      style={{
+                                        fontSize: "12px",
+                                        backgroundColor: currentTableIndex === index ? "#333" : "#666",
+                                        borderTopLeftRadius: "8px",
+                                        borderTopRightRadius: "8px",
+                                        boxShadow: "0 -2px 4px rgba(0,0,0,0.1)",
+                                        position: "relative",
+                                        zIndex: 1,
+                                        cursor: "pointer",
+                                        marginRight: "2px"
+                                      }}
+                                      onClick={() => handleTableTabClick(tableName, index)}
+                                    >
+                                      {tableName}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                // Single table - show single tab
+                                <div className="inline-block" style={{ marginBottom: "-1px" }}>
+                                  <div
+                                    className="px-3 py-2 text-white"
+                                    style={{
+                                      fontSize: "12px",
+                                      backgroundColor: "#333",
+                                      borderTopLeftRadius: "8px",
+                                      borderTopRightRadius: "8px",
+                                      boxShadow: "0 -2px 4px rgba(0,0,0,0.1)",
+                                      position: "relative",
+                                      zIndex: 1
+                                    }}
+                                  >
+                                    {tableName}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
                             <div>
                               {tableData.length > 0 && (
