@@ -477,8 +477,8 @@ const SQLEditor: React.FC = () => {
                   </div>
                   <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
                         <div className="bg-white" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
-                          <div className="p-3 flex-grow-1 overflow-auto">
-                            <p>{questions[currentQuestionIndex]?.Qn}</p>
+                          <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
+                            <p style={{ wordWrap: "break-word", whiteSpace: "pre-wrap" }}>{questions[currentQuestionIndex]?.Qn}</p>
                           </div>
                         </div>
                         <div className="bg-white" style={{ height: "50%", backgroundColor: "#E5E5E533" }}>

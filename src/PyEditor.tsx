@@ -298,17 +298,34 @@ const decryptData = (encryptedData: string) => {
    * @param testId - Test identifier
    * @returns Submission ID from the backend
    */
-  const submitCodeToBackend = async (code: string, testCases?: any[], timeout: number = 15, questionId: string = "q123", testId: string ="pc123"): Promise<string> => {
-    const payload = {
-      code: code,
-      question_id: questionId,
-      test_id: testId,
-      test_cases: testCases || [],
-      language: "python",
-      timeout: timeout,
-      memory_limit: timeout === 10 ? "100m" : "200m",
-      user_id: timeout === 10 ? "test_user_123" : "test_user_456" // HARDCODED: Will be replaced with real user ID later
-    };
+  const submitCodeToBackend = async (code: string, testCases?: any[], timeout: number = 15, questionId: string = "q123", testId: string ="practice"): Promise<string> => {
+    let payload: any;
+    
+    if (testCases && testCases.length > 0) {
+      // For "RUN CODE" - with test cases
+      payload = {
+        code: code,
+        TestCases: testCases,
+        FunctionCall: "",
+        language: "python",
+        timeout: timeout,
+        memory_limit: timeout === 10 ? "100m" : "200m",
+        user_id: studentId,
+        question_id: questionId,
+        test_id: testId
+      };
+    } else {
+      // For "RUN" - simple execution without test cases
+      payload = {
+        code: code,
+        question_id: questionId,
+        test_id: testId,
+        language: "python",
+        timeout: timeout,
+        memory_limit: timeout === 10 ? "100m" : "200m",
+        user_id: studentId
+      };
+    }
 
     const response = await fetch('https://pyexe.exskilence.com/api/v1/submit', {
       method: 'POST',
@@ -551,34 +568,26 @@ const decryptData = (encryptedData: string) => {
     setRunResponseTestCases([]);
 
     try {
-      // HARDCODED: Simple execution payload - will be replaced with real data later
-      const testCases = [
-        {
-          type: "output_check",
-          code: "",
-          expected: "Hello, World!"
-        }
-      ];
-
-      const submissionId = await submitCodeToBackend(Ans, testCases, 10, "q123", "pc123");
+      // Simple execution without test cases
+      const submissionId = await submitCodeToBackend(Ans, [], 10, "q123", "practice");
       setCurrentSubmissionId(submissionId);
       setExecutionStatus('executing');
 
       // Poll for completion
       const result = await pollExecutionStatus(submissionId, 10);
       
-             if (result.result.success) {
-         setOutput(result.result.actual_output);
-         setSuccessMessage('Code executed successfully');
-       } else {
-         // Handle error from parsed_results
-         const parsedResults = result.result.parsed_results;
-         const errorMessage = Array.isArray(parsedResults) 
-           ? 'Unknown error' 
-           : parsedResults?.error || 'Unknown error';
-         setOutput(`Error: ${errorMessage}`);
-         setSuccessMessage('Execution failed');
-       }
+      if (result.result.success) {
+        setOutput(result.result.actual_output);
+        setSuccessMessage('Code executed successfully');
+      } else {
+        // Handle error from parsed_results
+        const parsedResults = result.result.parsed_results;
+        const errorMessage = Array.isArray(parsedResults) 
+          ? 'Unknown error' 
+          : parsedResults?.error || 'Unknown error';
+        setOutput(`Error: ${errorMessage}`);
+        setSuccessMessage('Execution failed');
+      }
       
       setExecutionStatus('completed');
     } catch (error) {
@@ -608,29 +617,11 @@ const decryptData = (encryptedData: string) => {
     setRunResponseTestCases([]);
 
     try {
-      // HARDCODED: Test cases payload - will be replaced with real data later
-      const testCases = [
-        {
-          type: "function_call",
-          code: "calculate_factorial(5)",
-          expected: 120,
-          description: "Test factorial of 5"
-        },
-        {
-          type: "function_call",
-          code: "calculate_factorial(0)",
-          expected: 1,
-          description: "Test factorial of 0"
-        }
-        // ,
-        // {
-        //   type: "output_check",
-        //   code: "",
-        //   expected: "Factorial of 5 is: 120"
-        // }
-      ];
+      // Use actual test cases from current question
+      const currentQuestion = questions[currentQuestionIndex];
+      const testCases = currentQuestion?.TestCases || [];
 
-      const submissionId = await submitCodeToBackend(Ans, testCases, 15, "q123", "pc123");
+      const submissionId = await submitCodeToBackend(Ans, testCases, 10, "q790", "practice");
       setCurrentSubmissionId(submissionId);
       setExecutionStatus('executing');
 
