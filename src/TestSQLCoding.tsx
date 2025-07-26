@@ -77,7 +77,13 @@ const TestSQLCoding: React.FC = () => {
   const [isNextBtn, setIsNextBtn] = useState<boolean>(false);
   const [availableTables, setAvailableTables] = useState<{ tab_name: string; data: Data[] }[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [processingQuestions, setProcessingQuestions] = useState<Set<number>>(new Set());
   const [questionStatuses, setQuestionStatuses] = useState<{[key: string]: string}>({});
+  const [questionResponses, setQuestionResponses] = useState<{[key: string]: any}>({});
+  const [lastRunCode, setLastRunCode] = useState<{[key: string]: string}>({});
+  const [questionTableNames, setQuestionTableNames] = useState<string[]>([]);
+  const [currentTableIndex, setCurrentTableIndex] = useState<number>(0);
+
 
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
@@ -133,34 +139,104 @@ const TestSQLCoding: React.FC = () => {
   const updateTableForQuestion = async (question: Question) => {
     // Get tables from session storage
     const encryptedTables = sessionStorage.getItem('sqlTables');
+    console.log('Encrypted tables from session:', !!encryptedTables);
+    
     if (encryptedTables) {
       try {
         const decryptedTables = JSON.parse(CryptoJS.AES.decrypt(encryptedTables, secretKey).toString(CryptoJS.enc.Utf8));
+        console.log('Decrypted tables:', decryptedTables);
         setAvailableTables(decryptedTables);
 
-        if (decryptedTables.length > 0) {
-          // Get the table name from question data and convert to lowercase for comparison
-          const questionTableName = (question.question_data?.Table || question.Table || "").toLowerCase();
-          console.log('Question table name for update:', questionTableName);
+        if (decryptedTables && decryptedTables.length > 0) {
+          // Parse comma-separated table names
+          const tableNamesString = question.question_data?.Table || question.Table || "";
+          const tableNames = tableNamesString.split(',').map(name => name.trim()).filter(name => name);
+          console.log('Question table names:', tableNames);
+          setQuestionTableNames(tableNames);
           
-          // Find table that matches the question table name (case-insensitive)
-          const matchingTable = decryptedTables.find((table: any) =>
-            table.tab_name.toLowerCase() === questionTableName
-          );
+          if (tableNames.length > 0) {
+            // Find the first matching table
+            let matchingTable = null;
+            for (const tableName of tableNames) {
+              matchingTable = decryptedTables.find((table: any) =>
+                table.tab_name.toLowerCase() === tableName.toLowerCase()
+              );
+              if (matchingTable) {
+                console.log('Found matching table:', matchingTable.tab_name);
+                break;
+              }
+            }
 
-          if (matchingTable) {
-            setTableData(matchingTable.data || []);
-            setTableName(matchingTable.tab_name);
-            console.log('Updated to matching table:', matchingTable.tab_name);
+            if (matchingTable) {
+              console.log('Setting table data:', matchingTable.data);
+              setTableData(matchingTable.data || []);
+              setTableName(matchingTable.tab_name);
+              setCurrentTableIndex(0); // Reset to first table
+            } else {
+              // Fallback to first available table
+              console.log('Using fallback table:', decryptedTables[0].tab_name);
+              setTableData(decryptedTables[0].data || []);
+              setTableName(decryptedTables[0].tab_name);
+              setCurrentTableIndex(0);
+            }
           } else {
-            setTableData([]);
-            setTableName(question.question_data?.Table || question.Table || "Table");
-            console.log('No matching table found for question');
+            console.log('No table names found, using first available table');
+            setTableData(decryptedTables[0].data || []);
+            setTableName(decryptedTables[0].tab_name);
+            setCurrentTableIndex(0);
           }
+        } else {
+          console.log('No tables available in session storage');
+          await fetchTablesFromAPI();
         }
       } catch (error) {
         console.error("Error decrypting tables from session:", error);
+        await fetchTablesFromAPI();
       }
+    } else {
+      console.log('No encrypted tables found in session storage');
+      await fetchTablesFromAPI();
+    }
+  };
+
+  const fetchTablesFromAPI = async () => {
+    try {
+      console.log('Fetching tables from API...');
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/tables/${studentId}/${testId}/`;
+      const response = await getApiClient().get(url);
+      const tablesData = response.data;
+      console.log('API tables response:', tablesData);
+      
+      if (tablesData && tablesData.tables && tablesData.tables.length > 0) {
+        // Encrypt and store tables in session
+        const encryptedTables = CryptoJS.AES.encrypt(JSON.stringify(tablesData.tables), secretKey).toString();
+        sessionStorage.setItem('sqlTables', encryptedTables);
+        
+        setAvailableTables(tablesData.tables);
+        
+        // Use the first table as default
+        setTableData(tablesData.tables[0].data || []);
+        setTableName(tablesData.tables[0].tab_name);
+        setCurrentTableIndex(0);
+        
+        // Set question table names based on current question
+        const currentQuestion = questions[currentQuestionIndex];
+        if (currentQuestion) {
+          const tableNamesString = currentQuestion.question_data?.Table || currentQuestion.Table || "";
+          const tableNames = tableNamesString.split(',').map(name => name.trim()).filter(name => name);
+          setQuestionTableNames(tableNames);
+        }
+      } else {
+        console.log('No tables found in API response');
+        setTableData([]);
+        setTableName("Table");
+        setCurrentTableIndex(0);
+      }
+    } catch (error) {
+      console.error("Error fetching tables from API:", error);
+      setTableData([]);
+      setTableName("Table");
+      setCurrentTableIndex(0);
     }
   };
 
@@ -171,7 +247,6 @@ const TestSQLCoding: React.FC = () => {
     
     if (testData && testData.qns_data && testData.qns_data.coding) {
       try {
-          console.log('testData.qns_data.coding',testData.qns_data.coding);
         // Use the coding questions from the test data
         const codingQuestions = testData.qns_data.coding.map((q: Question) => {
           const savedCodeKey = getUserCodeKey(q.Qn_name);
@@ -241,30 +316,26 @@ const TestSQLCoding: React.FC = () => {
 
   const handleQuestionChange = async (index: number) => {
   setIsRunBtnClicked(false);
+  setProcessingQuestions(new Set()); // Clear processing state when changing questions
 
   if (questions[currentQuestionIndex]?.Qn_name && sqlQuery) {
     const currentCodeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
     const encryptedCode = encryptData(sqlQuery);
     sessionStorage.setItem(currentCodeKey, encryptedCode);
-    console.log('Saved query for question:', questions[currentQuestionIndex].Qn_name, 'Key:', currentCodeKey);
   }
 
   const nextQuestionKey = getUserCodeKey(questions[index].Qn_name);
   const savedCode = sessionStorage.getItem(nextQuestionKey);
-  console.log('Loading query for question:', questions[index].Qn_name, 'Key:', nextQuestionKey, 'Saved:', !!savedCode);
 
   if (savedCode !== null) {
     const decryptedCode = decryptData(savedCode);
     if (decryptedCode) {
     setSqlQuery(decryptedCode);
-      console.log('Loaded saved query:', decryptedCode.substring(0, 50) + '...');
     } else {
       setSqlQuery(questions[index].user_answer || '');
-      console.log('Failed to decrypt saved query, using default');
     }
   } else {
     setSqlQuery(questions[index].user_answer || '');
-    console.log('Loaded default query:', (questions[index].user_answer || '').substring(0, 50) + '...');
   }
 
   setCurrentQuestionIndex(index);
@@ -303,18 +374,34 @@ const TestSQLCoding: React.FC = () => {
     // setTestCases(question.question_data?.TestCases || []);
   }
 
-  setRunResponseTable([]);
-  setRunResponseTestCases([]);
-  setRunResponse(null);
-  setSuccessMessage("");
-  setAdditionalMessage("");
-  setActiveTab("table");
+  // Check if we have stored response data for this question
+  const questionKey = questions[index].Qn_name;
+  const storedResponse = questionResponses[questionKey];
+  
+  if (storedResponse) {
+    // Restore the stored response data
+    setRunResponse(storedResponse.response);
+    setRunResponseTable(storedResponse.table);
+    setRunResponseTestCases(storedResponse.testCases);
+    setSuccessMessage(storedResponse.successMessage);
+    setAdditionalMessage(storedResponse.additionalMessage);
+    setActiveTab("output");
+  } else {
+    // Clear response data for new question
+    setRunResponseTable([]);
+    setRunResponseTestCases([]);
+    setRunResponse(null);
+    setSuccessMessage("");
+    setAdditionalMessage("");
+    setActiveTab("table");
+  }
 
   sessionStorage.setItem("codingCurrentQuestionIndex", index.toString());
 };
 
   const handleNext = async () => {
     setIsRunBtnClicked(false);
+    setProcessingQuestions(new Set()); // Clear processing state when changing questions
 
     if (questions[currentQuestionIndex]?.Qn_name && sqlQuery) {
       const currentCodeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
@@ -329,8 +416,8 @@ const TestSQLCoding: React.FC = () => {
       const nextIndex = (currentQuestionIndex + 1) % questions.length;
       setCurrentQuestionIndex(nextIndex);
 
-      const nextQuestionKey = getUserCodeKey(questions[nextIndex].Qn_name);
-      const savedCode = sessionStorage.getItem(nextQuestionKey);
+      const nextQuestionCodeKey = getUserCodeKey(questions[nextIndex].Qn_name);
+      const savedCode = sessionStorage.getItem(nextQuestionCodeKey);
 
       setStatus(questions[nextIndex].status);
 
@@ -374,13 +461,29 @@ const TestSQLCoding: React.FC = () => {
         // setTestCases(question.question_data?.TestCases || []);
       }
 
-      setRunResponseTable([]);
-      setRunResponseTestCases([]);
-      setRunResponse(null);
-      setSuccessMessage("");
-      setAdditionalMessage("");
+      // Check if we have stored response data for the next question
+      const nextQuestionResponseKey = questions[nextIndex].Qn_name;
+      const storedResponse = questionResponses[nextQuestionResponseKey];
+      
+      if (storedResponse) {
+        // Restore the stored response data
+        setRunResponse(storedResponse.response);
+        setRunResponseTable(storedResponse.table);
+        setRunResponseTestCases(storedResponse.testCases);
+        setSuccessMessage(storedResponse.successMessage);
+        setAdditionalMessage(storedResponse.additionalMessage);
+        setActiveTab("output");
+      } else {
+        // Clear response data for new question
+        setRunResponseTable([]);
+        setRunResponseTestCases([]);
+        setRunResponse(null);
+        setSuccessMessage("");
+        setAdditionalMessage("");
+        setActiveTab("table");
+      }
+      
       setIsSubmitted(false);
-      setActiveTab("table");
 
       sessionStorage.setItem("codingCurrentQuestionIndex", nextIndex.toString());
     }
@@ -393,8 +496,24 @@ const TestSQLCoding: React.FC = () => {
       const codeKey = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
       const encryptedCode = encryptData(newCode);
       sessionStorage.setItem(codeKey, encryptedCode);
-      console.log('Auto-saved query for question:', questions[currentQuestionIndex].Qn_name, 'Key:', codeKey);
     }
+  };
+
+  const canSubmitCode = () => {
+    const currentQuestionKey = questions[currentQuestionIndex]?.Qn_name;
+    if (!currentQuestionKey || !questionResponses[currentQuestionKey]) {
+      return false; // No run response for this question
+    }
+    
+    const lastRunCodeForQuestion = lastRunCode[currentQuestionKey];
+    if (!lastRunCodeForQuestion) {
+      return false; // No code was run for this question
+    }
+    
+    const currentCode = sqlQuery.trim().replace(/\n/g, " ").replace(/;$/, "");
+    const lastRunCodeTrimmed = lastRunCodeForQuestion.trim().replace(/\n/g, " ").replace(/;$/, "");
+    
+    return currentCode === lastRunCodeTrimmed;
   };
 
   const handleTabClick = (tab: string) => {
@@ -406,23 +525,41 @@ const TestSQLCoding: React.FC = () => {
         return;
       }
       
-      const questionTableName = (currentQuestion.question_data?.Table || currentQuestion.Table || "").toLowerCase();
-      const matchingTable = availableTables.find((table: any) =>
-        table.tab_name.toLowerCase() === questionTableName
-      );
-
-      if (matchingTable) {
-        setTableData(matchingTable.data || []);
-        setTableName(matchingTable.tab_name);
-      } else {
-        const initialTable = availableTables.find((table: any) =>
-          table.tab_name === (currentQuestion.Tables?.[0]?.tab_name || currentQuestion.Table)
-        ) || availableTables[0];
-
-        if (initialTable) {
-          setTableData(initialTable.data || []);
-          setTableName(initialTable.tab_name);
+      // Parse comma-separated table names from the question
+      const tableNamesString = currentQuestion.question_data?.Table || currentQuestion.Table || "";
+      const tableNames = tableNamesString.split(',').map(name => name.trim()).filter(name => name);
+      
+      if (tableNames.length > 0) {
+        // Find the first matching table for this question
+        let matchingTable: { tab_name: string; data: Data[] } | null = null;
+        for (const tableName of tableNames) {
+          matchingTable = availableTables.find((table: any) =>
+            table.tab_name.toLowerCase() === tableName.toLowerCase()
+          ) || null;
+          if (matchingTable) {
+            break;
+          }
         }
+
+        if (matchingTable) {
+          setTableData(matchingTable.data || []);
+          setTableName(matchingTable.tab_name);
+          // Find the index of this table in the question's table names
+          const tableIndex = tableNames.findIndex(name => 
+            name.toLowerCase() === matchingTable!.tab_name.toLowerCase()
+          );
+          setCurrentTableIndex(Math.max(0, tableIndex));
+        } else {
+          // Fallback to first available table
+          setTableData(availableTables[0].data || []);
+          setTableName(availableTables[0].tab_name);
+          setCurrentTableIndex(0);
+        }
+      } else {
+        // No table names specified, use first available table
+        setTableData(availableTables[0].data || []);
+        setTableName(availableTables[0].tab_name);
+        setCurrentTableIndex(0);
       }
     }
   };
@@ -431,9 +568,26 @@ const TestSQLCoding: React.FC = () => {
     setIsSelected(!isSelected);
   };
 
+  const handleTableTabClick = (tableName: string, index: number) => {
+    const matchingTable = availableTables.find((table: any) =>
+      table.tab_name.toLowerCase() === tableName.toLowerCase()
+    );
+
+    if (matchingTable) {
+      setTableData(matchingTable.data || []);
+      setTableName(matchingTable.tab_name);
+      setCurrentTableIndex(index);
+    }
+  };
+
   const handleRun = async () => {
+    // Capture the question index at the start to ensure response is stored for the correct question
+    const questionIndexAtStart = currentQuestionIndex;
+    const questionNameAtStart = questions[currentQuestionIndex].Qn_name;
+    
     setProcessing(true);
     setIsProcessing(true);
+    setProcessingQuestions(prev => new Set([...prev, questionIndexAtStart]));
     setIsRunBtnClicked(true);
 
     if (questions[currentQuestionIndex]?.Qn_name) {
@@ -476,16 +630,46 @@ const TestSQLCoding: React.FC = () => {
         setRunResponseTable(responseData.data);
         setRunResponseTestCases(responseData.TestCases);
         setExecutingQuery(false);
+        
+        // Store response data for this question (use the question that was actually run)
+        const questionKey = questionNameAtStart;
+        const responseDataToStore = {
+          response: responseData,
+          table: responseData.data,
+          testCases: responseData.TestCases,
+          successMessage: "",
+          additionalMessage: ""
+        };
+        
         const resultField = responseData.TestCases.find((testCase: TestCase) => testCase.Result !== undefined);
         if (resultField) {
           if (resultField.Result === "True") {
             setSuccessMessage("Congratulations!");
             setAdditionalMessage("You have passed the test cases. Click the submit code button.");
+            responseDataToStore.successMessage = "Congratulations!";
+            responseDataToStore.additionalMessage = "You have passed the test cases. Click the submit code button.";
           } else if (resultField.Result === "False") {
             setSuccessMessage("Wrong Answer");
             setAdditionalMessage("You have not passed the test cases");
+            responseDataToStore.successMessage = "Wrong Answer";
+            responseDataToStore.additionalMessage = "You have not passed the test cases";
           }
         }
+        
+        // Store the response data
+        setQuestionResponses(prev => {
+          const newResponses = {
+            ...prev,
+            [questionKey]: responseDataToStore
+          };
+          return newResponses;
+        });
+        
+        // Store the code that was run for this question
+        setLastRunCode(prev => ({
+          ...prev,
+          [questionKey]: updatedSqlQuery
+        }));
       } else {
         console.error("SQL query is empty");
       }
@@ -496,6 +680,11 @@ const TestSQLCoding: React.FC = () => {
     finally {
       setIsProcessing(false);
       setProcessing(false);
+      setProcessingQuestions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(questionIndexAtStart);
+        return newSet;
+      });
     }
   };
 
@@ -621,7 +810,7 @@ const TestSQLCoding: React.FC = () => {
                           boxShadow: "#888 1px 2px 5px 0px"
                         }}
                         onClick={() => handleQuestionChange(index)}
-                        // disabled={isProcessing}
+                        // disabled={processingQuestions.has(index)}
                       >
                         Q{index + 1}
                       </button>
@@ -647,7 +836,7 @@ const TestSQLCoding: React.FC = () => {
                                 backgroundColor: activeTab === "table" ? "black" : "transparent",
                                 color: activeTab === "table" ? "white" : "black",
                               }}
-                              disabled={isProcessing}
+                              disabled={processingQuestions.has(currentQuestionIndex)}
                             >
                               Table
                             </button>
@@ -662,7 +851,7 @@ const TestSQLCoding: React.FC = () => {
                                 backgroundColor: activeTab === "output" ? "black" : "transparent",
                                 color: activeTab === "output" ? "white" : "black",
                               }}
-                              disabled={isProcessing}
+                              disabled={processingQuestions.has(currentQuestionIndex)}
                             >
                               Expected Output
                             </button>
@@ -671,22 +860,48 @@ const TestSQLCoding: React.FC = () => {
                         <div className="tab-content">
                           <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "table" ? "active show" : ""}`} style={{ height: "35vh", overflowX: "auto" }}>
                             <div className="d-flex flex-row">
-                              <div className="inline-block" style={{ marginBottom: "-1px" }}>
-                                <div
-                                  className="px-3 py-2 text-white "
-                                  style={{
-                                    fontSize: "12px",
-                                    backgroundColor: "#333",
-                                    borderTopLeftRadius: "8px",
-                                    borderTopRightRadius: "8px",
-                                    boxShadow: "0 -2px 4px rgba(0,0,0,0.1)",
-                                    position: "relative",
-                                    zIndex: 1
-                                  }}
-                                >
-                                  {tableName}
+                              {questionTableNames.length > 1 ? (
+                                // Multiple tables - show tabs
+                                questionTableNames.map((tableName, index) => (
+                                  <div key={index} className="inline-block" style={{ marginBottom: "-1px" }}>
+                                    <div
+                                      className="px-3 py-2 text-white"
+                                      style={{
+                                        fontSize: "12px",
+                                        backgroundColor: currentTableIndex === index ? "#333" : "#666",
+                                        borderTopLeftRadius: "8px",
+                                        borderTopRightRadius: "8px",
+                                        boxShadow: "0 -2px 4px rgba(0,0,0,0.1)",
+                                        position: "relative",
+                                        zIndex: 1,
+                                        cursor: "pointer",
+                                        marginRight: "2px"
+                                      }}
+                                      onClick={() => handleTableTabClick(tableName, index)}
+                                    >
+                                      {tableName}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                // Single table - show single tab
+                                <div className="inline-block" style={{ marginBottom: "-1px" }}>
+                                  <div
+                                    className="px-3 py-2 text-white"
+                                    style={{
+                                      fontSize: "12px",
+                                      backgroundColor: "#333",
+                                      borderTopLeftRadius: "8px",
+                                      borderTopRightRadius: "8px",
+                                      boxShadow: "0 -2px 4px rgba(0,0,0,0.1)",
+                                      position: "relative",
+                                      zIndex: 1
+                                    }}
+                                  >
+                                    {tableName}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
                             <div>
                               {tableData.length > 0 && (
@@ -771,12 +986,29 @@ const TestSQLCoding: React.FC = () => {
                     <div style={{ height: "6%", marginRight: '37px', backgroundColor: "#E5E5E533" }} className="d-flex flex-column justify-content-center processingDiv">
                       <div className="d-flex justify-content-between align-items-center h-100">
                         <div className="d-flex flex-column justify-content-center">
-                          {processing ? (
+                        {processingQuestions.has(currentQuestionIndex) ? (
                             <h5 className="m-0 processingDivHeadingTag">Processing...</h5>
                           ) : (
                             <>
-                              {successMessage && <h5 className="m-0 ps-1" style={{ fontSize: '14px' }}>{successMessage}</h5>}
-                              {additionalMessage && <p className="processingDivParaTag m-0 ps-1" style={{ fontSize: "10px" }}>{additionalMessage}</p>}
+                              {(() => {
+                                const currentQuestionKey = questions[currentQuestionIndex]?.Qn_name;
+                                const storedResponse = questionResponses[currentQuestionKey];
+                                if (!storedResponse) return null;
+                                return (
+                                  <>
+                                    {storedResponse.successMessage && (
+                                      <h5 className="m-0 ps-1" style={{ fontSize: '14px' }}>
+                                        {storedResponse.successMessage}
+                                      </h5>
+                                    )}
+                                    {storedResponse.additionalMessage && (
+                                      <p className="processingDivParaTag m-0 ps-1" style={{ fontSize: "10px" }}>
+                                        {storedResponse.additionalMessage}
+                                      </p>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </>
                           )}
                         </div>
@@ -791,7 +1023,7 @@ const TestSQLCoding: React.FC = () => {
                               height: "30px"
                             }}
                             onClick={handleRun}
-                            disabled={isProcessing}
+                            disabled={processingQuestions.has(currentQuestionIndex)}
                           >
                             RUN CODE
                           </button>
@@ -807,7 +1039,7 @@ const TestSQLCoding: React.FC = () => {
                               height: "30px"
                             }}
                             onClick={handleSubmit}
-                            disabled={isProcessing || isSubmitted || status == true || !isRunBtnClicked}
+                            disabled={processingQuestions.has(currentQuestionIndex) || isSubmitted || status == true || !canSubmitCode()}
                           >
                             {(isSubmitted || status == true) ? "SUBMITTED" : "SUBMIT CODE"}
                           </button>
@@ -824,7 +1056,7 @@ const TestSQLCoding: React.FC = () => {
                                 height: "30px"
                               }}
                               onClick={handleNext}
-                              disabled={isProcessing}
+                              disabled={processingQuestions.has(currentQuestionIndex)}
                             >
                               {currentQuestionIndex == questions.length - 1 ? "Test Section" : "NEXT"}
                             </button> :
@@ -836,44 +1068,60 @@ const TestSQLCoding: React.FC = () => {
 
                     <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533" }}>
                       <div className="p-3 overflow-auto" style={{ height: "calc(100% - 10px)" }}>
-                        {runResponseTable.length > 0 && (
-                          <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
-                            <thead>
-                              <tr>
-                                {Object.keys(runResponseTable[0]).map((header) => (
-                                  <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(tableData[0]).length}vw` }}>
-                                    {header}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {runResponseTable.map((row, index) => (
-                                <tr key={index}>
-                                  {Object.keys(row).map((header) => (
-                                    <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
-                                      {row[header]}
-                                    </td>
+                        {/* Show output for the current question */}
+                        {(() => {
+                          const currentQuestionKey = questions[currentQuestionIndex]?.Qn_name;
+                          const storedResponse = questionResponses[currentQuestionKey];
+
+                          if (!storedResponse) {
+                            return null;
+                          }
+
+                          return (
+                            <>
+                              {storedResponse.table && storedResponse.table.length > 0 && (
+                                <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
+                                  <thead>
+                                    <tr>
+                                      {Object.keys(storedResponse.table[0]).map((header) => (
+                                        <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(storedResponse.table[0]).length}vw` }}>
+                                          {header}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {storedResponse.table.map((row: any, index: number) => (
+                                      <tr key={index}>
+                                        {Object.keys(row).map((header) => (
+                                          <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                            {row[header]}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                              {storedResponse.testCases && storedResponse.testCases.length > 0 && (
+                                <div className="mt-3">
+                                  {storedResponse.testCases.map((testCase: any, index: number) => (
+                                    <div
+                                      key={index}
+                                      className="d-flex align-items-center mb-2 border border-ligth shadow bg-white p-2 rounded-2"
+                                      style={{ width: "fit-content", fontSize: "12px" }}
+                                    >
+                                      <span className="me-2">{Object.keys(testCase)[0]}:</span>
+                                      <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
+                                        {Object.values(testCase)[0] as string}
+                                      </span>
+                                    </div>
                                   ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
-                        <div className="mt-3">
-                          {runResponseTestCases.map((testCase, index) => (
-                            <div
-                              key={index}
-                              className="d-flex align-items-center mb-2 border border-ligth shadow bg-white p-2 rounded-2"
-                              style={{ width: "fit-content", fontSize: "12px" }}
-                            >
-                              <span className="me-2">{Object.keys(testCase)[0]}:</span>
-                              <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
-                                {Object.values(testCase)[0]}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
