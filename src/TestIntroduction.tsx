@@ -39,7 +39,7 @@ const TestIntroduction: React.FC = () => {
 
   // Use SWR for test section API with 1-hour cache
   const sectionUrl = testId && studentId 
-    ? `${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${studentId}/${testId}/`
+    ? `${process.env.REACT_APP_BACKEND_URL}api/student/test/section/${testId}/`
     : null;
   const { data: cachedSectionData, error: sectionError } = useAPISWR<any>(sectionUrl);
 
