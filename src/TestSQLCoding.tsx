@@ -139,15 +139,19 @@ const TestSQLCoding: React.FC = () => {
   const updateTableForQuestion = async (question: Question) => {
     // Get tables from session storage
     const encryptedTables = sessionStorage.getItem('sqlTables');
+    console.log('Encrypted tables from session:', !!encryptedTables);
+    
     if (encryptedTables) {
       try {
         const decryptedTables = JSON.parse(CryptoJS.AES.decrypt(encryptedTables, secretKey).toString(CryptoJS.enc.Utf8));
+        console.log('Decrypted tables:', decryptedTables);
         setAvailableTables(decryptedTables);
 
-        if (decryptedTables.length > 0) {
+        if (decryptedTables && decryptedTables.length > 0) {
           // Parse comma-separated table names
           const tableNamesString = question.question_data?.Table || question.Table || "";
           const tableNames = tableNamesString.split(',').map(name => name.trim()).filter(name => name);
+          console.log('Question table names:', tableNames);
           setQuestionTableNames(tableNames);
           
           if (tableNames.length > 0) {
@@ -158,29 +162,81 @@ const TestSQLCoding: React.FC = () => {
                 table.tab_name.toLowerCase() === tableName.toLowerCase()
               );
               if (matchingTable) {
+                console.log('Found matching table:', matchingTable.tab_name);
                 break;
               }
             }
 
             if (matchingTable) {
+              console.log('Setting table data:', matchingTable.data);
               setTableData(matchingTable.data || []);
               setTableName(matchingTable.tab_name);
               setCurrentTableIndex(0); // Reset to first table
             } else {
               // Fallback to first available table
+              console.log('Using fallback table:', decryptedTables[0].tab_name);
               setTableData(decryptedTables[0].data || []);
               setTableName(decryptedTables[0].tab_name);
               setCurrentTableIndex(0);
             }
           } else {
-            setTableData([]);
-            setTableName("Table");
+            console.log('No table names found, using first available table');
+            setTableData(decryptedTables[0].data || []);
+            setTableName(decryptedTables[0].tab_name);
             setCurrentTableIndex(0);
           }
+        } else {
+          console.log('No tables available in session storage');
+          await fetchTablesFromAPI();
         }
       } catch (error) {
         console.error("Error decrypting tables from session:", error);
+        await fetchTablesFromAPI();
       }
+    } else {
+      console.log('No encrypted tables found in session storage');
+      await fetchTablesFromAPI();
+    }
+  };
+
+  const fetchTablesFromAPI = async () => {
+    try {
+      console.log('Fetching tables from API...');
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/tables/${studentId}/${testId}/`;
+      const response = await getApiClient().get(url);
+      const tablesData = response.data;
+      console.log('API tables response:', tablesData);
+      
+      if (tablesData && tablesData.tables && tablesData.tables.length > 0) {
+        // Encrypt and store tables in session
+        const encryptedTables = CryptoJS.AES.encrypt(JSON.stringify(tablesData.tables), secretKey).toString();
+        sessionStorage.setItem('sqlTables', encryptedTables);
+        
+        setAvailableTables(tablesData.tables);
+        
+        // Use the first table as default
+        setTableData(tablesData.tables[0].data || []);
+        setTableName(tablesData.tables[0].tab_name);
+        setCurrentTableIndex(0);
+        
+        // Set question table names based on current question
+        const currentQuestion = questions[currentQuestionIndex];
+        if (currentQuestion) {
+          const tableNamesString = currentQuestion.question_data?.Table || currentQuestion.Table || "";
+          const tableNames = tableNamesString.split(',').map(name => name.trim()).filter(name => name);
+          setQuestionTableNames(tableNames);
+        }
+      } else {
+        console.log('No tables found in API response');
+        setTableData([]);
+        setTableName("Table");
+        setCurrentTableIndex(0);
+      }
+    } catch (error) {
+      console.error("Error fetching tables from API:", error);
+      setTableData([]);
+      setTableName("Table");
+      setCurrentTableIndex(0);
     }
   };
 
@@ -469,23 +525,41 @@ const TestSQLCoding: React.FC = () => {
         return;
       }
       
-      const questionTableName = (currentQuestion.question_data?.Table || currentQuestion.Table || "").toLowerCase();
-      const matchingTable = availableTables.find((table: any) =>
-        table.tab_name.toLowerCase() === questionTableName
-      );
-
-      if (matchingTable) {
-        setTableData(matchingTable.data || []);
-        setTableName(matchingTable.tab_name);
-      } else {
-        const initialTable = availableTables.find((table: any) =>
-          table.tab_name === (currentQuestion.Tables?.[0]?.tab_name || currentQuestion.Table)
-        ) || availableTables[0];
-
-        if (initialTable) {
-          setTableData(initialTable.data || []);
-          setTableName(initialTable.tab_name);
+      // Parse comma-separated table names from the question
+      const tableNamesString = currentQuestion.question_data?.Table || currentQuestion.Table || "";
+      const tableNames = tableNamesString.split(',').map(name => name.trim()).filter(name => name);
+      
+      if (tableNames.length > 0) {
+        // Find the first matching table for this question
+        let matchingTable: { tab_name: string; data: Data[] } | null = null;
+        for (const tableName of tableNames) {
+          matchingTable = availableTables.find((table: any) =>
+            table.tab_name.toLowerCase() === tableName.toLowerCase()
+          ) || null;
+          if (matchingTable) {
+            break;
+          }
         }
+
+        if (matchingTable) {
+          setTableData(matchingTable.data || []);
+          setTableName(matchingTable.tab_name);
+          // Find the index of this table in the question's table names
+          const tableIndex = tableNames.findIndex(name => 
+            name.toLowerCase() === matchingTable!.tab_name.toLowerCase()
+          );
+          setCurrentTableIndex(Math.max(0, tableIndex));
+        } else {
+          // Fallback to first available table
+          setTableData(availableTables[0].data || []);
+          setTableName(availableTables[0].tab_name);
+          setCurrentTableIndex(0);
+        }
+      } else {
+        // No table names specified, use first available table
+        setTableData(availableTables[0].data || []);
+        setTableName(availableTables[0].tab_name);
+        setCurrentTableIndex(0);
       }
     }
   };
