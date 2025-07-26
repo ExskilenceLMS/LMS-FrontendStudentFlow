@@ -207,52 +207,104 @@ const TestReport: React.FC = () => {
         <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
           <div className="container-fluid bg-white mt-2 border pb-4 rounded-1" style={{ height: `calc(100vh - 70px)`, overflowY: "scroll", backgroundColor: "white" }}>
             <div className="p-1 pt-4">
-              <div className="container-fluid border rounded-2 shadow">
-                <div className="row mb-4 pt-2">
-                  <div className="col">
-                    {data.timeTaken !== undefined ? data.timeTaken : "0"}
-                    <p>time taken for completion</p>
+              <div className="container-fluid border rounded-3 shadow-sm" style={{ backgroundColor: '#f8f9fa', padding: '2rem' }}>
+                {/* <h4 className="text-center mb-4" style={{ color: '#2c3e50', fontWeight: '600' }}>Test Summary</h4> */}
+                <div className="row mb-4">
+                  <div className="col-md-3 mb-3">
+                    <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <div className="h4 mb-2" style={{ color: '#3498db', fontWeight: 'normal' }}>
+                        {data.timeTaken !== undefined ? data.timeTaken : "0"}
+                      </div>
+                      <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.9rem' }}>
+                        Time Taken for Completion
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="col">
-                    {data.score.user !== undefined ? data.score.user : "0"}
-                    <p>scored out of {data.score.total !== undefined ? data.score.total : "0"}</p>
+                  <div className="col-md-3 mb-3">
+                    <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <div className="h4 mb-2" style={{ color: '#e74c3c', fontWeight: 'normal' }}>
+                        {data.score.user !== undefined ? data.score.user : "0"}
+                      </div>
+                      <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.9rem' }}>
+                        Scored out of {data.score.total !== undefined ? data.score.total : "0"}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="col">
-                    {data.result.status !== undefined ? data.result.status : "Failed"}
-                    <p>in the test (cutoff score {data.result.cutoff !== undefined ? data.result.cutoff : "0%"})</p>
+                  <div className="col-md-3 mb-3">
+                    <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <div className="h4 mb-2" style={{ color: data.result.status === 'Passed' ? '#27ae60' : '#e74c3c', fontWeight: 'normal' }}>
+                        {data.result.status !== undefined ? data.result.status : "Failed"}
+                      </div>
+                      <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.9rem' }}>
+                        Test Status (Cutoff: {data.result.cutoff !== undefined ? data.result.cutoff : "0%"})
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="col"></div>
+                  <div className="col-md-3 mb-3">
+                    <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <div className="h4 mb-2" style={{ color: '#f39c12', fontWeight: 'normal' }}>
+                        {data.problems.user !== undefined ? data.problems.user : "0"}
+                      </div>
+                      <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.9rem' }}>
+                        Problems Attempted out of {data.problems.total !== undefined ? data.problems.total : "0"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
+                
                 <div className="row">
-                  <div className="col">
-                    {data.problems.user !== undefined ? data.problems.user : "0"}
-                    <p>Problems attempted out of {data.problems.total !== undefined ? data.problems.total : "0"}</p>
-                  </div>
-                  <div className="col">
+                  <div className="col-md-6 mb-3">
                     <div className="row">
-                      <div className="col">
-                        {data.rank.college !== undefined ? data.rank.college : "--"}
-                        <p>College Rank</p>
+                      <div className="col-6">
+                        <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                          <div className="h5 mb-2" style={{ color: '#9b59b6', fontWeight: 'normal' }}>
+                            {data.rank.college !== undefined ? data.rank.college : "--"}
+                          </div>
+                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            College Rank
+                          </p>
+                        </div>
                       </div>
-                      <div className="col">
-                        {data.rank.overall !== undefined ? data.rank.overall : "--"}
-                        <p>Overall Rank</p>
+                      <div className="col-6">
+                        <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                          <div className="h5 mb-2" style={{ color: '#9b59b6', fontWeight: 'normal' }}>
+                            {data.rank.overall !== undefined ? data.rank.overall : "--"}
+                          </div>
+                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            Overall Rank
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <>
-                    <div className="col">
-                      {data.time.start !== undefined ? data.time.start : "0"}
-                      <p>Test Start Time</p>
+                  
+                  <div className="col-md-6 mb-3">
+                    <div className="row">
+                      <div className="col-6">
+                        <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                          <div className="h6 mb-2" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                            {data.time.start !== undefined ? data.time.start : "0"}
+                          </div>
+                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            Test Start Time
+                          </p>
+                        </div>
+                      </div>
+                      <div className="col-6">
+                        <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                          <div className="h6 mb-2" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                            {data.time.end !== undefined ? data.time.end : "0"}
+                          </div>
+                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            Test End Time
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="col">
-                      {data.time.end !== undefined ? data.time.end : "0"}
-                      <p>Test End Time</p>
-                    </div>
-                  </>
+                  </div>
                 </div>
               </div>
               {(data.good.length > 0 || data.average.length > 0 || data.bad.length > 0) ? (
