@@ -342,8 +342,29 @@ const Login: React.FC = () => {
   return (
     <div className='login container-fluid h-100 d-flex align-items-center justify-content-center'>
       <div className="row w-100 justify-content-center">
-        {/* Login Card - Shows first on small screens, second on large screens */}
-                  <div className="col-12 col-lg-4 order-1 order-lg-2 d-flex justify-content-center align-items-center px-3 py-4">
+      <div className="col-12 col-lg-8 d-flex align-items-center justify-content-center">
+            <div className="">
+              <span className="block text-start fw-bolder" style={{ color: '#fff', fontSize: '60px' }}>Exskilence</span>
+              <p className='ps-5 text-start mb-3'  style={{
+        background: "linear-gradient(to right, #f5d547, #48e28f)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        fontWeight: "bold",
+        fontStyle: "italic",
+        fontSize: "24px",
+        fontFamily:'Poppins, sans-serif'
+      }}><i>...Because Opportunity is a Right</i></p>
+              <div style={{ textAlign: 'left', maxWidth: '600px', margin: '0 auto' }}>
+                <p style={{ fontSize: '18px', lineHeight: '1.8', marginBottom: '1.5rem', color: '#fff', fontFamily:'Poppins, sans-serif' }}>
+                  We are a Social Enterprise focused on providing Skilling and Placement Assistance to undergraduate students, from Computer Science Engineering and related streams, particularly from Tier 2 and Tier 3 colleges.
+                </p>
+                <p style={{ fontSize: '18px', lineHeight: '1.8', color: '#fff', fontFamily:'Poppins, sans-serif' }}>
+                  At Exskilence, we are on a mission to empower individuals, transform careers, and unlock potential. We believe that quality tech education and real-world experience should be within everyone's reach, regardless of their background.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="col-12 col-lg-4 d-flex justify-content-center align-items-center px-3 py-4">
             <div className="card" style={{ 
               border: 'none', 
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)', 
@@ -383,30 +404,7 @@ const Login: React.FC = () => {
               </div>
             </div>
           </div>
-        
-                  {/* Welcome Text - Shows second on small screens, first on large screens */}
-          <div className="col-12 col-lg-8 order-2 order-lg-1 d-flex align-items-center justify-content-center">
-            <div className="">
-              <span className="block text-start fw-bolder" style={{ color: '#fff', fontSize: '60px' }}>Exskilence</span>
-              <p className='ps-5 text-start mb-3'  style={{
-        background: "linear-gradient(to right, #f5d547, #48e28f)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        fontWeight: "bold",
-        fontStyle: "italic",
-        fontSize: "24px",
-        fontFamily:'Poppins, sans-serif'
-      }}><i>...Because Opportunity is a Right</i></p>
-              <div style={{ textAlign: 'left', maxWidth: '600px', margin: '0 auto' }}>
-                <p style={{ fontSize: '18px', lineHeight: '1.8', marginBottom: '1.5rem', color: '#fff', fontFamily:'Poppins, sans-serif' }}>
-                  We are a Social Enterprise focused on providing Skilling and Placement Assistance to undergraduate students, from Computer Science Engineering and related streams, particularly from Tier 2 and Tier 3 colleges.
-                </p>
-                <p style={{ fontSize: '18px', lineHeight: '1.8', color: '#fff', fontFamily:'Poppins, sans-serif' }}>
-                  At Exskilence, we are on a mission to empower individuals, transform careers, and unlock potential. We believe that quality tech education and real-world experience should be within everyone's reach, regardless of their background.
-                </p>
-              </div>
-            </div>
-          </div>
+          
       </div>
       <Modal show={showAlert} onHide={handleCloseAlert} aria-labelledby="contained-modal-title-vcenter" centered>
         <Modal.Header closeButton className='bg-primary'>
