@@ -5,6 +5,30 @@ import { useNavigate } from "react-router-dom";
 import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
 import CryptoJS from "crypto-js";
 import { secretKey } from './constants';
+import { 
+  Box, 
+  Typography, 
+  Grid, 
+  Paper, 
+  Card, 
+  CardContent, 
+  Button, 
+  Chip, 
+  Skeleton, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow,
+  IconButton,
+  Tooltip
+} from '@mui/material';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 interface TestDetail {
   testtype: string;
@@ -32,6 +56,11 @@ interface FilterState {
   endDate: string;
 }
 
+interface SortState {
+  column: string;
+  direction: 'asc' | 'desc';
+}
+
 interface CurrentTime {
   datetime: string;
   timezone: string;
@@ -57,6 +86,10 @@ const Test: React.FC = () => {
     startDate: "",
     endDate: "",
   });
+  const [sortState, setSortState] = useState<SortState>({
+    column: 'startdate',
+    direction: 'desc'
+  });
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState<CurrentTime | null>(null);
   const encryptedStudentId = sessionStorage.getItem('StudentId');
@@ -81,7 +114,10 @@ const Test: React.FC = () => {
           const mappedStatus = statusMapping[detail.status] || detail.status;
           return mappedStatus === "Ongoing";
         });
-        setFilteredDetails(ongoingTests);
+        
+        // Apply initial sorting by start date descending
+        const sortedTests = sortData(ongoingTests);
+        setFilteredDetails(sortedTests);
         setLoading(false);
       } catch (innerError: any) {
         console.error("Error fetching test details:", innerError);
@@ -152,8 +188,68 @@ const Test: React.FC = () => {
         (filterState.endDate === "" || detail.enddate <= filterState.endDate)
       );
     });
-    setFilteredDetails(filtered);
+    
+    // Apply sorting if a column is selected
+    const sorted = sortData(filtered);
+    setFilteredDetails(sorted);
   };
+
+  const sortData = (data: TestDetail[]) => {
+    if (!sortState.column) return data;
+    
+    return [...data].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+      
+      switch (sortState.column) {
+        case 'title':
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
+          break;
+        case 'subject':
+          aValue = a.subject.toLowerCase();
+          bValue = b.subject.toLowerCase();
+          break;
+        case 'startdate':
+          aValue = new Date(a.startdate);
+          bValue = new Date(b.startdate);
+          break;
+        case 'enddate':
+          aValue = new Date(a.enddate);
+          bValue = new Date(b.enddate);
+          break;
+        case 'score':
+          aValue = parseFloat(a.score) || 0;
+          bValue = parseFloat(b.score) || 0;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) {
+        return sortState.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortState.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+
+  const handleSort = (column: string) => {
+    setSortState(prev => ({
+      column,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // Apply sorting when sortState changes
+  useEffect(() => {
+    if (filteredDetails.length > 0) {
+      const sorted = sortData(filteredDetails);
+      setFilteredDetails(sorted);
+    }
+  }, [sortState]);
 
   const handleTest = (data: TestDetail) => {
     const mappedStatus = statusMapping[data.status] || data.status;
@@ -259,34 +355,36 @@ const isTestTimeMatch = (test: TestDetail) => {
 
   const SkeletonLoader = () => {
     return (
-      <div className="table-responsive py-3">
-        <table className="table">
-          <thead className="table-header border border-secondary rounded-1 fs-5 fw-normal" style={{ backgroundColor: "#f8f9fa" }}>
-            <tr>
-              <th className="text-center">S.no</th>
-              <th className="text-center">Test name</th>
-              <th className="text-center">Subject</th>
-              <th className="text-center">Start Date</th>
-              <th className="text-center">End Date</th>
-              <th className="text-center">Score</th>
-              <th className="text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[1, 2, 3, 4, 5].map((_, index) => (
-              <tr key={index}>
-                <td className="text-center"><div className="skeleton-box" style={{ width: "20px", height: "20px" }}></div></td>
-                <td className="text-center"><div className="skeleton-box" style={{ width: "100px", height: "20px" }}></div></td>
-                <td className="text-center"><div className="skeleton-box" style={{ width: "100px", height: "20px" }}></div></td>
-                <td className="text-center"><div className="skeleton-box" style={{ width: "100px", height: "20px" }}></div></td>
-                <td className="text-center"><div className="skeleton-box" style={{ width: "100px", height: "20px" }}></div></td>
-                <td className="text-center"><div className="skeleton-box" style={{ width: "50px", height: "20px" }}></div></td>
-                <td className="text-center"><div className="skeleton-box" style={{ width: "50px", height: "20px" }}></div></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Box sx={{ py: 3 }}>
+        <TableContainer component={Paper} elevation={2}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
+                <TableCell align="center">S.no</TableCell>
+                <TableCell align="center">Test name</TableCell>
+                <TableCell align="center">Subject</TableCell>
+                <TableCell align="center">Start Date</TableCell>
+                <TableCell align="center">End Date</TableCell>
+                <TableCell align="center">Score</TableCell>
+                <TableCell align="center">Action</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {[1, 2, 3, 4, 5].map((_, index) => (
+                <TableRow key={index}>
+                  <TableCell align="center"><Skeleton width={20} height={20} /></TableCell>
+                  <TableCell align="center"><Skeleton width={100} height={20} /></TableCell>
+                  <TableCell align="center"><Skeleton width={100} height={20} /></TableCell>
+                  <TableCell align="center"><Skeleton width={100} height={20} /></TableCell>
+                  <TableCell align="center"><Skeleton width={100} height={20} /></TableCell>
+                  <TableCell align="center"><Skeleton width={50} height={20} /></TableCell>
+                  <TableCell align="center"><Skeleton width={50} height={20} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
     );
   };
 
@@ -337,92 +435,181 @@ const isTestTimeMatch = (test: TestDetail) => {
               </div>
             </div>
             <div className="col-md-9 col-lg-10">
-              <div className="row">
-                <div className="col">
-                  {loading ? (
-                    <SkeletonLoader />
-                  ) : (
-                    <div className="table-responsive py-3" style={{ height: "calc(100vh - 100px)", overflowY: "auto" }}>
-                      <table className="table">
-                        <thead className="table-header border border-secondary rounded-2 fs-5 fw-normal" style={{ backgroundColor: "#f8f9fa", boxShadow: "#00000033 0px 4px 8px" }}>
-                          <tr>
-                            <th className="text-center">S.no</th>
-                            <th className="text-center">Test name</th>
-                            <th className="text-center">Subject</th>
-                            <th className="text-center">Start Date</th>
-                            <th className="text-center">End Date</th>
-                            <th className="text-center">Score</th>
-                            <th className="text-center">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredDetails.length > 0 ? (
-                            filteredDetails.map((data, index) => {
-                              const mappedStatus = statusMapping[data.status] || data.status;
-                              // Check if test time has actually started, regardless of status
-                              const isTimeStarted = isTestTimeMatch(data);
-                              const isOngoing = (mappedStatus === "Ongoing" && isTimeStarted) || (mappedStatus === "Upcoming" && isTimeStarted);
-                              
-                              return (
-                                <tr key={index} className="border rounded-2">
-                                  <td className="text-center" style={{ alignContent: 'center' }}>{index + 1}</td>
-                                  <td className="text-center" style={{ alignContent: 'center' }}>{data.title}</td>
-                                  <td className="text-center" style={{ alignContent: 'center' }}>{data.subject}</td>
-                                  <td className="text-center" style={{ alignContent: 'center' }}>
-                                    {data.startdate} <br /> {data.starttime}
-                                  </td>
-                                  <td className="text-center">
-                                    {data.enddate} <br /> {data.endtime}
-                                  </td>
-                                  <td className="text-center" style={{ alignContent: 'center' }}>{data.score}</td>
-                                  <td className="text-center" style={{ alignContent: 'center' }}>
-                                                                          {isOngoing ? (
-                                        <button
-                                          className="btn border-black btn-sm"
-                                          onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
-                                          style={{ width: "80px", backgroundColor: "#28a745", color: "white" }}
-                                        >
-                                          {data.teststatus? data.teststatus ==="Pending" ? "Start" :data.teststatus==="Started" ? "Resume" : "Start" : "Start"}
-                                        </button>
-                                    ) : mappedStatus === "Completed" ? (
-                                      <HiOutlineClipboardDocumentList
-                                        onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
-                                        style={{ width: "30px", height: "30px", cursor: "pointer" }}
-                                      />
-                                    ) : (
-                                      <div
-                                        className="btn border-black btn-sm"
-                                        style={{ 
-                                          width: "80px", 
-                                          backgroundColor: "#E5EBFF", 
-                                          opacity: "0.6",
-                                          cursor: "not-allowed"
-                                        }}
-                                      >
-                                        Start
-                                      </div>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          ) : (
-                            <tr>
-                              <td colSpan={7} className="text-center">
-                                <p className="text-muted fs-6">
+              <Box sx={{ height: "calc(100vh - 100px)", overflowY: "auto", py: 3 }}>
+                {loading ? (
+                  <SkeletonLoader />
+                ) : (
+                  <TableContainer component={Paper} elevation={3} sx={{ borderRadius: 2 }}>
+                    <Table>
+                                              <TableHead>
+                          <TableRow sx={{ 
+                            backgroundColor: '#f8f9fa', 
+                            boxShadow: '0px 4px 8px rgba(0,0,0,0.2)',
+                            '& th': { 
+                              fontWeight: 'normal',
+                              fontSize: '1.25rem'
+                            }
+                          }}>
+                            <TableCell align="center">S.no</TableCell>
+                            <TableCell 
+                              align="center" 
+                              sx={{ 
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#e3f2fd' }
+                              }}
+                              onClick={() => handleSort('title')}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                Test name
+                                {sortState.column === 'title' && (
+                                  sortState.direction === 'asc' ? 
+                                    <ArrowUpwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} /> : 
+                                    <ArrowDownwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell 
+                              align="center" 
+                              sx={{ 
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#e3f2fd' }
+                              }}
+                              onClick={() => handleSort('subject')}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                Subject
+                                {sortState.column === 'subject' && (
+                                  sortState.direction === 'asc' ? 
+                                    <ArrowUpwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} /> : 
+                                    <ArrowDownwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell 
+                              align="center" 
+                              sx={{ 
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#e3f2fd' }
+                              }}
+                              onClick={() => handleSort('startdate')}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                Start Date
+                                {sortState.column === 'startdate' && (
+                                  sortState.direction === 'asc' ? 
+                                    <ArrowUpwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} /> : 
+                                    <ArrowDownwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell 
+                              align="center" 
+                              sx={{ 
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#e3f2fd' }
+                              }}
+                              onClick={() => handleSort('enddate')}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                End Date
+                                {sortState.column === 'enddate' && (
+                                  sortState.direction === 'asc' ? 
+                                    <ArrowUpwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} /> : 
+                                    <ArrowDownwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell 
+                              align="center" 
+                              sx={{ 
+                                cursor: 'pointer',
+                                '&:hover': { backgroundColor: '#e3f2fd' }
+                              }}
+                              onClick={() => handleSort('score')}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                Score
+                                {sortState.column === 'score' && (
+                                  sortState.direction === 'asc' ? 
+                                    <ArrowUpwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} /> : 
+                                    <ArrowDownwardIcon sx={{ ml: 0.5, fontSize: '1rem' }} />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell align="center">Action</TableCell>
+                          </TableRow>
+                        </TableHead>
+                      <TableBody>
+                        {filteredDetails.length > 0 ? (
+                          filteredDetails.map((data, index) => {
+                            const mappedStatus = statusMapping[data.status] || data.status;
+                            // Check if test time has actually started, regardless of status
+                            const isTimeStarted = isTestTimeMatch(data);
+                            const isOngoing = (mappedStatus === "Ongoing" && isTimeStarted) || (mappedStatus === "Upcoming" && isTimeStarted);
+                            
+                            return (
+                              <TableRow key={index} sx={{ 
+                                border: '1px solid #dee2e6',
+                                borderRadius: 2,
+                                '&:hover': { backgroundColor: '#f8f9fa' }
+                              }}>
+                                <TableCell align="center">{index + 1}</TableCell>
+                                <TableCell align="center" style={{ alignContent: 'center' }}>{data.title}</TableCell>
+                                <TableCell align="center" style={{ alignContent: 'center' }}>{data.subject}</TableCell>
+                                <TableCell align="center" style={{ alignContent: 'center' }}>
+                                  {data.startdate} <br /> {data.starttime}
+                                </TableCell>
+                                <TableCell align="center">
+                                  {data.enddate} <br /> {data.endtime}
+                                </TableCell>
+                                <TableCell align="center" style={{ alignContent: 'center' }}>{data.score}</TableCell>
+                                <TableCell align="center">
+                                  {isOngoing ? (
+                                    <button
+                                      className="btn border-black btn-sm"
+                                      onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
+                                      style={{ width: "80px", backgroundColor: "#28a745", color: "white" }}
+                                    >
+                                      {data.teststatus? data.teststatus ==="Pending" ? "Start" :data.teststatus==="Started" ? "Resume" : "Start" : "Start"}
+                                    </button>
+                                  ) : mappedStatus === "Completed" ? (
+                                    <HiOutlineClipboardDocumentList
+                                      onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
+                                      style={{ width: "30px", height: "30px", cursor: "pointer" }}
+                                    />
+                                  ) : (
+                                    <div
+                                      className="btn border-black btn-sm"
+                                      style={{ 
+                                        width: "80px", 
+                                        backgroundColor: "#E5EBFF", 
+                                        opacity: "0.6",
+                                        cursor: "not-allowed"
+                                      }}
+                                    >
+                                      Start
+                                    </div>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={7} align="center">
+                              <Box sx={{ py: 4 }}>
+                                <Typography variant="body1" color="textSecondary">
                                   No {filterState.testStatus.toLowerCase()} tests found
-                                 
-                                </p>
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                        {/* <button className="btn border-black btn-sm" onClick={() => handleTest1()}>Test1</button> */}
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                )}
+              </Box>
             </div>
           </div>
         </div>
