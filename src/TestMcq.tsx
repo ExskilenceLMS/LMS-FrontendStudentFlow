@@ -101,8 +101,26 @@ const TestMcq: React.FC = () => {
   };
 
   useEffect(() => {
-    // Get test data from location.state (passed from TestSection)
-    const testData = (location.state as any)?.sectionData;
+    // Get test data from location.state (passed from TestSection) or session storage
+    let testData = (location.state as any)?.sectionData;
+    
+    // If no test data in location.state, try to get it from session storage
+    if (!testData) {
+      const encryptedTestData = sessionStorage.getItem('testSectionData');
+      if (encryptedTestData) {
+        try {
+          testData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+
+        } catch (error) {
+          console.error("Error decrypting test data from session:", error);
+        }
+      }
+    } else {
+      // Store test data in session storage for persistence
+      const encryptedTestData = CryptoJS.AES.encrypt(JSON.stringify(testData), secretKey).toString();
+      sessionStorage.setItem('testSectionData', encryptedTestData);
+      
+    }
     
     if (testData && testData.qns_data && testData.qns_data.mcq) {
       // Use the MCQ questions from the test data
@@ -147,12 +165,38 @@ const TestMcq: React.FC = () => {
       const statuses = getQuestionStatusFromSession();
       setQuestionStatuses(statuses);
 
-      // Get the question index from URL params
+      // Get the current question index from session storage or URL params
+      const savedIndex = sessionStorage.getItem("mcqCurrentQuestionIndex");
       const urlParams = new URLSearchParams(location.search);
       const indexParam = urlParams.get('index');
-      if (indexParam !== null) {
-        setCurrentQuestion(parseInt(indexParam, 10));
+      
+      let initialIndex = 0;
+      if (savedIndex !== null) {
+        initialIndex = parseInt(savedIndex, 10);
+
+      } else if (indexParam !== null) {
+        initialIndex = parseInt(indexParam, 10);
+
+      } else {
+
       }
+      
+
+      
+      // Ensure the index is within bounds
+      initialIndex = Math.max(0, Math.min(initialIndex, mcqQuestions.length - 1));
+      
+
+      
+      setCurrentQuestion(initialIndex);
+      
+      // Save the initial index to session storage
+      sessionStorage.setItem("mcqCurrentQuestionIndex", initialIndex.toString());
+      
+      // Update URL parameter to match the actual index
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('index', initialIndex.toString());
+      window.history.replaceState({}, '', newUrl.toString());
 
       setLoading(false);
       
@@ -263,7 +307,7 @@ const TestMcq: React.FC = () => {
             // Update local state
             setQuestionStatuses(statuses);
             
-            console.log('Updated question status to Submitted for:', questions[currentQuestion].Qn_name);
+
           } catch (error) {
             console.error("Error updating session status:", error);
           }
@@ -329,6 +373,11 @@ const TestMcq: React.FC = () => {
     
     sessionStorage.setItem("mcqCurrentQuestionIndex", index.toString());
     
+    // Update URL parameter
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('index', index.toString());
+    window.history.replaceState({}, '', newUrl.toString());
+    
     // Update test duration asynchronously in header
     if ((window as any).updateTimerAsync) {
       (window as any).updateTimerAsync();
@@ -337,10 +386,24 @@ const TestMcq: React.FC = () => {
 
   const handleTestSectionPage = () => {
     sessionStorage.setItem("mcqCurrentQuestionIndex", currentQuestion.toString());
+    
+    // Get test data from session storage or location state
+    let sectionData = (location.state as any)?.sectionData;
+    if (!sectionData) {
+      const encryptedTestData = sessionStorage.getItem('testSectionData');
+      if (encryptedTestData) {
+        try {
+          sectionData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+        } catch (error) {
+          console.error("Error decrypting test data for navigation:", error);
+        }
+      }
+    }
+    
     // Navigate back to test section with the same data
     navigate('/test-section', { 
       state: { 
-        sectionData: (location.state as any)?.sectionData 
+        sectionData: sectionData 
       } 
     });
   };
@@ -498,8 +561,18 @@ const TestMcq: React.FC = () => {
                             }}
                             onClick={() => {
                               if (currentQuestion < questions.length - 1) {
-                                setCurrentQuestion(currentQuestion + 1);
+                                const nextIndex = currentQuestion + 1;
+                                setCurrentQuestion(nextIndex);
                                 setSelectedOption(null);
+                                
+                                // Update session storage
+                                sessionStorage.setItem("mcqCurrentQuestionIndex", nextIndex.toString());
+                                
+                                // Update URL parameter
+                                const newUrl = new URL(window.location.href);
+                                newUrl.searchParams.set('index', nextIndex.toString());
+                                window.history.replaceState({}, '', newUrl.toString());
+                                
                                 // Update test duration asynchronously in header
                                 if ((window as any).updateTimerAsync) {
                                   (window as any).updateTimerAsync();
