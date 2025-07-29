@@ -293,17 +293,9 @@ const TestSQLCoding: React.FC = () => {
 
         } else if (indexParam) {
           initialIndex = parseInt(indexParam, 10);
-
-        } else {
-
-        }
-        
-
-        
+        }       
         // Ensure the index is within bounds
         initialIndex = Math.max(0, Math.min(initialIndex, codingQuestions.length - 1));
-        
-
 
         setCurrentQuestionIndex(initialIndex);
         
