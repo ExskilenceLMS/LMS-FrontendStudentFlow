@@ -1,9 +1,10 @@
   import React, { useEffect, useState } from "react";
   import { useLocation, useNavigate } from "react-router-dom";
   import { getApiClient } from "./utils/apiAuth";
-  import { useAPISWR } from "./utils/swrConfig";
-  import CryptoJS from "crypto-js";
-  import { secretKey } from "./constants";
+import { useAPISWR } from "./utils/swrConfig";
+import { cleanupTestSessionData } from './utils/sessionCleanup';
+import CryptoJS from "crypto-js";
+import { secretKey } from "./constants";
   import SkeletonLoading from "./SkeletonTestSection";
   import { Modal, Button } from 'react-bootstrap';
   import { cleanDigitSectionValue } from "@mui/x-date-pickers/internals/hooks/useField/useField.utils";
@@ -200,11 +201,12 @@
     };
 
     const confirmSubmitTest = async () => {
-      // api/student/test/submit/25EABCXIS001/Test1/
       const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/submit/${studentId}/${testId}/`
       try {
         await getApiClient().post(url);
-        sessionStorage.setItem("time", "0");
+        
+        // Clean up all test-related session storage data
+        cleanupTestSessionData(testId);
         setShowSubmitConfirmation(false);
         setShowModal(true);
       } catch (innerError: any) {
@@ -213,9 +215,8 @@
     };
 
     const handleViewReport = () => {
-      sessionStorage.removeItem("time");
-      sessionStorage.removeItem("timer");
-      // No need to clean up testData since we're using location.state
+      // Clean up all test-related session storage data
+      cleanupTestSessionData(testId);
       navigate("/test-report");
     };
 
@@ -226,6 +227,9 @@
       }
 
       if (questionType === "MCQ") {
+        // Set the MCQ current question index in session storage
+        sessionStorage.setItem("mcqCurrentQuestionIndex", index.toString());
+        
         // Navigate to MCQ page with test data
         navigate(`/mcq-temp?index=${index}`, { 
           state: { 
@@ -233,6 +237,9 @@
           } 
         });
       } else if (questionType === "Coding") {
+        // Set the Coding current question index in session storage
+        sessionStorage.setItem("codingCurrentQuestionIndex", index.toString());
+        
         // Navigate to Coding page with test data
         navigate(`/coding-temp?index=${index}`, { 
           state: { 

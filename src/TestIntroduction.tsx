@@ -63,12 +63,7 @@ const TestIntroduction: React.FC = () => {
           setLoading(false);
           
           setResponseLoading(true);
-          console.log(cachedSectionData);
           setSectionData(cachedSectionData);
-          // console.log(instructionData.test_duration_minutes - cachedSectionData.duration);
-          // const calculatedDuration = instructionData.test_duration_minutes - cachedSectionData.duration;
-          // const encryptedDuration = CryptoJS.AES.encrypt(calculatedDuration.toString(), secretKey).toString();
-          // sessionStorage.setItem("testDuration", encryptedDuration);
           setResponseLoading(false);
           const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(cachedSectionData), secretKey).toString();
           sessionStorage.setItem("sectionData", encryptedSectionData);
@@ -84,7 +79,6 @@ const TestIntroduction: React.FC = () => {
     // api/student/test/start/25EABCXIS001/Test1/
     const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/start/${studentId}/${testId}/`;
     const response = await getApiClient().patch(url);
-    console.log(response.data);
     const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response.data), secretKey).toString();
     sessionStorage.setItem("sectionData", encryptedSectionData);
     if (response.data.status === "completed") {

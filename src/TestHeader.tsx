@@ -10,6 +10,7 @@ import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { getApiClient } from './utils/apiAuth';
 import { performLogout } from './utils/apiAuth';
+import { cleanupTestSessionData } from './utils/sessionCleanup';
 import { IoArrowBackCircleOutline } from "react-icons/io5";
 
 const TestHeader: React.FC = () => {
@@ -57,7 +58,7 @@ const TestHeader: React.FC = () => {
       const { time_left } = response.data;
       
       // Check API response status
-      if (response.data.message === "Test Already Completed" || response.data.message === "Completed") {
+      if (response.data.status === "Test Already Completed" || response.data.status === "Completed") {
         navigate('/test');
         return;
       }
@@ -67,7 +68,7 @@ const TestHeader: React.FC = () => {
         sessionStorage.setItem("timer", time_left.toString());
         const encryptedDuration = CryptoJS.AES.encrypt(time_left.toString(), secretKey).toString();
         sessionStorage.setItem("testDuration", encryptedDuration);
-        console.log("Timer updated asynchronously from API:", time_left, "seconds");
+
       }
     } catch (error: any) {
       if (error.response?.status === 500) {
@@ -86,7 +87,7 @@ const TestHeader: React.FC = () => {
       const response = await getApiClient().patch(url);
       const { time_left } = response.data;
       
-      if (response.data.message === "Test Already Completed" || response.data.message === "Completed" || response.status !== 200) {
+      if (response.data.status === "Test Already Completed" || response.data.status === "Completed" || response.status !== 200) {
         navigate('/test');
         return;
       }
@@ -96,7 +97,7 @@ const TestHeader: React.FC = () => {
         sessionStorage.setItem("timer", time_left.toString());
         const encryptedDuration = CryptoJS.AES.encrypt(time_left.toString(), secretKey).toString();
         sessionStorage.setItem("testDuration", encryptedDuration);
-        console.log("Timer updated synchronously from API:", time_left, "seconds");
+
       }
     } catch (error: any) {
       if (error.response?.status === 500) {
@@ -227,11 +228,12 @@ useEffect(() => {
           const submitTest = async () => {
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/submit/${studentId}/${testId}/`
             try {
-              await getApiClient().get(
+              await getApiClient().post(
                 url
               );
-              sessionStorage.removeItem("timer");
-              sessionStorage.removeItem("testDuration");
+              
+              // Clean up all test-related session storage data
+              cleanupTestSessionData(testId);
             } catch (error) {
               console.error("Error submitting test:", error);
             }

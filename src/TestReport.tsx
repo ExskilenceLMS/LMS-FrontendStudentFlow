@@ -23,8 +23,8 @@ interface Data1 {
     total: string;
   };
   rank: {
-    college: string;
-    overall: string;
+    college_rank: string | number;
+    overall_rank: string | number;
   };
   time: {
     start: string;
@@ -80,8 +80,8 @@ const TestReport: React.FC = () => {
       total: "",
     },
     rank: {
-      college: "",
-      overall: "",
+      college_rank: "",
+      overall_rank: "",
     },
     time: {
       start: "",
@@ -120,6 +120,8 @@ const TestReport: React.FC = () => {
       try {
         const response = await getApiClient().get(url);
         const apiData = response.data;
+        
+        // Update the data structure to match the new API response
         setData({
           timeTaken: `${apiData.test_summary.time_taken_for_completion} / ${apiData.test_summary.total_time}`,
           score: {
@@ -127,7 +129,7 @@ const TestReport: React.FC = () => {
             total: apiData.test_summary.max_score.toString(),
           },
           result: {
-            pass: apiData.test_summary.status === "Passed",
+            pass: apiData.test_summary.status === "Passed" || apiData.test_summary.status === "Completed",
             status: apiData.test_summary.status || (apiData.test_summary.percentage >= 40 ? "Passed" : "Failed"),
             cutoff: ">=40%",
           },
@@ -136,8 +138,8 @@ const TestReport: React.FC = () => {
             total: apiData.test_summary.total_questions.toString(),
           },
           rank: {
-            college: apiData.test_summary.college_rank?.toString() || "--",
-            overall: apiData.test_summary.overall_rank?.toString() || "--",
+            college_rank: apiData.test_summary.college_rank?.toString() || "--",
+            overall_rank: apiData.test_summary.overall_rank?.toString() || "--",
           },
           time: {
             start: apiData.test_summary.test_start_time || "Not started",
@@ -148,6 +150,7 @@ const TestReport: React.FC = () => {
           bad: apiData.topics.poor || [],
         });
 
+        // Map MCQ questions with the new structure
         const mcqQuestions = apiData.answers.mcq.map((q: any, index: number) => ({
           id: index + 1,
           question: q.question,
@@ -162,6 +165,7 @@ const TestReport: React.FC = () => {
           explanation: q.Explanation,
         }));
 
+        // Map coding questions with the new structure
         const codingQuestions = apiData.answers.coding.map((q: any, index: number) => ({
           id: index + 1,
           question: q.Qn,
@@ -261,7 +265,7 @@ const TestReport: React.FC = () => {
                       <div className="col-6">
                         <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                           <div className="h5 mb-2" style={{ color: '#9b59b6', fontWeight: 'normal' }}>
-                            {data.rank.college !== undefined ? data.rank.college : "--"}
+                            {data.rank.college_rank !== undefined && data.rank.college_rank !== "-1" && data.rank.college_rank !== -1 ? data.rank.college_rank.toString() : "--"}
                           </div>
                           <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
                             College Rank
@@ -271,7 +275,7 @@ const TestReport: React.FC = () => {
                       <div className="col-6">
                         <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                           <div className="h5 mb-2" style={{ color: '#9b59b6', fontWeight: 'normal' }}>
-                            {data.rank.overall !== undefined ? data.rank.overall : "--"}
+                            {data.rank.overall_rank !== undefined && data.rank.overall_rank !== "-1" && data.rank.overall_rank !== -1 ? data.rank.overall_rank.toString() : "--"}
                           </div>
                           <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
                             Overall Rank

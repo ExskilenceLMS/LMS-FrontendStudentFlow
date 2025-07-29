@@ -7,6 +7,7 @@ import "ace-builds/src-noconflict/theme-dreamweaver";
 import SkeletonCode from './Components/EditorSkeletonCode'
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
+import { updateIndexParameter } from './utils/urlUtils';
 import './SQLEditor.css';
 
 interface Data {
@@ -139,19 +140,19 @@ const TestSQLCoding: React.FC = () => {
   const updateTableForQuestion = async (question: Question) => {
     // Get tables from session storage
     const encryptedTables = sessionStorage.getItem('sqlTables');
-    console.log('Encrypted tables from session:', !!encryptedTables);
+
     
     if (encryptedTables) {
       try {
         const decryptedTables = JSON.parse(CryptoJS.AES.decrypt(encryptedTables, secretKey).toString(CryptoJS.enc.Utf8));
-        console.log('Decrypted tables:', decryptedTables);
+
         setAvailableTables(decryptedTables);
 
         if (decryptedTables && decryptedTables.length > 0) {
           // Parse comma-separated table names
           const tableNamesString = question.question_data?.Table || question.Table || "";
           const tableNames = tableNamesString.split(',').map(name => name.trim()).filter(name => name);
-          console.log('Question table names:', tableNames);
+
           setQuestionTableNames(tableNames);
           
           if (tableNames.length > 0) {
@@ -162,31 +163,31 @@ const TestSQLCoding: React.FC = () => {
                 table.tab_name.toLowerCase() === tableName.toLowerCase()
               );
               if (matchingTable) {
-                console.log('Found matching table:', matchingTable.tab_name);
+
                 break;
               }
             }
 
             if (matchingTable) {
-              console.log('Setting table data:', matchingTable.data);
+
               setTableData(matchingTable.data || []);
               setTableName(matchingTable.tab_name);
               setCurrentTableIndex(0); // Reset to first table
             } else {
               // Fallback to first available table
-              console.log('Using fallback table:', decryptedTables[0].tab_name);
+
               setTableData(decryptedTables[0].data || []);
               setTableName(decryptedTables[0].tab_name);
               setCurrentTableIndex(0);
             }
           } else {
-            console.log('No table names found, using first available table');
+
             setTableData(decryptedTables[0].data || []);
             setTableName(decryptedTables[0].tab_name);
             setCurrentTableIndex(0);
           }
         } else {
-          console.log('No tables available in session storage');
+  
           await fetchTablesFromAPI();
         }
       } catch (error) {
@@ -194,18 +195,18 @@ const TestSQLCoding: React.FC = () => {
         await fetchTablesFromAPI();
       }
     } else {
-      console.log('No encrypted tables found in session storage');
+
       await fetchTablesFromAPI();
     }
   };
 
   const fetchTablesFromAPI = async () => {
     try {
-      console.log('Fetching tables from API...');
+
       const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/tables/${studentId}/${testId}/`;
       const response = await getApiClient().get(url);
       const tablesData = response.data;
-      console.log('API tables response:', tablesData);
+      
       
       if (tablesData && tablesData.tables && tablesData.tables.length > 0) {
         // Encrypt and store tables in session
@@ -227,7 +228,7 @@ const TestSQLCoding: React.FC = () => {
           setQuestionTableNames(tableNames);
         }
       } else {
-        console.log('No tables found in API response');
+
         setTableData([]);
         setTableName("Table");
         setCurrentTableIndex(0);
@@ -242,8 +243,26 @@ const TestSQLCoding: React.FC = () => {
 
   useEffect(() => {
     const initializeData = async () => {
-    // Get test data from location.state (passed from TestSection)
-    const testData = (location.state as any)?.sectionData;
+    // Get test data from location.state (passed from TestSection) or session storage
+    let testData = (location.state as any)?.sectionData;
+    
+    // If no test data in location.state, try to get it from session storage
+    if (!testData) {
+      const encryptedTestData = sessionStorage.getItem('testSectionData');
+      if (encryptedTestData) {
+        try {
+          testData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+
+        } catch (error) {
+          console.error("Error decrypting test data from session:", error);
+        }
+      }
+    } else {
+      // Store test data in session storage for persistence
+      const encryptedTestData = CryptoJS.AES.encrypt(JSON.stringify(testData), secretKey).toString();
+      sessionStorage.setItem('testSectionData', encryptedTestData);
+      
+    }
     
     if (testData && testData.qns_data && testData.qns_data.coding) {
       try {
@@ -263,13 +282,35 @@ const TestSQLCoding: React.FC = () => {
 
         setQuestions(codingQuestions);
 
+        // Get the current question index from session storage or URL params
+        const savedIndex = sessionStorage.getItem("codingCurrentQuestionIndex");
         const urlParams = new URLSearchParams(location.search);
         const indexParam = urlParams.get('index');
-        const initialIndex = indexParam ? parseInt(indexParam, 10) : 0;
+        
+        let initialIndex = 0;
+        if (savedIndex !== null) {
+          initialIndex = parseInt(savedIndex, 10);
+
+        } else if (indexParam) {
+          initialIndex = parseInt(indexParam, 10);
+        }       
+        // Ensure the index is within bounds
+        initialIndex = Math.max(0, Math.min(initialIndex, codingQuestions.length - 1));
 
         setCurrentQuestionIndex(initialIndex);
+        
+        // Save the initial index to session storage
+        sessionStorage.setItem("codingCurrentQuestionIndex", initialIndex.toString());
+        
+        // Update URL parameter to match the actual index
+        updateIndexParameter(initialIndex);
         setStatus(codingQuestions[initialIndex].status);
         setEnteredAns(codingQuestions[initialIndex].entered_ans);
+
+        // Update test duration synchronously on page load/refresh
+        if ((window as any).updateTimerSync) {
+          (window as any).updateTimerSync();
+        }
 
         // Load question statuses from session storage
         const statuses = getQuestionStatusFromSession();
@@ -397,6 +438,14 @@ const TestSQLCoding: React.FC = () => {
   }
 
   sessionStorage.setItem("codingCurrentQuestionIndex", index.toString());
+  
+  // Update URL parameter
+  updateIndexParameter(index);
+  
+  // Update test duration asynchronously when question is changed
+  if ((window as any).updateTimerAsync) {
+    (window as any).updateTimerAsync();
+  }
 };
 
   const handleNext = async () => {
@@ -486,6 +535,14 @@ const TestSQLCoding: React.FC = () => {
       setIsSubmitted(false);
 
       sessionStorage.setItem("codingCurrentQuestionIndex", nextIndex.toString());
+      
+      // Update URL parameter
+      updateIndexParameter(nextIndex);
+      
+      // Update test duration asynchronously when moving to next question
+      if ((window as any).updateTimerAsync) {
+        (window as any).updateTimerAsync();
+      }
     }
   };
 
@@ -760,10 +817,24 @@ const TestSQLCoding: React.FC = () => {
 
   const handleTestSectionPage = () => {
     sessionStorage.setItem("codingCurrentQuestionIndex", currentQuestionIndex.toString());
+    
+    // Get test data from session storage or location state
+    let sectionData = (location.state as any)?.sectionData;
+    if (!sectionData) {
+      const encryptedTestData = sessionStorage.getItem('testSectionData');
+      if (encryptedTestData) {
+        try {
+          sectionData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+        } catch (error) {
+          console.error("Error decrypting test data for navigation:", error);
+        }
+      }
+    }
+    
     // Navigate back to test section with the same data
     navigate('/test-section', { 
       state: { 
-        sectionData: (location.state as any)?.sectionData 
+        sectionData: sectionData 
       } 
     });
   };
@@ -820,7 +891,7 @@ const TestSQLCoding: React.FC = () => {
                   <div className="col-5 lg-8 bg-white " style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
                     <div className="bg-white" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
                       <div className="p-3 flex-grow-1 overflow-auto" >
-                        <p>{questions[currentQuestionIndex]?.question_data?.Qn || questions[currentQuestionIndex]?.Qn || "Question not available"}</p>
+                        <p>Q{currentQuestionIndex + 1}. {questions[currentQuestionIndex]?.question_data?.Qn || questions[currentQuestionIndex]?.Qn || "Question not available"}</p>
                       </div>
                     </div>
                     <div className="bg-white" style={{ height: "50%", backgroundColor: "#E5E5E533" }}>

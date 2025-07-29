@@ -95,9 +95,6 @@ const Test: React.FC = () => {
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = encryptedStudentId ? CryptoJS.AES.decrypt(encryptedStudentId, process.env.REACT_APP_SECRET_KEY || '').toString(CryptoJS.enc.Utf8) : '';
   const studentId = decryptedStudentId;
-    const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-    const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-    const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
   useEffect(() => {
     sessionStorage.removeItem('TestId');
@@ -308,7 +305,6 @@ const isTestTimeMatch = (test: TestDetail) => {
   const isDateInRange = currentDateFormatted >= test.startdate && currentDateFormatted <= test.enddate;
 
   if (!isDateInRange) {
-    console.log(`Date out of range: Current ${currentDateFormatted}, Test range ${test.startdate} to ${test.enddate}`);
     return false;
   }
 
@@ -317,16 +313,6 @@ const isTestTimeMatch = (test: TestDetail) => {
     const testStartTotalMinutes = startHour * 60 + startMinute;
     const currentTotalMinutes = currentHour * 60 + currentMinute;
     const isTimeMatch = currentTotalMinutes >= testStartTotalMinutes;
-
-    console.log(`Time check for test ${test.test_id} on start date:`, {
-      testStartTime: `${test.starttime} (${startHour}:${startMinute})`,
-      currentTime: `${currentTime.datetime} (${currentHour}:${currentMinute})`,
-      testStartTotalMinutes,
-      currentTotalMinutes,
-      isTimeMatch,
-      minutesLeft: testStartTotalMinutes - currentTotalMinutes
-    });
-
     return isTimeMatch;
   }
 
@@ -335,21 +321,9 @@ const isTestTimeMatch = (test: TestDetail) => {
     const testEndTotalMinutes = endHour * 60 + endMinute;
     const currentTotalMinutes = currentHour * 60 + currentMinute;
     const isTimeMatch = currentTotalMinutes <= testEndTotalMinutes;
-
-    console.log(`Time check for test ${test.test_id} on end date:`, {
-      testEndTime: `${test.endtime} (${endHour}:${endMinute})`,
-      currentTime: `${currentTime.datetime} (${currentHour}:${currentMinute})`,
-      testEndTotalMinutes,
-      currentTotalMinutes,
-      isTimeMatch,
-      minutesLeft: testEndTotalMinutes - currentTotalMinutes
-    });
-
     return isTimeMatch;
   }
 
-  // If we're between start and end dates, time is always valid
-  console.log(`Date in range for test ${test.test_id}: Current ${currentDateFormatted} between ${test.startdate} and ${test.enddate}`);
   return true;
 };
 
