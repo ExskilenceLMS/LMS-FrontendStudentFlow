@@ -129,7 +129,7 @@ export const useAPISWR = <T>(url: string | null) => {
   return useSWR<T>(url, fetcher, config);
 };
 
-export const clearAPICache = (pattern: string) => { console.log(`Cache cleared for pattern: ${pattern}`); };
-export const clearAllCache = () => { console.log('All cache cleared'); };
+export const clearAPICache = (pattern: string) => { };
+export const clearAllCache = () => { };
 export { useSWR };
 export default fetcher; 

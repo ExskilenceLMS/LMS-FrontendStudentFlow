@@ -228,7 +228,7 @@ useEffect(() => {
           const submitTest = async () => {
             const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/submit/${studentId}/${testId}/`
             try {
-              await getApiClient().get(
+              await getApiClient().post(
                 url
               );
               

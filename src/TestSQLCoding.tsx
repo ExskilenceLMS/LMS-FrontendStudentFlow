@@ -7,6 +7,7 @@ import "ace-builds/src-noconflict/theme-dreamweaver";
 import SkeletonCode from './Components/EditorSkeletonCode'
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
+import { updateIndexParameter } from './utils/urlUtils';
 import './SQLEditor.css';
 
 interface Data {
@@ -310,9 +311,7 @@ const TestSQLCoding: React.FC = () => {
         sessionStorage.setItem("codingCurrentQuestionIndex", initialIndex.toString());
         
         // Update URL parameter to match the actual index
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.set('index', initialIndex.toString());
-        window.history.replaceState({}, '', newUrl.toString());
+        updateIndexParameter(initialIndex);
         setStatus(codingQuestions[initialIndex].status);
         setEnteredAns(codingQuestions[initialIndex].entered_ans);
 
@@ -449,9 +448,7 @@ const TestSQLCoding: React.FC = () => {
   sessionStorage.setItem("codingCurrentQuestionIndex", index.toString());
   
   // Update URL parameter
-  const newUrl = new URL(window.location.href);
-  newUrl.searchParams.set('index', index.toString());
-  window.history.replaceState({}, '', newUrl.toString());
+  updateIndexParameter(index);
   
   // Update test duration asynchronously when question is changed
   if ((window as any).updateTimerAsync) {
@@ -548,9 +545,7 @@ const TestSQLCoding: React.FC = () => {
       sessionStorage.setItem("codingCurrentQuestionIndex", nextIndex.toString());
       
       // Update URL parameter
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('index', nextIndex.toString());
-      window.history.replaceState({}, '', newUrl.toString());
+      updateIndexParameter(nextIndex);
       
       // Update test duration asynchronously when moving to next question
       if ((window as any).updateTimerAsync) {

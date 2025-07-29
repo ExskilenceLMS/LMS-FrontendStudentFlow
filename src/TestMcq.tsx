@@ -3,6 +3,7 @@ import { getApiClient } from "./utils/apiAuth";
 import { useLocation, useNavigate } from "react-router-dom";
 import CryptoJS from "crypto-js";
 import { secretKey } from "./constants";
+import { updateIndexParameter } from './utils/urlUtils';
 import "bootstrap/dist/css/bootstrap.min.css";
 
 interface QuestionData {
@@ -194,9 +195,7 @@ const TestMcq: React.FC = () => {
       sessionStorage.setItem("mcqCurrentQuestionIndex", initialIndex.toString());
       
       // Update URL parameter to match the actual index
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('index', initialIndex.toString());
-      window.history.replaceState({}, '', newUrl.toString());
+      updateIndexParameter(initialIndex);
 
       setLoading(false);
       
@@ -239,15 +238,17 @@ const TestMcq: React.FC = () => {
     return shuffledArray;
   };
 
-  const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setSelectedOption(value);
-    
-    // Encrypt and store the answer in sessionStorage
-    if (questions[currentQuestion]?.Qn_name) {
-      const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
-      const encryptedAnswer = encryptData(value);
-      sessionStorage.setItem(answerKey, encryptedAnswer);
+  const handleOptionChange = (option: string) => {
+    // Allow changing option if question is not submitted
+    if (questionStatuses[`mcq_${questions[currentQuestion]?.Qn_name}`] !== "Submitted") {
+      setSelectedOption(option);
+      
+      // Encrypt and store the answer in sessionStorage
+      if (questions[currentQuestion]?.Qn_name) {
+        const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
+        const encryptedAnswer = encryptData(option);
+        sessionStorage.setItem(answerKey, encryptedAnswer);
+      }
     }
   };
 
@@ -374,9 +375,7 @@ const TestMcq: React.FC = () => {
     sessionStorage.setItem("mcqCurrentQuestionIndex", index.toString());
     
     // Update URL parameter
-    const newUrl = new URL(window.location.href);
-    newUrl.searchParams.set('index', index.toString());
-    window.history.replaceState({}, '', newUrl.toString());
+    updateIndexParameter(index);
     
     // Update test duration asynchronously in header
     if ((window as any).updateTimerAsync) {
@@ -508,17 +507,7 @@ const TestMcq: React.FC = () => {
                         </pre>
                         <div className="p-3 mh-50">
                         {questions[currentQuestion].options.map((option, index) => (
-                                                         <button onClick={() => {
-                                if (!answeredQuestions[currentQuestion] && !skippedQuestions[currentQuestion] && questions[currentQuestion].question_status !== "Submitted") {
-                                  setSelectedOption(option);
-                                  // Encrypt and store the answer in sessionStorage
-                                  if (questions[currentQuestion]?.Qn_name) {
-                                    const answerKey = getUserAnswerKey(questions[currentQuestion].Qn_name);
-                                    const encryptedAnswer = encryptData(option);
-                                    sessionStorage.setItem(answerKey, encryptedAnswer);
-                                  }
-                                }
-                              }} style={{
+                                                         <button onClick={() => handleOptionChange(option)} style={{
                                 boxShadow: '#00000033 0px 5px 4px',
                                 maxHeight: "10vh",
                                 overflowY: "auto",
@@ -569,9 +558,7 @@ const TestMcq: React.FC = () => {
                                 sessionStorage.setItem("mcqCurrentQuestionIndex", nextIndex.toString());
                                 
                                 // Update URL parameter
-                                const newUrl = new URL(window.location.href);
-                                newUrl.searchParams.set('index', nextIndex.toString());
-                                window.history.replaceState({}, '', newUrl.toString());
+                                updateIndexParameter(nextIndex);
                                 
                                 // Update test duration asynchronously in header
                                 if ((window as any).updateTimerAsync) {
