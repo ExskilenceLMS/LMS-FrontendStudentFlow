@@ -125,50 +125,6 @@ const SubjectOverview: React.FC = () => {
     setOpenWeeks(newOpenWeeks);
   };
  
-  const handleStartButtonClick = async (
-    day_key: string,
-    weekNumber: number,
-    day_status: string,
-    topics: string[] | undefined
-  ) => {
-    setBtnClickLoading(true);
- 
-    const encryptedDayKey = CryptoJS.AES.encrypt(day_key, secretKey).toString();
-    const encryptedWeekNumber = CryptoJS.AES.encrypt(weekNumber.toString(), secretKey).toString();
-    sessionStorage.setItem("DayNumber", encryptedDayKey);
-    sessionStorage.setItem("WeekNumber", encryptedWeekNumber);
-    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/weekly/${studentId}/${weekNumber}/${subjectId}`;
-    const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/add/days/`;
-    try {
-      if (topics && topics.includes("Weekly Test")) {
-        const response = await getApiClient().get(url);
- 
-        if (response.data.test_id) {
-          const encryptedTestId = CryptoJS.AES.encrypt(response.data.test_id, secretKey).toString();
-          sessionStorage.setItem("TestId", encryptedTestId);
-        }
- 
-        navigate("/test-introduction");
-      } else {
-        if (day_status === "Start") {
-          await getApiClient().post(url1, {
-            student_id: studentId,
-            subject: subject,
-            subject_id: subjectId,
-            week_number: weekNumber,
-            day_number: day_key,
-          });
-        }
- 
-                navigate("/subject-roadmap");
-      }
-    } catch (error) {
-      console.error("Error in handleStartButtonClick:", error);
-    } finally {
-      setBtnClickLoading(false);
-    }
-  };
-
   const handleStartButtonClickVideo = async (
     day_key: string,
     weekNumber: number,
@@ -190,6 +146,9 @@ const SubjectOverview: React.FC = () => {
         if (response.data.test_id) {
           const encryptedTestId = CryptoJS.AES.encrypt(response.data.test_id, secretKey).toString();
           sessionStorage.setItem("TestId", encryptedTestId);
+          sessionStorage.setItem("TestType", "Weekly Test");
+          const encryptedTestSubjectId = CryptoJS.AES.encrypt(subjectId, secretKey).toString();
+          sessionStorage.setItem("TestSubjectId", encryptedTestSubjectId);
         }
  
         navigate("/test-introduction");

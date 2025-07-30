@@ -866,7 +866,7 @@ const handleSubmit = async () => {
                 <div className="d-flex" style={{ height: '100%', width: '100%' }}>
                   
                   {/* ===== QUESTION NAVIGATION PANEL ===== */}
-                  <div className="col-1 lg-8" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px" }}>
+                  <div className="col-1 lg-8 pb-3" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px",overflow:"auto" }}>
                     {questions.map((_, index) => (
                       <button
                         key={index}
@@ -888,9 +888,58 @@ const handleSubmit = async () => {
 
                   {/* ===== PROBLEM STATEMENT PANEL ===== */}
                   <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
-                    <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533" }}>
+                    <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533",overflow:"auto" }}>
                       <div className="p-3 flex-grow-1 overflow-auto">
                         <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{questions[currentQuestionIndex]?.Qn}</pre>
+                        
+                        {/* ===== EXAMPLES SECTION ===== */}
+                        {questions[currentQuestionIndex]?.Examples && questions[currentQuestionIndex].Examples.length > 0 && (
+                          <div className="mt-4">
+                            <h6 style={{ color: "#333", fontWeight: "bold", marginBottom: "10px" }}>Examples:</h6>
+                            {questions[currentQuestionIndex].Examples.map((example, index) => (
+                              <div key={index} className="mb-3 p-3" style={{ 
+                                backgroundColor: "#f8f9fa", 
+                                border: "1px solid #dee2e6", 
+                                borderRadius: "8px",
+                                fontSize: "13px"
+                              }}>
+                                <div className="mb-2">
+                                  <strong style={{ color: "#495057" }}>Example {index + 1}:</strong>
+                                </div>
+                                
+                                {/* Input */}
+                                {example.Example.Inputs && example.Example.Inputs.length > 0 && (
+                                  <div className="mb-2">
+                                    <span style={{ color: "#6c757d", fontWeight: "500" }}>Input: </span>
+                                    <span style={{ color: "#212529" }}>
+                                      {example.Example.Inputs.join(", ")}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Output */}
+                                {example.Example.Output && (
+                                  <div className="mb-2">
+                                    <span style={{ color: "#6c757d", fontWeight: "500" }}>Output: </span>
+                                    <span style={{ color: "#212529" }}>
+                                      {example.Example.Output}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Explanation */}
+                                {example.Example.Explanation && (
+                                  <div>
+                                    <span style={{ color: "#6c757d", fontWeight: "500" }}>Explanation: </span>
+                                    <span style={{ color: "#212529" }}>
+                                      {example.Example.Explanation}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
