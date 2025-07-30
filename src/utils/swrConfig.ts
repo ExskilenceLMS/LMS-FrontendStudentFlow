@@ -19,6 +19,8 @@ const API_TTL_CONFIG = {
   '/api/student/subject/': 30 * 60 * 1000, // 30 minutes
   '/api/student/lessons/': 30 * 60 * 1000,
   '/api/student/practicecoding/tables/': 24 * 60 * 60 * 1000, // 1 day
+  '/api/student/videos/': 2 * 60 * 1000, // 2 mins for video
+  '/api/student/notes/': 2 * 60 * 1000, // 2 mins for notes
   'default': 5 * 60 * 1000
 };
 

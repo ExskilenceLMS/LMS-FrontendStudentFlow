@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { CiSquareChevUp } from "react-icons/ci";
 import { FaExclamationTriangle } from 'react-icons/fa';
 import { BsListTask } from "react-icons/bs";
+import { useAPISWR } from './utils/swrConfig';
 // import backend_response from './response.json';
 interface NoteSection {
     heading: string;
@@ -92,6 +93,8 @@ const SubjectRoadMap: React.FC = () => {
     const [mcqQuestions, setMcqQuestions] = useState<MCQQuestion[]>([]);
     const [codingQuestions, setCodingQuestions] = useState<CodingQuestion[]>([]);
     const [notesData, setNotesData] = useState<{ [key: number]: NoteData }>({});
+    const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
+    const [currentVideoId, setCurrentVideoId] = useState<number | null>(null);
     const encryptedStudentId = sessionStorage.getItem('StudentId') || "";
     const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
     const studentId = decryptedStudentId;
@@ -140,6 +143,12 @@ const SubjectRoadMap: React.FC = () => {
             console.error("Error fetching video data:", error);
             throw error;
         }
+    };
+
+    // SWR hook for video data with 10-minute cache
+    const useVideoData = (videoId: number | null) => {
+        const url = videoId ? `${process.env.REACT_APP_BACKEND_URL}api/student/videos/${videoId}/` : null;
+        return useAPISWR<{ otp: string; playback_info: string }>(url);
     };
 
     const isDirectVideoUrl = (url: string): boolean => {
@@ -335,80 +344,51 @@ const fetchRoadmapData = async () => {
                 sessionStorage.setItem("lastSubTopicIndex", index.toString());
             }
 
-            const storedIndex = sessionStorage.getItem("lastSubTopicIndex");
-            setExpandedSections([storedIndex ? parseInt(storedIndex) : 0]);
-
-            if (storedIndex && parseInt(storedIndex) < responseData[0].sub_topic_data.length) {
-                setCurrentSubTopicIndex(parseInt(storedIndex));
-            } else {
-                setCurrentSubTopicIndex(0);
-            }
-
             const firstChapter = responseData[0];
             if (firstChapter.sub_topic_data && firstChapter.sub_topic_data.length > 0) {
                 // Get the correct subtopic based on currentSubTopicId from sessionStorage
                 const currentSubTopicId = sessionStorage.getItem("currentSubTopicId");
                 const subTopicIndex = firstChapter.sub_topic_data.findIndex((sub: { subtopicid: string | null; }) => sub.subtopicid === currentSubTopicId);
-                const actualSubTopicIndex = subTopicIndex !== -1 ? subTopicIndex : currentSubTopicIndex;
+                const actualSubTopicIndex = subTopicIndex !== -1 ? subTopicIndex : 0;
                 
-                // Update currentSubTopicIndex to match the actual subtopic
-                if (subTopicIndex !== -1 && subTopicIndex !== currentSubTopicIndex) {
-                    setCurrentSubTopicIndex(subTopicIndex);
-                }
+                // Set the expanded section to the actual current subtopic index
+                setExpandedSection(actualSubTopicIndex.toString());
+                setCurrentSubTopicIndex(actualSubTopicIndex);
+                
+                // Update session storage with the correct index
+                sessionStorage.setItem("lastSubTopicIndex", actualSubTopicIndex.toString());
                 
                 const subTopic = firstChapter.sub_topic_data[actualSubTopicIndex];
                 
                 // Determine initial content type based on availability
                 const initialContentType = getInitialContentType(subTopic);
-
                 
-                // Priority: Always show videos if available, regardless of stored content type
+                // Check stored content type and respect it if available in current subtopic
                 const storedContentType = sessionStorage.getItem("lastContentType");
                 console.log('Stored content type:', storedContentType);
                 console.log('SubTopic has videos:', subTopic.lesson && subTopic.lesson.length > 0);
                 
-                // If subtopic has videos, always show videos first (highest priority)
-                if (subTopic.lesson && subTopic.lesson.length > 0) {
-                    console.log('SubTopic has videos, showing videos regardless of stored content type');
-                    setCurrentView('lesson');
-                    sessionStorage.setItem("lastContentType", 'lesson');
-                } else if (storedContentType && ['lesson', 'notes', 'mcq', 'coding'].includes(storedContentType)) {
-                    // Check if the stored content type is available for this subtopic
-                    const isValidStoredType = (
-                        (storedContentType === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) ||
-                        (storedContentType === 'notes' && subTopic.notes && subTopic.notes.length > 0) ||
-                        (storedContentType === 'mcq' && subTopic.mcqQuestions > 0) ||
-                        (storedContentType === 'coding' && subTopic.codingQuestions > 0)
-                    );
-                    
-                    console.log('Is stored content type valid?', isValidStoredType);
-                    console.log('Validation details:', {
-                        storedType: storedContentType,
-                        hasLesson: subTopic.lesson && subTopic.lesson.length > 0,
-                        hasNotes: subTopic.notes && subTopic.notes.length > 0,
-                        hasMCQ: subTopic.mcqQuestions > 0,
-                        hasCoding: subTopic.codingQuestions > 0
-                    });
-                    
-                    if (isValidStoredType) {
-                        console.log('Using stored content type:', storedContentType);
-                        setCurrentView(storedContentType as 'lesson' | 'mcq' | 'coding' | 'notes');
-                    } else {
-                        console.log('Stored content type not valid, clearing and using initial:', initialContentType);
-                        // Clear the invalid stored content type
-                        sessionStorage.removeItem("lastContentType");
-                        setCurrentView(initialContentType);
-                        sessionStorage.setItem("lastContentType", initialContentType);
-                    }
+                // Check if the stored content type is available for this subtopic
+                const isValidStoredType = storedContentType && (
+                    (storedContentType === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) ||
+                    (storedContentType === 'notes' && subTopic.notes && subTopic.notes.length > 0) ||
+                    (storedContentType === 'mcq' && subTopic.mcqQuestions > 0) ||
+                    (storedContentType === 'coding' && subTopic.codingQuestions > 0)
+                );
+                
+                if (isValidStoredType) {
+                    console.log('Using stored content type:', storedContentType);
+                    setCurrentView(storedContentType as 'lesson' | 'mcq' | 'coding' | 'notes');
+                    sessionStorage.setItem("lastContentType", storedContentType);
                 } else {
-                    console.log('No stored content type or invalid, setting initial:', initialContentType);
-                    // Clear any invalid stored content type
+                    console.log('Stored content type not valid, clearing and using initial:', initialContentType);
+                    // Clear the invalid stored content type
                     sessionStorage.removeItem("lastContentType");
                     setCurrentView(initialContentType);
                     sessionStorage.setItem("lastContentType", initialContentType);
                 }
                 
-                // Set initial content based on the actual current view (not initialContentType)
+                // Set initial content based on the actual current view
                 const actualCurrentView = sessionStorage.getItem("lastContentType") || initialContentType;
                 console.log('Setting content based on actual current view:', actualCurrentView);
                 
@@ -418,14 +398,10 @@ const fetchRoadmapData = async () => {
                     setSelectedContent(`Video ${firstVideoId}`);
                 } else if (actualCurrentView === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
                     console.log('Setting notes content');
-                    // Fetch notes content for initial load
+                    // Use SWR hook for notes content with 10-minute cache
                     const noteId = subTopic.notes[0];
-                    fetchNotesContent(noteId).then(noteData => {
-                        if (noteData) {
-                            setSelectedContent(noteData.content);
+                    setCurrentNoteId(noteId);
                     setContentType('notes');
-                        }
-                    });
                 } else if (actualCurrentView === 'mcq' && subTopic.mcqQuestions > 0) {
                     console.log('Fetching MCQ questions for initial load');
                     // Fetch MCQ questions for initial load
@@ -492,37 +468,7 @@ const fetchRoadmapData = async () => {
             }
     }, [studentId, subject, dayNumber]);
 
-    const fetchNotesContent = useCallback(async (noteId: number) => {
-        if (notesData[noteId]) {
-            return notesData[noteId]; // Return cached data if available
-        }
 
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/notes/${noteId}/`;
-        try {
-            setLoading(true);
-            setDisablePreviousBtn(true);
-            const response = await getApiClient().get(url);
-            const noteData: NoteData = {
-                id: noteId,
-                content: response.data.content
-            };
-            
-            setNotesData(prev => ({
-                ...prev,
-                [noteId]: noteData
-            }));
-            
-            setLoading(false);
-            setDisablePreviousBtn(false);
-            return noteData;
-        } catch (innerError: any) {
-            setError("Failed to load notes content. Please try again later.");
-            setLoading(false);
-            setDisablePreviousBtn(false);
-            console.error("Error fetching notes content:", innerError);
-            return null;
-            }
-    }, [studentId, subject, dayNumber]);
 
     const fetchCodingQuestions = useCallback(async (subTopicIndex: number) => {
         const url =`${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/${studentId}/${subject}/${subjectId}/${dayNumber}/${weekNumber}/${sessionStorage.getItem('currentSubTopicId')}/`
@@ -548,6 +494,55 @@ const fetchRoadmapData = async () => {
             console.error("Error fetching coding questions data:", innerError);
             }
     }, [studentId, subject, dayNumber]);
+
+    // SWR hook for caching notes with 10-minute TTL
+    const useNotesContent = (noteId: number | null) => {
+        const url = noteId ? `${process.env.REACT_APP_BACKEND_URL}api/student/notes/${noteId}/` : null;
+        return useAPISWR<{ content: string }>(url);
+    };
+
+    // Use SWR for notes content
+    const { data: notesContent, error: notesError } = useNotesContent(currentNoteId);
+
+    // Use SWR for video data
+    const { data: videoDataFromSWR, error: videoErrorFromSWR } = useVideoData(currentVideoId);
+
+    // Handle notes content from SWR
+    useEffect(() => {
+        if (notesContent && currentNoteId) {
+            setSelectedContent(notesContent.content);
+            setNotesData(prev => ({
+                ...prev,
+                [currentNoteId]: {
+                    id: currentNoteId,
+                    content: notesContent.content
+                }
+            }));
+        }
+    }, [notesContent, currentNoteId]);
+
+    // Handle video data from SWR
+    useEffect(() => {
+        if (videoDataFromSWR && currentVideoId) {
+            setVideoData(prev => ({
+                ...prev,
+                [currentVideoId]: videoDataFromSWR
+            }));
+        }
+    }, [videoDataFromSWR, currentVideoId]);
+
+    // Set current video ID when lesson changes
+    useEffect(() => {
+        if (chapters.length > 0 && currentView === 'lesson') {
+            const currentSubTopic = chapters[0].sub_topic_data[currentSubTopicIndex];
+            if (currentSubTopic.lesson && currentSubTopic.lesson.length > 0) {
+                const currentLesson = currentSubTopic.lesson[currentLessonIndex];
+                if (typeof currentLesson === 'number') {
+                    setCurrentVideoId(currentLesson);
+                }
+            }
+        }
+    }, [chapters, currentView, currentSubTopicIndex, currentLessonIndex]);
 
     const toggleSection = useCallback((index: number) => {
         setExpandedSections(prev =>
@@ -609,13 +604,10 @@ const fetchRoadmapData = async () => {
             console.log('SubTopic has notes, showing notes');
             setCurrentView('notes');
             sessionStorage.setItem("lastContentType", 'notes');
-            // Fetch notes content for the new subtopic
+            // Use SWR for notes content with 10-minute cache
             const noteId = subTopic.notes[0];
-            const noteData = await fetchNotesContent(noteId);
-            if (noteData) {
-                setSelectedContent(noteData.content);
+            setCurrentNoteId(noteId);
             setContentType('notes');
-            }
         } else if (subTopic.mcqQuestions > 0) {
             console.log('SubTopic has MCQs, showing MCQs');
             setCurrentView('mcq');
@@ -653,13 +645,10 @@ const fetchRoadmapData = async () => {
             if (view === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
                 // No need to set selectedContent for videos - they will be built dynamically
             } else if (view === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
-                // Fetch notes content if not already cached
+                // Use SWR for notes content with 10-minute cache
                 const noteId = subTopic.notes[currentNotesIndex];
-                const noteData = await fetchNotesContent(noteId);
-                if (noteData) {
-                    setSelectedContent(noteData.content);
+                setCurrentNoteId(noteId);
                 setContentType('notes');
-                }
             } else if (view === 'mcq') {
                 // Always fetch MCQ questions when switching to MCQ view
                 if (!hasFetched || mcqQuestions.length === 0) {
@@ -728,10 +717,7 @@ const fetchRoadmapData = async () => {
                 const nextIndex = currentNotesIndex + 1;
                 setCurrentNotesIndex(nextIndex);
                 const noteId = subTopic.notes[nextIndex];
-                const noteData = await fetchNotesContent(noteId);
-                if (noteData) {
-                    setSelectedContent(noteData.content);
-                }
+                setCurrentNoteId(noteId);
             } else if (chapters[0].sub_topic_data.length > currentSubTopicIndex + 1) {
                 const nextSubTopicIndex = currentSubTopicIndex + 1;
                 setCurrentSubTopicIndex(nextSubTopicIndex);
@@ -743,24 +729,18 @@ const fetchRoadmapData = async () => {
                 const nextSubTopic = chapters[0].sub_topic_data[nextSubTopicIndex];
                 if (nextSubTopic.notes && nextSubTopic.notes.length > 0) {
                     const noteId = nextSubTopic.notes[0];
-                    const noteData = await fetchNotesContent(noteId);
-                    if (noteData) {
-                        setSelectedContent(noteData.content);
+                    setCurrentNoteId(noteId);
                 }
             }
         }
-        }
-    }, [chapters, currentSubTopicIndex, currentNotesIndex, fetchNotesContent]);
+    }, [chapters, currentSubTopicIndex, currentNotesIndex]);
 
     const handlePreviousNotes = useCallback(async () => {
         if (currentNotesIndex > 0) {
             const prevIndex = currentNotesIndex - 1;
             setCurrentNotesIndex(prevIndex);
             const noteId = chapters[0].sub_topic_data[currentSubTopicIndex].notes[prevIndex];
-            const noteData = await fetchNotesContent(noteId);
-            if (noteData) {
-                setSelectedContent(noteData.content);
-            }
+            setCurrentNoteId(noteId);
         } else if (currentSubTopicIndex > 0) {
             const prevSubTopicIndex = currentSubTopicIndex - 1;
             const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
@@ -769,16 +749,13 @@ const fetchRoadmapData = async () => {
                 setCurrentSubTopicIndex(prevSubTopicIndex);
                 setCurrentNotesIndex(prevSubTopic.notes.length - 1);
                 const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
-                const noteData = await fetchNotesContent(noteId);
-                if (noteData) {
-                    setSelectedContent(noteData.content);
-                }
+                setCurrentNoteId(noteId);
                 
                 // Clear the last content type when moving to previous subtopic
                 sessionStorage.removeItem("lastContentType");
             }
         }
-    }, [chapters, currentSubTopicIndex, currentNotesIndex, fetchNotesContent]);
+    }, [chapters, currentSubTopicIndex, currentNotesIndex]);
 
     const handleNextMCQ = useCallback(() => {
         const currentSubtopic = chapters[0]?.sub_topic_data[currentSubTopicIndex];
@@ -1052,20 +1029,8 @@ useEffect(() => {
             // Check if we have cached video data for this video ID
             const hasCachedVideoData = videoData[currentVideoId];
             
-            // If we don't have cached data, fetch it from backend
+            // If we don't have cached data, show loading
             if (!hasCachedVideoData) {
-                // Fetch video data from backend
-                fetchVideoData(currentVideoId)
-                    .then(data => {
-                        setVideoData(prev => ({
-                            ...prev,
-                            [currentVideoId]: data
-                        }));
-                    })
-                    .catch(error => {
-                        console.error("Failed to fetch video data:", error);
-                    });
-                
                 // Show loading while fetching
                 return (
                     <div className='d-flex justify-content-center align-items-center' style={{ height: 'calc(100% - 60px)' }}>
@@ -1825,10 +1790,7 @@ const handlePrevious = useCallback(async () => {
                 setCurrentView('notes');
                 sessionStorage.setItem("lastContentType", 'notes');
                 const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
-                const noteData = await fetchNotesContent(noteId);
-                if (noteData) {
-                    setSelectedContent(noteData.content);
-                }
+                setCurrentNoteId(noteId);
             } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
                 setCurrentSubTopicIndex(prevSubTopicIndex);
                 setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
@@ -1869,10 +1831,7 @@ const handlePrevious = useCallback(async () => {
                   setCurrentView('notes');
                   sessionStorage.setItem("lastContentType", 'notes');
                   const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
-                  const noteData = await fetchNotesContent(noteId);
-                  if (noteData) {
-                      setSelectedContent(noteData.content);
-                  }
+                  setCurrentNoteId(noteId);
               } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
                   setCurrentSubTopicIndex(prevSubTopicIndex);
                   setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
@@ -1919,10 +1878,7 @@ const handlePrevious = useCallback(async () => {
                   setCurrentView('notes');
                   sessionStorage.setItem("lastContentType", 'notes');
                   const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
-                  const noteData = await fetchNotesContent(noteId);
-                  if (noteData) {
-                      setSelectedContent(noteData.content);
-                  }
+                  setCurrentNoteId(noteId);
               } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
                   setCurrentSubTopicIndex(prevSubTopicIndex);
                   setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
@@ -1969,10 +1925,7 @@ const handlePrevious = useCallback(async () => {
               setCurrentView('notes');
               sessionStorage.setItem("lastContentType", 'notes');
               const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
-              const noteData = await fetchNotesContent(noteId);
-              if (noteData) {
-                  setSelectedContent(noteData.content);
-              }
+              setCurrentNoteId(noteId);
           } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
               setCurrentSubTopicIndex(prevSubTopicIndex);
               setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
@@ -2190,12 +2143,9 @@ const handlePrevious = useCallback(async () => {
         setCurrentLessonIndex(itemIndex);
     } else if (contentType === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
         const noteId = subTopic.notes[itemIndex];
-        const noteData = await fetchNotesContent(noteId);
-        if (noteData) {
-            setSelectedContent(noteData.content);
+        setCurrentNoteId(noteId);
         setContentType('notes');
         setCurrentNotesIndex(itemIndex);
-        }
     } else if (contentType === 'mcq') {
         // Always fetch MCQ questions when switching to MCQ view
         await fetchMCQQuestions(index);
@@ -2208,7 +2158,7 @@ const handlePrevious = useCallback(async () => {
     }
 
     handleViewChange(contentType);
-}, [chapters, fetchMCQQuestions, fetchCodingQuestions, fetchNotesContent, hasFetched, currentSubTopicIndex]);
+}, [chapters, fetchMCQQuestions, fetchCodingQuestions, hasFetched, currentSubTopicIndex]);
 
 const [requestedContent, setRequestedContent] = useState<string[]>([]); 
 
@@ -2259,6 +2209,13 @@ useEffect(() => {
     // Force re-render of sidebar when currentView changes
     // This ensures the highlighting updates properly
 }, [currentView, currentLessonIndex, currentNotesIndex, currentMCQIndex]);
+
+// Effect to ensure sidebar stays expanded for current subtopic
+useEffect(() => {
+    if (chapters.length > 0 && currentSubTopicIndex >= 0) {
+        setExpandedSection(currentSubTopicIndex.toString());
+    }
+}, [chapters, currentSubTopicIndex]);
 
 
 return (
