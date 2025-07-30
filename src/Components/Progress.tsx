@@ -3,6 +3,7 @@ import { Card, ProgressBar } from "react-bootstrap";
 import { useAPISWR } from "../utils/swrConfig";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
+import { useApiLoading } from "../Dashboard";
 
 interface Subject {
   id: string;
@@ -43,12 +44,12 @@ function Progress() {
   const [delay, setDelay] = useState<Delay>({ delay: 0 });
   const [selectedSubject, setSelectedSubject] = useState<string>("All");
   const [selectedWeek, setSelectedWeek] = useState<string>("All");
-  const encryptedStudentId = sessionStorage.getItem("StudentId") || "";
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const studentId = decryptedStudentId;
+  const { studentId, isCoursesApiLoaded } = useApiLoading();
 
-  // Use SWR for weeklyprogress API with 2-minute cache
-  const { data: apiData, error } = useAPISWR<ApiResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}`);
+  // Use SWR for weeklyprogress API with 2-minute cache - only call after courses API is loaded
+  const { data: apiData, error } = useAPISWR<ApiResponse>(
+    isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}` : null
+  );
 
   useEffect(() => {
     if (apiData) {
