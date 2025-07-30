@@ -5,6 +5,7 @@ import Skeleton from "react-loading-skeleton";
 import { useAPISWR } from "../utils/swrConfig";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
+import { useApiLoading } from "../Dashboard";
 
 interface SpecialDates {
   [key: string]: { title: string; subject: string }[];
@@ -22,15 +23,15 @@ const Calendar: React.FC = () => {
   const [month, setMonth] = useState<number>(0);
   const [currentDate, setCurrentDate] = useState<Date>(new Date(year, month));
   const [specialDates, setSpecialDates] = useState<SpecialDates>({});
-  const encryptedStudentId = sessionStorage.getItem('StudentId');
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const studentId = decryptedStudentId;
+  const { studentId, isCoursesApiLoaded } = useApiLoading();
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
   
-  // Use SWR for event/calender API with 1-day cache
-  const { data: calendarData, error } = useAPISWR<CalendarResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/event/calender/${studentId}/`);
+  // Use SWR for event/calender API with 1-day cache - only call after courses API is loaded
+  const { data: calendarData, error } = useAPISWR<CalendarResponse>(
+    isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/event/calender/${studentId}/` : null
+  );
 
   useEffect(() => {
     if (calendarData) {

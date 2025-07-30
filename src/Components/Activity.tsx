@@ -16,6 +16,7 @@ import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 import { useAPISWR } from "../utils/swrConfig";
 import { Card } from "react-bootstrap";
+import { useApiLoading } from "../Dashboard";
 
 interface DataItem {
   day_name: string;
@@ -58,16 +59,16 @@ const Activity: React.FC = () => {
   const [weeklyLimit, setWeeklyLimit] = useState(0);
   const [selectedWeek, setSelectedWeek] = useState(0);
   const [, setMaxHours] = useState(100);
-  const encryptedStudentId = sessionStorage.getItem('StudentId');
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const studentId = decryptedStudentId;
+  const { studentId, isCoursesApiLoaded } = useApiLoading();
 
-  // Use SWR for hourspent API with 5-minute cache
-  const { data: activityData, error } = useAPISWR<ActivityResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/n/`);
+  // Use SWR for hourspent API with 5-minute cache - only call after courses API is loaded
+  const { data: activityData, error } = useAPISWR<ActivityResponse>(
+    isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/n/` : null
+  );
 
-  // Use SWR for weekly hourspent API with 5-minute cache
+  // Use SWR for weekly hourspent API with 5-minute cache - only call after courses API is loaded
   const { data: weeklyData, error: weeklyError } = useAPISWR<ActivityResponse>(
-    selectedWeek > 0 ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/${selectedWeek}/` : null
+    isCoursesApiLoaded && selectedWeek > 0 ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/hourspent/${studentId}/${selectedWeek}/` : null
   );
 
   useEffect(() => {

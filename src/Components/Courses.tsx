@@ -4,12 +4,12 @@ import { FaClock } from "react-icons/fa";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleRight } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
-import { useAPISWR } from "../utils/swrConfig";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
 import './Courses.css';
 import CourseImage from "../Components/images/CourseImage.png";
+import { useApiLoading } from "../Dashboard";
 
 interface Course {
   title: string;
@@ -69,10 +69,11 @@ const Courses: React.FC = () => {
     navigate("/SubjectOverview", { state: { title: courseTitle } });
   };
 
-  const { data: coursesData, error: coursesError } = useAPISWR<CoursesResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}`);
+  // Use the context instead of making our own API call
+  const { coursesData, coursesError, isCoursesApiLoaded } = useApiLoading();
 
   useEffect(() => {
-    if (coursesData) {
+    if (coursesData && isCoursesApiLoaded) {
       const colorMapping: { [key: string]: string } = {
         "HTML CSS": "#B6BAFE",
         "JavaScript": "#F0DC54",
@@ -93,7 +94,7 @@ const Courses: React.FC = () => {
 
       setTimeout(checkScrollStatus, 100);
     }
-  }, [coursesData]);
+  }, [coursesData, isCoursesApiLoaded]);
 
   const checkScrollStatus = () => {
     if (scrollContainerRef.current) {

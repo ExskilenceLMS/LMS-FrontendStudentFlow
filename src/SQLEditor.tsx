@@ -108,7 +108,7 @@ const SQLEditor: React.FC = () => {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/questions/${subject}/${weekNumber}/${dayNumber}/`;
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/${actualStudentId}/${subject}/${subjectId}/${dayNumber}/${weekNumber}/${sessionStorage.getItem('currentSubTopicId')}/`;
         const response = await getApiClient().get(url);
         const questionsData = response.data.questions;
         setQuestions(questionsData);

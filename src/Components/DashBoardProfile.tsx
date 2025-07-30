@@ -11,6 +11,7 @@ import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 import { LiaEditSolid } from "react-icons/lia";
 import UserPic from "./images/UserPic.jpg";
+import { useApiLoading } from "../Dashboard";
 
 interface ProfileData {
   score?: string;
@@ -24,15 +25,15 @@ interface ProfileData {
 
 function DashBoardProfile() {
   const navigate = useNavigate();
-  const encryptedStudentId = sessionStorage.getItem('StudentId');
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const studentId = decryptedStudentId;
+  const { studentId, isCoursesApiLoaded } = useApiLoading();
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
-  // Use SWR for summary API with 5-minute cache
-  const { data, error } = useAPISWR<ProfileData>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/summary/${studentId}/`);
+  // Use SWR for summary API with 5-minute cache - only call after courses API is loaded
+  const { data, error } = useAPISWR<ProfileData>(
+    isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/summary/${studentId}/` : null
+  );
 
   return (
     <div

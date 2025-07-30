@@ -4,6 +4,7 @@ import { useAPISWR } from "../utils/swrConfig";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
 import Skeleton from "react-loading-skeleton";
+import { useApiLoading } from "../Dashboard";
 
 interface Discussion {
   title: string;
@@ -31,9 +32,7 @@ const Upcoming: React.FC = () => {
   const [events, setEvents] = useState<Events[]>([]);
   const [loadingDiscussions, setLoadingDiscussions] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(true);
-  const encryptedStudentId = sessionStorage.getItem('StudentId');
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const studentId = decryptedStudentId;
+  const { studentId, isCoursesApiLoaded } = useApiLoading();
   const encryptedCourseId = sessionStorage.getItem('CourseId');
   const decryptedCourseId = CryptoJS.AES.decrypt(encryptedCourseId!, secretKey).toString(CryptoJS.enc.Utf8);
   const courseId = decryptedCourseId;
@@ -41,11 +40,15 @@ const Upcoming: React.FC = () => {
   const decryptedBatchId = CryptoJS.AES.decrypt(encryptedBatchId!, secretKey).toString(CryptoJS.enc.Utf8);
   const batchId = decryptedBatchId;
 
-  // Use SWR for upcomming sessions API with 1-hour cache
-  const { data: sessionsData, error: sessionsError } = useAPISWR<SessionsResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}`);
+  // Use SWR for upcomming sessions API with 1-hour cache - only call after courses API is loaded
+  const { data: sessionsData, error: sessionsError } = useAPISWR<SessionsResponse>(
+    isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}` : null
+  );
 
-  // Use SWR for upcomming events API with 3-hour cache
-  const { data: eventsData, error: eventsError } = useAPISWR<EventsResponse>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}`);
+  // Use SWR for upcomming events API with 3-hour cache - only call after courses API is loaded
+  const { data: eventsData, error: eventsError } = useAPISWR<EventsResponse>(
+    isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}` : null
+  );
 
   useEffect(() => {
     if (sessionsData) {
