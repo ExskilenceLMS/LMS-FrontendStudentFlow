@@ -301,30 +301,42 @@ const isTestTimeMatch = (test: TestDetail) => {
 
   const currentDateFormatted = datePart; // Already in YYYY-MM-DD format
 
-  // Check if current date is between start and end dates
-  const isDateInRange = currentDateFormatted >= test.startdate && currentDateFormatted <= test.enddate;
 
+
+  // Different date range logic based on test type
+  let isDateInRange = false;
+  
+  if (test.testtype === "Final Test") {
+    // Final Test: Must be within the exact date range
+    isDateInRange = currentDateFormatted >= test.startdate && currentDateFormatted <= test.enddate;
+  } else {
+    // Monthly Test and other tests: Can be taken anytime after start date
+    isDateInRange = currentDateFormatted >= test.startdate;
+  }
+  
   if (!isDateInRange) {
     return false;
   }
 
-  // If we're on the start date, check if current time is after start time
-  if (currentDateFormatted === test.startdate) {
-    const testStartTotalMinutes = startHour * 60 + startMinute;
-    const currentTotalMinutes = currentHour * 60 + currentMinute;
-    const isTimeMatch = currentTotalMinutes >= testStartTotalMinutes;
-    return isTimeMatch;
-  }
+  const testStartTotalMinutes = startHour * 60 + startMinute;
+  const testEndTotalMinutes = endHour * 60 + endMinute;
+  const currentTotalMinutes = currentHour * 60 + currentMinute;
 
-  // If we're on the end date, check if current time is before end time
-  if (currentDateFormatted === test.enddate) {
-    const testEndTotalMinutes = endHour * 60 + endMinute;
-    const currentTotalMinutes = currentHour * 60 + currentMinute;
-    const isTimeMatch = currentTotalMinutes <= testEndTotalMinutes;
-    return isTimeMatch;
+  // Different logic based on test type
+  if (test.testtype === "Final Test") {
+    // Final Test: Must be taken only during the exact time window on the exact date
+    if (currentDateFormatted === test.startdate && currentDateFormatted === test.enddate) {
+      // Same day test - check if current time is within the window
+      return currentTotalMinutes >= testStartTotalMinutes && currentTotalMinutes <= testEndTotalMinutes;
+    }
+    return false; 
+  } else {
+    if (currentDateFormatted === test.startdate) {
+      // On start date - check if current time is after start time
+      return currentTotalMinutes >= testStartTotalMinutes;
+    }
+    return true;
   }
-
-  return true;
 };
 
   const SkeletonLoader = () => {

@@ -171,29 +171,15 @@ const SubjectRoadMap: React.FC = () => {
 
     // Helper function to determine initial content type based on availability
     const getInitialContentType = (subTopic: SubTopic): 'lesson' | 'notes' | 'mcq' | 'coding' => {
-        console.log('getInitialContentType called with subTopic:', subTopic);
-        console.log('Full subTopic object:', JSON.stringify(subTopic, null, 2));
-        console.log('SubTopic details:', {
-            lessonCount: subTopic.lesson?.length || 0,
-            notesCount: subTopic.notes?.length || 0,
-            mcqQuestions: subTopic.mcqQuestions,
-            codingQuestions: subTopic.codingQuestions
-        });
-        
         if (subTopic.lesson && subTopic.lesson.length > 0) {
-            console.log('Returning lesson as initial content type');
             return 'lesson';
         } else if (subTopic.notes && subTopic.notes.length > 0) {
-            console.log('Returning notes as initial content type');
             return 'notes';
         } else if (subTopic.mcqQuestions > 0) {
-            console.log('Returning mcq as initial content type');
             return 'mcq';
         } else if (subTopic.codingQuestions > 0) {
-            console.log('Returning coding as initial content type');
             return 'coding';
         }
-        console.log('Returning lesson as default fallback');
         return 'lesson'; // fallback
     };
 
@@ -365,8 +351,6 @@ const fetchRoadmapData = async () => {
                 
                 // Check stored content type and respect it if available in current subtopic
                 const storedContentType = sessionStorage.getItem("lastContentType");
-                console.log('Stored content type:', storedContentType);
-                console.log('SubTopic has videos:', subTopic.lesson && subTopic.lesson.length > 0);
                 
                 // Check if the stored content type is available for this subtopic
                 const isValidStoredType = storedContentType && (
@@ -377,11 +361,9 @@ const fetchRoadmapData = async () => {
                 );
                 
                 if (isValidStoredType) {
-                    console.log('Using stored content type:', storedContentType);
                     setCurrentView(storedContentType as 'lesson' | 'mcq' | 'coding' | 'notes');
                     sessionStorage.setItem("lastContentType", storedContentType);
                 } else {
-                    console.log('Stored content type not valid, clearing and using initial:', initialContentType);
                     // Clear the invalid stored content type
                     sessionStorage.removeItem("lastContentType");
                     setCurrentView(initialContentType);
@@ -390,30 +372,23 @@ const fetchRoadmapData = async () => {
                 
                 // Set initial content based on the actual current view
                 const actualCurrentView = sessionStorage.getItem("lastContentType") || initialContentType;
-                console.log('Setting content based on actual current view:', actualCurrentView);
                 
                 if (actualCurrentView === 'lesson' && subTopic.lesson && subTopic.lesson.length > 0) {
-                    console.log('Setting lesson content');
                     const firstVideoId = subTopic.lesson[0];
                     setSelectedContent(`Video ${firstVideoId}`);
                 } else if (actualCurrentView === 'notes' && subTopic.notes && subTopic.notes.length > 0) {
-                    console.log('Setting notes content');
                     // Use SWR hook for notes content with 10-minute cache
                     const noteId = subTopic.notes[0];
                     setCurrentNoteId(noteId);
                     setContentType('notes');
                 } else if (actualCurrentView === 'mcq' && subTopic.mcqQuestions > 0) {
-                    console.log('Fetching MCQ questions for initial load');
                     // Fetch MCQ questions for initial load
                     fetchMCQQuestions(actualSubTopicIndex);
                     setHasFetched(true);
                 } else if (actualCurrentView === 'coding' && subTopic.codingQuestions > 0) {
-                    console.log('Fetching coding questions for initial load');
                     // Fetch coding questions for initial load
                     fetchCodingQuestions(actualSubTopicIndex);
                     setHasFetched(true);
-                } else {
-                    console.log('No content to set for actual current view:', actualCurrentView);
                 }
             }
         }
@@ -445,15 +420,10 @@ const fetchRoadmapData = async () => {
 
     const fetchMCQQuestions = useCallback(async (subTopicIndex: number) => {
         const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicemcq/${studentId}/${subject}/${subjectId}/${dayNumber}/${weekNumber}/${sessionStorage.getItem('currentSubTopicId')}/`
-        console.log('fetchMCQQuestions called with URL:', url);
-        console.log('SubTopic index:', subTopicIndex);
-        console.log('Current subtopic ID:', sessionStorage.getItem('currentSubTopicId'));
         try {
             setLoading(true);
             setDisablePreviousBtn(true);
             const response = await getApiClient().get(url);
-            console.log('MCQ questions fetched:', response.data.questions);
-            console.log('MCQ questions length:', response.data.questions?.length || 0);
 
             setMcqQuestions(response.data.questions);
             setCurrentMCQIndex(0);
@@ -596,12 +566,10 @@ const fetchRoadmapData = async () => {
 
         // Priority: Always show videos if available, regardless of stored content type
         if (subTopic.lesson && subTopic.lesson.length > 0) {
-            console.log('SubTopic has videos, showing videos');
             setCurrentView('lesson');
             sessionStorage.setItem("lastContentType", 'lesson');
             // No need to set selectedContent for videos - they will be built dynamically
         } else if (subTopic.notes && subTopic.notes.length > 0) {
-            console.log('SubTopic has notes, showing notes');
             setCurrentView('notes');
             sessionStorage.setItem("lastContentType", 'notes');
             // Use SWR for notes content with 10-minute cache
@@ -609,14 +577,12 @@ const fetchRoadmapData = async () => {
             setCurrentNoteId(noteId);
             setContentType('notes');
         } else if (subTopic.mcqQuestions > 0) {
-            console.log('SubTopic has MCQs, showing MCQs');
             setCurrentView('mcq');
             sessionStorage.setItem("lastContentType", 'mcq');
             // Fetch MCQ questions for the new subtopic
             await fetchMCQQuestions(index);
             setHasFetched(true);
         } else if (subTopic.codingQuestions > 0) {
-            console.log('SubTopic has coding, showing coding');
             setCurrentView('coding');
             sessionStorage.setItem("lastContentType", 'coding');
             // Fetch coding questions for the new subtopic
@@ -630,7 +596,6 @@ const fetchRoadmapData = async () => {
 
     
     const handleViewChange = useCallback(async (view: 'lesson' | 'mcq' | 'coding'  | 'notes') => {
-        console.log('handleViewChange called with view:', view);
         setCurrentView(view);
         sessionStorage.setItem("lastContentType", view);
         setCurrentContentType(view);
@@ -652,13 +617,11 @@ const fetchRoadmapData = async () => {
             } else if (view === 'mcq') {
                 // Always fetch MCQ questions when switching to MCQ view
                 if (!hasFetched || mcqQuestions.length === 0) {
-                    console.log('Fetching MCQ questions in handleViewChange');
                     fetchMCQQuestions(currentSubTopicIndex);
                 }
             } else if (view === 'coding') {
                 // Always fetch coding questions when switching to coding view
                 if (!hasFetched || codingQuestions.length === 0) {
-                    console.log('Fetching coding questions in handleViewChange');
                     fetchCodingQuestions(currentSubTopicIndex);
                 }
             }
@@ -1236,14 +1199,6 @@ useEffect(() => {
 
 
 const renderMCQContent = () => {
-    console.log('MCQ render state:', { 
-        loading, 
-        error, 
-        mcqQuestionsLength: mcqQuestions.length, 
-        currentView,
-        currentMCQIndex 
-    });
-    
     const shuffleArray = (array: string[]) => {
         const shuffled = [...array];
         for (let i = shuffled.length - 1; i > 0; i--) {
@@ -1254,7 +1209,6 @@ const renderMCQContent = () => {
     };
 
     if (error || !mcqQuestions.length) {
-        console.log('MCQ render condition:', { error, mcqQuestionsLength: mcqQuestions.length, currentView });
         return <div></div>;
     }
 
@@ -2168,22 +2122,13 @@ useEffect(() => {
         return;
     }
     
-    console.log('Content fetch effect triggered:', {
-        currentView,
-        hasFetched,
-        mcqQuestionsLength: mcqQuestions.length,
-        codingQuestionsLength: codingQuestions.length
-    });
-    
     const requestedContentTypes = sessionStorage.getItem('lastContentType') ||'';
     if ( sessionStorage.getItem('currentSubTopicId') != null && !hasFetched) {
         if (requestedContentTypes.includes('mcq') && mcqQuestions.length === 0) {
-            console.log('Fetching MCQ questions from effect');
             fetchMCQQuestions(0);
         }
 
         if (requestedContentTypes.includes('coding') && codingQuestions.length === 0) {
-            console.log('Fetching coding questions from effect');
             fetchCodingQuestions(0);
         }
 
@@ -2193,9 +2138,7 @@ useEffect(() => {
 
 // Effect to handle MCQ view when questions are not loaded
 useEffect(() => {
-    console.log('Current view changed to:', currentView);
     if (currentView === 'mcq' && mcqQuestions.length === 0 && !loading) {
-        console.log('Current view is MCQ but no questions loaded, fetching...');
         fetchMCQQuestions(currentSubTopicIndex);
     }
 }, [currentView, mcqQuestions.length, loading, currentSubTopicIndex, fetchMCQQuestions]);
@@ -2265,7 +2208,6 @@ return (
                                     </div>
                                 )}
                                 {currentView === 'mcq' && (() => {
-                                    console.log('MCQ view condition:', { currentView, mcqQuestionsLength: mcqQuestions.length });
                                     if (mcqQuestions.length > 0) {
                                         return (
                                             <div className="flex-grow-1 me-2 d-flex flex-column" style={{ height: '100%' }}>
