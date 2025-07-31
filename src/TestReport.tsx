@@ -29,6 +29,8 @@ interface Data1 {
   time: {
     start: string;
     end: string;
+    actual_start: string;
+    actual_end: string;
   };
   good: string[];
   average: string[];
@@ -86,6 +88,8 @@ const TestReport: React.FC = () => {
     time: {
       start: "",
       end: "",
+      actual_start: "",
+      actual_end: "",
     },
     good: [],
     average: [],
@@ -144,6 +148,8 @@ const TestReport: React.FC = () => {
           time: {
             start: apiData.test_summary.test_start_time || "Not started",
             end: apiData.test_summary.test_end_time || "Not completed",
+            actual_start: apiData.test_summary.actual_test_start_time || "--",
+            actual_end: apiData.test_summary.actual_test_end_time || "--", 
           },
           good: apiData.topics.good || [],
           average: apiData.topics.average || [],
@@ -213,9 +219,9 @@ const TestReport: React.FC = () => {
             <div className="p-1 pt-4">
               <div className="container-fluid border rounded-3 shadow-sm" style={{ backgroundColor: '#f8f9fa', padding: '2rem' }}>
                 {/* <h4 className="text-center mb-4" style={{ color: '#2c3e50', fontWeight: '600' }}>Test Summary</h4> */}
-                <div className="row mb-4">
-                  <div className="col-md-3 mb-3">
-                    <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                <div className="row align-items-stretch">
+                  <div className="col-3 mb-3">
+                    <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                       <div className="h4 mb-2" style={{ color: '#3498db', fontWeight: 'normal' }}>
                         {data.timeTaken !== undefined ? data.timeTaken : "0"}
                       </div>
@@ -225,8 +231,8 @@ const TestReport: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="col-md-3 mb-3">
-                    <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                  <div className="col-3 mb-3">
+                    <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                       <div className="h4 mb-2" style={{ color: '#e74c3c', fontWeight: 'normal' }}>
                         {data.score.user !== undefined ? data.score.user : "0"}
                       </div>
@@ -236,8 +242,8 @@ const TestReport: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="col-md-3 mb-3">
-                    <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                  <div className="col-3 mb-3">
+                    <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                       <div className="h4 mb-2" style={{ color: data.result.status === 'Passed' ? '#27ae60' : '#e74c3c', fontWeight: 'normal' }}>
                         {data.result.status !== undefined ? data.result.status : "Failed"}
                       </div>
@@ -247,8 +253,8 @@ const TestReport: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="col-md-3 mb-3">
-                    <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                  <div className="col-3 mb-3">
+                    <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                       <div className="h4 mb-2" style={{ color: '#f39c12', fontWeight: 'normal' }}>
                         {data.problems.user !== undefined ? data.problems.user : "0"}
                       </div>
@@ -257,13 +263,9 @@ const TestReport: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                </div>
                 
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <div className="row">
-                      <div className="col-6">
-                        <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <div className="col-3">
+                        <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                           <div className="h5 mb-2" style={{ color: '#9b59b6', fontWeight: 'normal' }}>
                             {data.rank.college_rank !== undefined && data.rank.college_rank !== "-1" && data.rank.college_rank !== -1 ? data.rank.college_rank.toString() : "--"}
                           </div>
@@ -272,8 +274,8 @@ const TestReport: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="col-6">
-                        <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <div className="col-3">
+                        <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                           <div className="h5 mb-2" style={{ color: '#9b59b6', fontWeight: 'normal' }}>
                             {data.rank.overall_rank !== undefined && data.rank.overall_rank !== "-1" && data.rank.overall_rank !== -1 ? data.rank.overall_rank.toString() : "--"}
                           </div>
@@ -282,14 +284,15 @@ const TestReport: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div className="col-md-6 mb-3">
-                    <div className="row">
-                      <div className="col-6">
-                        <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                          <div className="h6 mb-2" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                      <div className="col-3">
+                        <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                          <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                            {data.time.actual_start !== undefined ? data.time.actual_start : "0"}
+                          </div>
+                          <p className="fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            Actual Test Start Time
+                          </p>
+                          <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
                             {data.time.start !== undefined ? data.time.start : "0"}
                           </div>
                           <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
@@ -297,9 +300,15 @@ const TestReport: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="col-6">
-                        <div className="text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                          <div className="h6 mb-2" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                      <div className="col-3">
+                        <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                          <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                            {data.time.actual_end !== undefined ? data.time.actual_end : "0"}
+                          </div>
+                          <p className="mb-0 fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            Actual Test End Time
+                          </p>
+                          <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
                             {data.time.end !== undefined ? data.time.end : "0"}
                           </div>
                           <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
@@ -307,61 +316,72 @@ const TestReport: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                    </div>
                   </div>
-                </div>
+                
               </div>
               {(data.good.length > 0 || data.average.length > 0 || data.bad.length > 0) ? (
-                <div className="container-fluid mt-5 pb-3 border rounded-2 shadow">
-                  {data.good.length > 0 && (
-                    <div className="row row-cols-5 row-cols-lg-6 row-cols-md-4 row-cols-sm-3 row-cols-xl-8">
-                      <span className="mt-2 p-2 ps-3">Very Good :</span>
+                <div className="container-fluid mt-5 border rounded-2 shadow">
+                    {data.good.length > 0 && (
+                     <div className="row align-items-center pb-2">
+                       <div className="col-2 mt-2 p-2 ps-3">
+                       <span className="">Very Good :</span>
+                       </div>
+                       <div className="col-10 d-flex flex-wrap">
                       {data.good.map((item) => (
                         <span
                           key={item}
-                          style={{ width: "140px", backgroundColor: expandedTopics[item] ? '#6eadef' : 'initial', color: expandedTopics[item] ? 'white' : 'initial' }}
-                          role="button"
+                          style={{ backgroundColor: expandedTopics[item] ? '#6eadef' : 'initial', color: expandedTopics[item] ? 'white' : 'initial' }}
                           title={item}
-                          className="mt-2 d-flex justify-content-center border rounded-2 mx-3 text-center p-1 shadow py-2"
+                          role="button"
+                          className="mt-2 justify-content-center border rounded-2 mx-3 text-center p-1 shadow py-2 w-auto"
                           onClick={() => toggleTopic(item)}
                         >
-                          {item.length > 10 ? item.substring(0, 10) + "..." : item}
+                          {item}
                         </span>
                       ))}
+                      </div>
                     </div>
                   )}
-                  {data.average.length > 0 && (
-                    <div className="row row-cols-5 mt-4 row-cols-lg-6 row-cols-md-4 row-cols-sm-3 row-cols-xl-8">
-                      <span className="mt-2 p-2 ps-3">Average in :</span>
+                    {data.average.length > 0 && (
+                     <div className="row align-items-center pb-2">
+                       <div className="col-2 mt-2 p-2 ps-3">
+                       <span className="">Average in :</span>
+                       </div>
+                       <div className="col-10 d-flex flex-wrap align-items-center">
                       {data.average.map((item) => (
                         <span
                           key={item}
-                          style={{ width: "140px", backgroundColor: expandedTopics[item] ? '#6eadef' : 'initial', color: expandedTopics[item] ? 'white' : 'initial' }}
+                          style={{ backgroundColor: expandedTopics[item] ? '#6eadef' : 'initial', color: expandedTopics[item] ? 'white' : 'initial' }}
                           title={item}
                           role="button"
-                          className="mt-2 d-flex justify-content-center border rounded-2 mx-3 text-center p-1 shadow py-2"
+                          className="mt-2 justify-content-center border rounded-2 mx-3 text-center p-1 shadow py-2 w-auto"
                           onClick={() => toggleTopic(item)}
                         >
-                          {item.length > 10 ? item.substring(0, 10) + "..." : item}
+                          {item}
                         </span>
                       ))}
+                      </div>
                     </div>
                   )}
                   {data.bad.length > 0 && (
-                    <div className="row row-cols-5 mt-4 row-cols-lg-6 row-cols-md-4 row-cols-sm-3 row-cols-xl-8">
-                      <span className="mt-2 p-2 ps-3">Poor in :</span>
+                     <div className="row align-items-center">
+                       <div className="col-2 mt-2 p-2 ps-3">
+                       <span className="">Poor in :</span>
+                       </div>
+                       <div className="col-10 d-flex flex-wrap align-items-center">
                       {data.bad.map((item) => (
                         <span
                           key={item}
-                          style={{ width: "140px", backgroundColor: expandedTopics[item] ? '#6eadef' : 'initial', color: expandedTopics[item] ? 'white' : 'initial' }}
+                          style={{ backgroundColor: expandedTopics[item] ? '#6eadef' : 'initial', color: expandedTopics[item] ? 'white' : 'initial' }}
                           title={item}
                           role="button"
-                          className="mt-2 d-flex justify-content-center border rounded-2 mx-3 text-center p-1 shadow py-2"
+                          className="mt-2 justify-content-center border rounded-2 mx-3 text-center p-1 shadow py-2 w-auto"
                           onClick={() => toggleTopic(item)}
                         >
-                          {item.length > 10 ? item.substring(0, 10) + "..." : item}
+                          {item}
                         </span>
                       ))}
+                      </div>
                     </div>
                   )}
                 </div>
