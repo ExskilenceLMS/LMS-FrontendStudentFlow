@@ -292,40 +292,24 @@ const decryptData = (encryptedData: string) => {
   /**
    * Submits code to FastAPI backend for execution
    * @param code - The Python code to execute
-   * @param testCases - Optional test cases to validate against
+   * @param testCases - Test cases to validate against
    * @param timeout - Execution timeout in seconds
    * @param questionId - Question identifier
    * @param testId - Test identifier
    * @returns Submission ID from the backend
    */
-  const submitCodeToBackend = async (code: string, testCases?: any[], timeout: number = 15, questionId: string = "q123", testId: string ="practice"): Promise<string> => {
-    let payload: any;
-    
-    if (testCases && testCases.length > 0) {
-      // For "RUN CODE" - with test cases
-      payload = {
-        code: code,
-        TestCases: testCases,
-        FunctionCall: "",
-        language: "python",
-        timeout: timeout,
-        memory_limit: timeout === 10 ? "100m" : "200m",
-        user_id: studentId,
-        question_id: questionId,
-        test_id: testId
-      };
-    } else {
-      // For "RUN" - simple execution without test cases
-      payload = {
-        code: code,
-        question_id: questionId,
-        test_id: testId,
-        language: "python",
-        timeout: timeout,
-        memory_limit: timeout === 10 ? "100m" : "200m",
-        user_id: studentId
-      };
-    }
+  const submitCodeToBackend = async (code: string, testCases: any[], timeout: number = 15, questionId: string = "q123", testId: string ="practice"): Promise<string> => {
+    const payload = {
+      code: code,
+      TestCases: testCases,
+      FunctionCall: "",
+      language: "python",
+      timeout: timeout,
+      memory_limit: timeout === 10 ? "100m" : "200m",
+      user_id: studentId,
+      question_id: questionId,
+      test_id: testId
+    };
 
     const response = await fetch('https://pyexe.exskilence.com/api/v1/submit', {
       method: 'POST',
@@ -551,55 +535,6 @@ const decryptData = (encryptedData: string) => {
 
   // ===== FASTAPI CODE EXECUTION =====
   
-  /**
-   * Simple code execution without test cases (RUN button)
-   * Executes code and shows output only
-   */
-  const handleRunSimple = async () => {
-    if (!Ans.trim()) {
-      return;
-    }
-
-    setProcessing(true);
-    setExecutionStatus('submitting');
-    setOutput('');
-    setSuccessMessage('');
-    setAdditionalMessage('');
-    setRunResponseTestCases([]);
-
-    try {
-      // Simple execution without test cases
-      const submissionId = await submitCodeToBackend(Ans, [], 10, "q123", "practice");
-      setCurrentSubmissionId(submissionId);
-      setExecutionStatus('executing');
-
-      // Poll for completion
-      const result = await pollExecutionStatus(submissionId, 10);
-      
-      if (result.result.success) {
-        setOutput(result.result.actual_output);
-        setSuccessMessage('Code executed successfully');
-      } else {
-        // Handle error from parsed_results
-        const parsedResults = result.result.parsed_results;
-        const errorMessage = Array.isArray(parsedResults) 
-          ? 'Unknown error' 
-          : parsedResults?.error || 'Unknown error';
-        setOutput(`Error: ${errorMessage}`);
-        setSuccessMessage('Execution failed');
-      }
-      
-      setExecutionStatus('completed');
-    } catch (error) {
-      console.error('Simple execution failed:', error);
-      setOutput(`Error: ${error instanceof Error ? error.message : 'Execution failed'}`);
-      setSuccessMessage('Execution failed');
-      setExecutionStatus('error');
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   /**
    * Code execution with test cases (RUN CODE button)
    * Executes code and validates against test cases
@@ -976,22 +911,6 @@ const handleSubmit = async () => {
                           )}
                         </div>
                         <div className="d-flex justify-content-end align-items-center">
-                          {/* Run Button (Simple execution) */}
-                          <button
-                            className="btn btn-sm btn-light me-2 processingDivButton"
-                            style={{
-                              whiteSpace: "nowrap",
-                              fontSize: "12px",
-                              minWidth: "70px",
-                              boxShadow: "#888 1px 2px 5px 0px",
-                              height: "30px"
-                            }}
-                            onClick={handleRunSimple}
-                            disabled={processing || !Ans.trim() || !backendHealthy}
-                          >
-                            RUN
-                          </button>
-                          
                           {/* Run Code Button (With test cases) */}
                           <button
                             className="btn btn-sm btn-light me-2 processingDivButton"
@@ -1000,12 +919,34 @@ const handleSubmit = async () => {
                               fontSize: "12px",
                               minWidth: "70px",
                               boxShadow: "#888 1px 2px 5px 0px",
-                              height: "30px"
+                              height: "30px",
+                              position: "relative",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "4px"
                             }}
                             onClick={handleRunCode}
                             disabled={processing || !Ans.trim() || !backendHealthy}
                           >
-                            RUN TESTCASES
+                            {/* Health Status Indicator */}
+                            <div 
+                              style={{
+                                width: "8px",
+                                height: "8px",
+                                borderRadius: "50%",
+                                backgroundColor: backendHealthy ? "#10B981" : "#EF4444",
+                                border: `1px solid ${backendHealthy ? "#059669" : "#DC2626"}`,
+                                boxShadow: backendHealthy 
+                                  ? "0 0 4px rgba(16, 185, 129, 0.6)" 
+                                  : "0 0 4px rgba(239, 68, 68, 0.6)",
+                                animation: backendHealthy ? "pulse-green-small 2s ease-in-out infinite" : "pulse-red-small 2s ease-in-out infinite",
+                                flexShrink: 0
+                              }}
+                              title={backendHealthy ? "Backend Connected" : "Backend Disconnected"}
+                            />
+                            RUN CODE
+                            
                           </button>
                           
                           {/* Submit Code Button */}
@@ -1048,21 +989,6 @@ const handleSubmit = async () => {
 
                     {/* ===== OUTPUT AND TEST RESULTS PANEL ===== */}
                     <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533", position: "relative" }}>
-                      {/* ===== HEALTH STATUS INDICATOR ===== */}
-                      <div 
-                        style={{
-                          position: "absolute",
-                          top: "10px",
-                          right: "10px",
-                          width: "12px",
-                          height: "12px",
-                          borderRadius: "50%",
-                          backgroundColor: backendHealthy ? "#42FF58" : "#FF4242",
-                          animation: backendHealthy ? "blink-green 2s infinite" : "blink-red 2s infinite",
-                          zIndex: 1000
-                        }}
-                      />
-                      
                       <div className="p-3 overflow-auto" style={{ height: "calc(100% - 10px)" }}>
                         {/* ===== CODE EXECUTION OUTPUT ===== */}
                         {output ? (
@@ -1121,13 +1047,40 @@ const handleSubmit = async () => {
       {/* ===== CSS ANIMATIONS FOR HEALTH INDICATOR ===== */}
       <style>
         {`
-          @keyframes blink-green {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
+          @keyframes pulse-green-small {
+            0% {
+              transform: scale(1);
+              opacity: 1;
+              box-shadow: 0 0 4px rgba(16, 185, 129, 0.6);
+            }
+            50% {
+              transform: scale(1.2);
+              opacity: 0.8;
+              box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+            }
+            100% {
+              transform: scale(1);
+              opacity: 1;
+              box-shadow: 0 0 4px rgba(16, 185, 129, 0.6);
+            }
           }
-          @keyframes blink-red {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
+          
+          @keyframes pulse-red-small {
+            0% {
+              transform: scale(1);
+              opacity: 1;
+              box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
+            }
+            50% {
+              transform: scale(1.2);
+              opacity: 0.8;
+              box-shadow: 0 0 6px rgba(239, 68, 68, 0.8);
+            }
+            100% {
+              transform: scale(1);
+              opacity: 1;
+              box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
+            }
           }
         `}
       </style>
