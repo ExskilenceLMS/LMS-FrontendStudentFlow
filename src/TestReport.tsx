@@ -134,7 +134,7 @@ const TestReport: React.FC = () => {
           },
           result: {
             pass: apiData.test_summary.status === "Passed" || apiData.test_summary.status === "Completed",
-            status: apiData.test_summary.status || (apiData.test_summary.percentage >= 40 ? "Passed" : "Failed"),
+            status: apiData.test_summary.percentage >= 40 ? "Passed" : "Failed",
             cutoff: ">=40%",
           },
           problems: {
