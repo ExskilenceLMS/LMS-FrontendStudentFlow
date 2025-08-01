@@ -24,12 +24,15 @@ import Layout from './Components/Layout';
 import EditProfile from './Components/EditProfile';
 import TestSQLCoding from './TestSQLCoding';
 import TestingMCQS from './Components/TestingMCQS';
+import PythonContentTester from './PythonContentTester';
 
 const AppRoutes = () => {
   return (
-    <Routes>
-      <Route path="/" element={<Login />} />
-      <Route element={<ProtectedRoute />}>
+          <Routes>
+        <Route path="/" element={<Login />} />
+        {/* Public route for Python content testing - no login required */}
+        <Route path="/python-content-tester" element={<PythonContentTester />} />
+        <Route element={<ProtectedRoute />}>
         <Route path="/Dashboard" element={<Layout><Dashboard /></Layout>} />
         <Route path="/SubjectOverview" element={<Layout><SubjectOverview /></Layout>} />
         <Route path="/FAQ" element={<Layout><FAQ /></Layout>} />
