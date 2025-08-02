@@ -4,6 +4,7 @@ import Skeleton from "react-loading-skeleton";
 import Footer from "./Components/Footer";
 import { useNavigate } from "react-router-dom";
 import { getApiClient } from './utils/apiAuth';
+import { useAPISWR } from "./utils/swrConfig";
 import { IoMdInformationCircleOutline } from "react-icons/io";
 import { CiSquareChevUp, CiSquareChevDown } from "react-icons/ci";
 import { secretKey } from "./constants";
@@ -30,6 +31,44 @@ interface Week {
   topics?: string;
   days?: Day[];
 }
+
+interface StaticWeek {
+  week: number;
+  startDate: string;
+  endDate: string;
+  totalHours: number;
+  days: {
+    day: string;
+    day_key: string;
+    date: string;
+    week: number;
+    topics: string;
+    videos: number;
+    notes: number;
+    mcq: number;
+    coding: number;
+    mcq_total_score: number;
+    coding_total_score: number;
+  }[];
+  topics: string | null;
+}
+
+interface StudentWeek {
+  week: number;
+  days: {
+    day: number;
+    topics: string;
+    practiceMCQ: {
+      questions: string;
+      score: string;
+    };
+    practiceCoding: {
+      questions: string;
+      score: string;
+    };
+    status: string;
+  }[];
+}
  
 const SubjectOverview: React.FC = () => {
   const navigate = useNavigate();
@@ -44,52 +83,112 @@ const SubjectOverview: React.FC = () => {
   const subjectId = decryptedSubjectId;
   const encryptedSubject = sessionStorage.getItem('Subject');
   const decryptedSubject = CryptoJS.AES.decrypt(encryptedSubject!, secretKey).toString(CryptoJS.enc.Utf8);
-  const subject = decryptedSubject;
+  const encryptedBatchId = sessionStorage.getItem('BatchId');
+  const decryptedBatchId = CryptoJS.AES.decrypt(encryptedBatchId!, secretKey).toString(CryptoJS.enc.Utf8);
+  const batchId = decryptedBatchId;
   const [data, setData] = useState<Week[]>([]);
   const [loading, setLoading] = useState(true);
   const [btnClickLoading, setBtnClickLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set());
+    const [openWeeks, setOpenWeeks] = useState<Set<number>>(new Set());
   const actualStudentId = CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail = CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName = CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
- 
+
+  // Use SWR for static roadmap data with 10-minute cache
+  const staticRoadmapUrl = `${process.env.REACT_APP_BACKEND_URL}api/roadmap_static/${courseId}/${batchId}/${subjectId}/`;
+  const { data: staticRoadmapData, error: staticRoadmapError } = useAPISWR<{ course_roadmap: StaticWeek[] }>(staticRoadmapUrl);
+
+  // Use regular API call for student-specific data (no caching)
+  const [studentData, setStudentData] = useState<StudentWeek[]>([]);
+  const [studentDataLoading, setStudentDataLoading] = useState(true);
+  const [studentDataError, setStudentDataError] = useState<any>(null);
+
   useEffect(() => {
-    const fetchDataFromAPI = async () => {
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/roadmap/${studentId}/${courseId}/${subjectId}`;
+    const fetchStudentData = async () => {
+      try {
+        setStudentDataLoading(true);
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/roadmap_students_data/${studentId}/${courseId}/${batchId}/${subjectId}/`;
+        const response = await getApiClient().get(url);
+        setStudentData(response.data.weeks);
+        setStudentDataError(null);
+      } catch (error: any) {
+        setStudentDataError(error);
+        console.error("Error fetching student data:", error);
+      } finally {
+        setStudentDataLoading(false);
+      }
+    };
+
+    fetchStudentData();
+  }, [studentId, courseId, batchId, subjectId]);
+
+  useEffect(() => {
+    if (staticRoadmapData && studentData.length > 0) {
       try {
         setLoading(true);
-        const response = await getApiClient().get(url);
-        const weeks = response.data.weeks;
- 
-        const transformedData = weeks.map((week: { week: any; startDate: any; endDate: any; totalHours: any; topics: any; days: any[]; }) => ({
-          weekNumber: week.week,
-          startDate: week.startDate,
-          endDate: week.endDate,
-          totalHours: week.totalHours,
-          topics: week.topics?.split(',').map((topic: string) => topic.trim()),
-          days: week.days?.map((day) => ({
-            day: day.day,
-            date: day.date,
-            day_key: day.day_key,
-            topics: day.topics?.split(',').map((topic: string) => topic.trim()),
-            practiceMCQ: day.practiceMCQ,
-            practiceCoding: day.practiceCoding,
-            status: day.status,
-            testScore: day.score ? { score: day.score } : undefined,
-          })),
-        }));
- 
-        setData(transformedData);
+        
+        const staticData = staticRoadmapData.course_roadmap;
+        
+        // Merge the data
+        const mergedData = staticData.map((staticWeek: StaticWeek) => {
+          const studentWeek = studentData.find((sw: StudentWeek) => sw.week === staticWeek.week);
+          
+          const mergedDays = staticWeek.days.map((staticDay) => {
+            const studentDay = studentWeek?.days.find((sd: { day: number }) => sd.day.toString() === staticDay.day);
+            
+            // Format practice MCQ and coding data based on static data
+            const mcqQuestions = staticDay.mcq > 0 ? `${studentDay?.practiceMCQ?.questions?.split('/')[0] || "0"}/${staticDay.mcq}` : "0/0";
+            const mcqScore = staticDay.mcq_total_score > 0 ? `${studentDay?.practiceMCQ?.score?.split('/')[0] || "0"}/${staticDay.mcq_total_score}` : "0/0";
+            
+            const codingQuestions = staticDay.coding > 0 ? `${studentDay?.practiceCoding?.questions?.split('/')[0] || "0"}/${staticDay.coding}` : "0/0";
+            const codingScore = staticDay.coding_total_score > 0 ? `${studentDay?.practiceCoding?.score?.split('/')[0] || "0"}/${staticDay.coding_total_score}` : "0/0";
+            
+            return {
+              day: parseInt(staticDay.day),
+              day_key: staticDay.day_key,
+              date: staticDay.date,
+              topics: staticDay.topics ? [staticDay.topics] : undefined,
+              practiceMCQ: {
+                questions: mcqQuestions,
+                score: mcqScore
+              },
+              practiceCoding: {
+                questions: codingQuestions,
+                score: codingScore
+              },
+              status: studentDay?.status || "",
+            };
+          });
+          
+          return {
+            weekNumber: staticWeek.week,
+            startDate: staticWeek.startDate,
+            endDate: staticWeek.endDate,
+            totalHours: staticWeek.totalHours.toString(),
+            topics: staticWeek.topics || undefined,
+            days: mergedDays,
+          };
+        });
+        
+        setData(mergedData);
+        setError(null);
       } catch (innerError: any) {
-        setError('No data found');console.error("Error fetching subject overview data:", innerError);
+        setError('No data found');
+        console.error("Error processing subject overview data:", innerError);
       } finally {
         setLoading(false);
       }
-    };
- 
-    fetchDataFromAPI();
-  }, [courseId, studentId, subjectId]);
+    }
+  }, [staticRoadmapData, studentData]);
+
+  // Handle errors from SWR and regular API calls
+  useEffect(() => {
+    if (staticRoadmapError || studentDataError) {
+      setError('No data found');
+      console.error("Error fetching subject overview data:", staticRoadmapError || studentDataError);
+    }
+  }, [staticRoadmapError, studentDataError]);
  
   useEffect(() => {
     const newOpenWeeks = new Set<number>();
@@ -156,7 +255,7 @@ const SubjectOverview: React.FC = () => {
         if (day_status === "Start") {
           await getApiClient().post(url1, {
             student_id: studentId,
-            subject: subject,
+            subject: decryptedSubject,
             subject_id: subjectId,
             week_number: weekNumber,
             day_number: day_key,
@@ -349,7 +448,7 @@ const SubjectOverview: React.FC = () => {
                         )}
  
                         <div style={{ fontSize: "12px", cursor: "default", width: '150px' }}>
-                          {day.practiceMCQ && !["Internship", "Semester Exam", "Preparation Day", "Festivals"].some(topic => day.topics?.includes(topic)) && (
+                          {day.practiceMCQ && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test"].some(topic => day.topics?.includes(topic)) && (
                             <>
                               {day.practiceMCQ.questions && (
                                 <p className="m-0 d-flex justify-content-start">
@@ -365,7 +464,7 @@ const SubjectOverview: React.FC = () => {
                           )}
                         </div>
                         <div style={{ fontSize: "12px", cursor: "default", width: '150px' }}>
-                          {day.practiceCoding && !["Internship", "Semester Exam", "Preparation Day", "Festivals"].some(topic => day.topics?.includes(topic)) && (
+                          {day.practiceCoding && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test"].some(topic => day.topics?.includes(topic)) && (
                             <>
                               {day.practiceCoding.questions && (
                                 <p className="m-0 d-flex justify-content-start">

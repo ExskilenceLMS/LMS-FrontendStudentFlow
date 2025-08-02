@@ -456,7 +456,7 @@ const SQLEditor: React.FC = () => {
               <div className="" style={{ height: "100vh", overflow: "hidden", padding: '0px 0px 65px 0px' }}>
                 <div className="d-flex" style={{ height: '100%', width: '100%' }}>
                   {/* Question List */}
-                  <div className="col-1 lg-8" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px" }}>
+                  <div className="col-1 lg-8 pb-2" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px" , overflowY: "auto"}}>
                     {questions.map((_, index) => (
                       <button
                         key={index}
@@ -688,28 +688,44 @@ const SQLEditor: React.FC = () => {
                     <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533" }}>
                       <div className="p-3 overflow-auto" style={{ height: "calc(100% - 10px)" }}>
                         {runResponseTable.length > 0 && runResponseTable[0] && (
-                          <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
-                            <thead>
-                              <tr>
-                                {Object.keys(runResponseTable[0] || {}).map((header) => (
-                                  <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(runResponseTable[0] || {}).length}vw` }}>
-                                    {header}
-                                  </th>
-                                ))}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {runResponseTable.map((row, index) => (
-                                <tr key={index}>
-                                  {Object.keys(row || {}).map((header) => (
-                                    <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
-                                      {row[header]}
-                                    </td>
+                          <>
+                            {/* Check if the first row contains an error */}
+                            {runResponseTable[0].error ? (
+                              <div className="pe-2">
+                                <div className="alert alert-danger w-auto mx-auto" style={{ 
+                                fontSize: "12px", 
+                                wordWrap: "break-word", 
+                                whiteSpace: "pre-wrap",
+                                overflowWrap: "break-word"
+                              }}>
+                                <strong>Error:</strong> {runResponseTable[0].error}
+                              </div>
+                              </div>
+                            ) : (
+                              <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
+                                <thead>
+                                  <tr>
+                                    {Object.keys(runResponseTable[0] || {}).map((header) => (
+                                      <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(runResponseTable[0] || {}).length}vw` }}>
+                                        {header}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {runResponseTable.map((row, index) => (
+                                    <tr key={index}>
+                                      {Object.keys(row || {}).map((header) => (
+                                        <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                          {row[header]}
+                                        </td>
+                                      ))}
+                                    </tr>
                                   ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                </tbody>
+                              </table>
+                            )}
+                          </>
                         )}
                         <div className="mt-3">
                           {runResponseTestCases.map((testCase, index) => (
