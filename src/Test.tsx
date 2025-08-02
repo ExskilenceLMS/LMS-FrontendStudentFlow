@@ -324,12 +324,18 @@ const isTestTimeMatch = (test: TestDetail) => {
 
   // Different logic based on test type
   if (test.testtype === "Final Test") {
-    // Final Test: Must be taken only during the exact time window on the exact date
-    if (currentDateFormatted === test.startdate && currentDateFormatted === test.enddate) {
-      // Same day test - check if current time is within the window
-      return currentTotalMinutes >= testStartTotalMinutes && currentTotalMinutes <= testEndTotalMinutes;
+    // Final Test: Must be taken within the time window on any day within the date range
+    if (currentDateFormatted === test.startdate) {
+      // On start date - check if current time is after start time
+      return currentTotalMinutes >= testStartTotalMinutes;
+    } else if (currentDateFormatted === test.enddate) {
+      // On end date - check if current time is before end time
+      return currentTotalMinutes <= testEndTotalMinutes;
+    } else if (currentDateFormatted > test.startdate && currentDateFormatted < test.enddate) {
+      // Between start and end dates - can be taken anytime
+      return true;
     }
-    return false; 
+    return false;
   } else {
     if (currentDateFormatted === test.startdate) {
       // On start date - check if current time is after start time

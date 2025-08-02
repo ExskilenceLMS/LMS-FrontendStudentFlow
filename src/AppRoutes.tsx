@@ -25,6 +25,7 @@ import EditProfile from './Components/EditProfile';
 import TestSQLCoding from './TestSQLCoding';
 import TestingMCQS from './Components/TestingMCQS';
 import PythonContentTester from './PythonContentTester';
+import DynamicCodingEditorWrapper from './Components/DynamicCodingEditorWrapper';
 
 const AppRoutes = () => {
   return (
@@ -52,6 +53,7 @@ const AppRoutes = () => {
         <Route path="/test-report" element={<Layout><TestReport /></Layout>} />
         <Route path="/mcq-temp" element={<Layout><TestMcq /></Layout>} />
         <Route path="/coding-temp" element={<Layout><TestSQLCoding /></Layout>} />
+        <Route path="/dynamic-coding-editor" element={<Layout><DynamicCodingEditorWrapper /></Layout>} />
         <Route path="/EditProfile" element={<Layout><EditProfile /></Layout>} />
         <Route path="/SQL-MCQ-Testing" element={<Layout><TestingMCQS /></Layout>} />
       </Route>
