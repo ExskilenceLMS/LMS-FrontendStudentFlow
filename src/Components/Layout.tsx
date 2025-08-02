@@ -10,6 +10,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const pathsToHideSidebar = ["/coding-temp", "/test-section", "/mcq-temp", "/SQL-MCQ-Testing"];
   const pathsWithTestHeader = ["/coding-temp", "/test-section", "/mcq-temp"];
+  
+  // Check if current path includes dynamic coding editor
+  const isDynamicCodingEditor = location.pathname.includes('dynamic-coding');
 
   useEffect(() => {
     if (pathsToHideSidebar.includes(location.pathname)) {
@@ -33,7 +36,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           backgroundColor: "#f0f0f0",
         }}
       >
-        {isTestPage ? (
+        {(isTestPage || isDynamicCodingEditor) ? (
           <TestHeader />
         ) : (
           location.pathname !== "/Dashboard" && <Header />

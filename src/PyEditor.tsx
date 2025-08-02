@@ -840,7 +840,7 @@ const handleSubmit = async () => {
                               }}>
                                 <div className="mb-2">
                                   <strong style={{ color: "#495057" }}>Example {index + 1}:</strong>
-                                </div>
+                      </div>
                                 
                                 {/* Input */}
                                 {example.Example.Inputs && example.Example.Inputs.length > 0 && (
@@ -849,7 +849,7 @@ const handleSubmit = async () => {
                                     <span style={{ color: "#212529" }}>
                                       {example.Example.Inputs.join(", ")}
                                     </span>
-                                  </div>
+                    </div>
                                 )}
                                 
                                 {/* Output */}
@@ -859,7 +859,7 @@ const handleSubmit = async () => {
                                     <span style={{ color: "#212529" }}>
                                       {example.Example.Output}
                                     </span>
-                                  </div>
+                  </div>
                                 )}
                                 
                                 {/* Explanation */}

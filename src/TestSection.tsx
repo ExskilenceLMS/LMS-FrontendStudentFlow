@@ -240,8 +240,8 @@ import { secretKey } from "./constants";
         // Set the Coding current question index in session storage
         sessionStorage.setItem("codingCurrentQuestionIndex", index.toString());
         
-        // Navigate to Coding page with test data
-        navigate(`/coding-temp?index=${index}`, { 
+        // Navigate to Dynamic Coding Editor with test data
+        navigate(`/dynamic-coding-editor`, { 
           state: { 
             sectionData: questionList 
           } 
