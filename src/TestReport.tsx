@@ -9,6 +9,7 @@ import { Spinner } from "react-bootstrap";
 
 interface Data1 {
   timeTaken: string;
+  total_time: string;
   score: {
     user: string;
     total: string;
@@ -68,6 +69,7 @@ const TestReport: React.FC = () => {
   const [choice, setChoice] = useState<"mcq" | "coding">("mcq");
   const [data, setData] = useState<Data1>({
     timeTaken: "",
+    total_time: "",
     score: {
       user: "",
       total: "",
@@ -128,6 +130,7 @@ const TestReport: React.FC = () => {
         // Update the data structure to match the new API response
         setData({
           timeTaken: `${apiData.test_summary.time_taken_for_completion} / ${apiData.test_summary.total_time}`,
+          total_time: apiData.test_summary.total_time,
           score: {
             user: apiData.test_summary.score_secured.toString(),
             total: apiData.test_summary.max_score.toString(),
@@ -290,28 +293,28 @@ const TestReport: React.FC = () => {
                             {data.time.actual_start !== undefined ? data.time.actual_start : "0"}
                           </div>
                           <p className="fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                            Actual Test Start Time
+                          Test Assigned On
                           </p>
                           <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
-                            {data.time.start !== undefined ? data.time.start : "0"}
+                            {data.total_time !== undefined ? data.total_time : "0"}
                           </div>
                           <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                            Test Start Time
+                            Duration
                           </p>
                         </div>
                       </div>
                       <div className="col-3">
                         <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                           <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
-                            {data.time.actual_end !== undefined ? data.time.actual_end : "0"}
+                            {data.time.start !== undefined ? data.time.start : "0"}
                           </div>
-                          <p className="mb-0 fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                            Actual Test End Time
+                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            Test Start Time
                           </p>
                           <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
                             {data.time.end !== undefined ? data.time.end : "0"}
                           </div>
-                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                          <p className="mb-0 fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
                             Test End Time
                           </p>
                         </div>
