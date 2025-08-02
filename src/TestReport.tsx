@@ -293,7 +293,7 @@ const TestReport: React.FC = () => {
                             {data.time.actual_start !== undefined ? data.time.actual_start : "0"}
                           </div>
                           <p className="fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                          Test Assigned On
+                          Test Assigned at
                           </p>
                           <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
                             {data.total_time !== undefined ? data.total_time : "0"}
@@ -308,14 +308,14 @@ const TestReport: React.FC = () => {
                           <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
                             {data.time.start !== undefined ? data.time.start : "0"}
                           </div>
-                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                            Test Start Time
+                          <p className="mb-2 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            Test Started at
                           </p>
                           <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
                             {data.time.end !== undefined ? data.time.end : "0"}
                           </div>
-                          <p className="mb-0 fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                            Test End Time
+                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                            Test Ended at
                           </p>
                         </div>
                       </div>
