@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import AceEditor from "react-ace";
 import { getApiClient } from "../utils/apiAuth";
+import { useLocation, useNavigate } from "react-router-dom";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
@@ -134,6 +135,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   nextButtonText,
   onQuestionSubmitted
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   // ===== STATE MANAGEMENT =====
   
   // Questions and navigation state
@@ -800,6 +803,30 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   /**
    * Submits the final answer to the backend
    */
+  const handleTestSectionPage = () => {
+    sessionStorage.setItem("codingCurrentQuestionIndex", currentQuestionIndex.toString());
+    
+    // Get test data from session storage or location state
+    let sectionData = (location.state as any)?.sectionData;
+    if (!sectionData) {
+      const encryptedTestData = sessionStorage.getItem('testSectionData');
+      if (encryptedTestData) {
+        try {
+          sectionData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+        } catch (error) {
+          console.error("Error decrypting test data for navigation:", error);
+        }
+      }
+    }
+    
+    // Navigate back to test section with the same data
+    navigate('/test-section', { 
+      state: { 
+        sectionData: sectionData 
+      } 
+    });
+  };
+
   const handleSubmit = async () => {
     const currentQuestion = questions[currentQuestionIndex];
     const questionKey = `coding_${currentQuestion.Qn_name}`;
@@ -833,7 +860,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         subject: sessionStorage.getItem("TestSubject") || "",
         final_score: "0/0", // Hardcoded
         course_id: courseId,
-        result: result
+        result: result,
+        batch_id: decryptData(sessionStorage.getItem("BatchId") || "")
       };
 
       const response = await getApiClient().put(url, payload);
@@ -892,7 +920,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "100%" }}>
         <div className="spinner-border" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -901,10 +929,10 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   }
 
   return (
-    <div className="d-flex" style={{ height: '100%', width: '100%' }}>
+    <div className="d-flex" style={{ height: '100%', width: '100%', maxHeight: '100%' }}>
       
       {/* ===== PROBLEM STATEMENT PANEL ===== */}
-      <div className="col-5 lg-8 bg-white" style={{ height: "100vh", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
+      <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px", maxHeight: '100%' }}>
         <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533", overflow: "hidden" }}>
           <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
             <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{questions[currentQuestionIndex]?.Qn}</pre>
@@ -962,7 +990,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       </div>
 
       {/* ===== CODE EDITOR AND CONTROLS PANEL ===== */}
-      <div className="col-6 lg-8" style={{ height: "100%", display: "flex", flexDirection: "column", width: '55.1%' }}>
+      <div className="col-6 lg-8" style={{ height: "100%", display: "flex", flexDirection: "column", width: '55.1%', maxHeight: '100%' }}>
         
         {/* ===== CODE EDITOR ===== */}
         <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533", padding: "10px" }}>
@@ -1029,46 +1057,46 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
                 RUN CODE
               </button>
               
-                             {/* Submit Code Button */}
-               <button
-                 className="btn btn-sm btn-light me-2 processingDivButton"
-                 style={{
-                   backgroundColor: "#FBEFA5DB",
-                   whiteSpace: "nowrap",
-                   fontSize: "12px",
-                   minWidth: "70px",
-                   boxShadow: "#888 1px 2px 5px 0px",
-                   height: "30px"
-                 }}
+              {/* Submit Code Button */}
+              <button
+                className="btn btn-sm btn-light me-2 processingDivButton"
+                style={{
+                  backgroundColor: "#FBEFA5DB",
+                  whiteSpace: "nowrap",
+                  fontSize: "12px",
+                  minWidth: "70px",
+                  boxShadow: "#888 1px 2px 5px 0px",
+                  height: "30px"
+                }}
                  onClick={handleSubmit}
                  disabled={processing || questions[currentQuestionIndex]?.status || !canSubmitCode()}
-               >
+              >
                  {questions[currentQuestionIndex]?.status ? "SUBMITTED" : "SUBMIT CODE"}
-               </button>
-               
+              </button>
+              
                {/* Next Button */}
                {showNextButton && (
-                 <button
-                   className="btn btn-sm btn-light processingDivButton"
-                   style={{
-                     whiteSpace: "nowrap",
-                     fontSize: "12px",
-                     minWidth: "70px",
-                     boxShadow: "#888 1px 2px 5px 0px",
-                     height: "30px"
-                   }}
-                   onClick={onNext}
-                   disabled={processing}
-                 >
+                <button
+                  className="btn btn-sm btn-light processingDivButton"
+                  style={{
+                    whiteSpace: "nowrap",
+                    fontSize: "12px",
+                    minWidth: "70px",
+                    boxShadow: "#888 1px 2px 5px 0px",
+                    height: "30px"
+                  }}
+                   onClick={nextButtonText === "Test Section" ? handleTestSectionPage : onNext}
+                  disabled={processing}
+                >
                    {nextButtonText}
-                 </button>
+                </button>
                )}
             </div>
           </div>
         </div>
 
         {/* ===== OUTPUT AND TEST RESULTS PANEL ===== */}
-        <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533", position: "relative" }}>
+        <div className="bg-white me-3" style={{ height: "49%", backgroundColor: "#E5E5E533", position: "relative" }}>
           <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
             {/* ===== CODE EXECUTION OUTPUT ===== */}
             {output ? (

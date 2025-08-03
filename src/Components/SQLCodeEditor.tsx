@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import AceEditor from "react-ace";
 import { getApiClient } from "../utils/apiAuth";
+import { useLocation, useNavigate } from "react-router-dom";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
@@ -79,6 +80,8 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
   nextButtonText,
   onQuestionSubmitted
 }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   // ===== STATE MANAGEMENT =====
   
   // Questions and navigation state
@@ -315,7 +318,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
             if (decryptedCode) {
               setSqlQuery(decryptedCode);
             } else {
-              setSqlQuery(initialQuestion.entered_ans || "");
+          setSqlQuery(initialQuestion.entered_ans || "");
             }
           } else {
             setSqlQuery(initialQuestion.entered_ans || "");
@@ -328,7 +331,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
           if (initialQuestion.question_data) {
             setExpectedOutput(initialQuestion.question_data.ExpectedOutput || initialQuestion.ExpectedOutput || []);
           } else {
-            setExpectedOutput(initialQuestion.ExpectedOutput || []);
+          setExpectedOutput(initialQuestion.ExpectedOutput || []);
           }
           
           // Load question statuses
@@ -375,7 +378,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
           if (decryptedCode) {
             setSqlQuery(decryptedCode);
           } else {
-            setSqlQuery(currentQuestion.entered_ans || "");
+        setSqlQuery(currentQuestion.entered_ans || "");
           }
         } else {
           setSqlQuery(currentQuestion.entered_ans || "");
@@ -394,7 +397,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
         if (currentQuestion.question_data) {
           setExpectedOutput(currentQuestion.question_data.ExpectedOutput || currentQuestion.ExpectedOutput || []);
         } else {
-          setExpectedOutput(currentQuestion.ExpectedOutput || []);
+        setExpectedOutput(currentQuestion.ExpectedOutput || []);
         }
         
         // Check if we have stored response data for this question
@@ -678,6 +681,30 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
   /**
    * Submit the final answer
    */
+  const handleTestSectionPage = () => {
+    sessionStorage.setItem("codingCurrentQuestionIndex", currentQuestionIndex.toString());
+    
+    // Get test data from session storage or location state
+    let sectionData = (location.state as any)?.sectionData;
+    if (!sectionData) {
+      const encryptedTestData = sessionStorage.getItem('testSectionData');
+      if (encryptedTestData) {
+        try {
+          sectionData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+        } catch (error) {
+          console.error("Error decrypting test data for navigation:", error);
+        }
+      }
+    }
+    
+    // Navigate back to test section with the same data
+    navigate('/test-section', { 
+      state: { 
+        sectionData: sectionData 
+      } 
+    });
+  };
+
   const handleSubmit = async () => {
     const currentQuestion = questions[currentQuestionIndex];
     const questionKey = currentQuestion.Qn_name;
@@ -707,6 +734,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
         final_score: "0/0",
         course_id: courseId,
         result: runResponseTestCases,
+        batch_id: decryptData(sessionStorage.getItem("BatchId") || ""),
       };
 
       const response = await getApiClient().put(`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/coding/`, postData);
@@ -766,8 +794,8 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
 
   if (loading) {
     return (
-      <div className="container-fluid p-0" style={{ height: "100vh", maxWidth: "100%", overflowX: "hidden", backgroundColor: "#f2eeee" }}>
-        <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
+      <div className="container-fluid p-0" style={{ height: "100%", maxWidth: "100%", overflowX: "hidden", backgroundColor: "#f2eeee" }}>
+        <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE", height: "100%" }}>
           <SkeletonCode />
         </div>
       </div>
@@ -775,10 +803,10 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
   }
 
   return (
-    <div className="d-flex" style={{ height: '100%', width: '100%' }}>
+    <div className="d-flex" style={{ height: '100%', width: '100%', maxHeight: '100%' }}>
       
       {/* ===== PROBLEM STATEMENT AND TABLE DATA (MIDDLE PANEL) ===== */}
-      <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
+      <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px", maxHeight: '100%' }}>
         <div className="bg-white" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
           <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
             <p>Q{currentQuestionIndex + 1}. {questions[currentQuestionIndex]?.question_data?.Qn || questions[currentQuestionIndex]?.Qn || "Question not available"}</p>
@@ -819,7 +847,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
               </li>
             </ul>
             <div className="tab-content">
-              <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "table" ? "active show" : ""}`} style={{ height: "35vh", overflowY: "auto", overflowX: "hidden" }}>
+                             <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "table" ? "active show" : ""}`} style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
                 <div className="d-flex flex-row">
                   {questionTableNames.length > 1 ? (
                     // Multiple tables - show tabs
@@ -891,7 +919,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
                   )}
                 </div>
               </div>
-              <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "output" ? "active show" : ""}`} style={{ height: "40vh", overflowY: "auto", overflowX: "hidden", fontSize: "12px" }}>
+                             <div role="tabpanel" className={`ms-3 fade tab-pane ${activeTab === "output" ? "active show" : ""}`} style={{ height: "100%", overflowY: "auto", overflowX: "hidden", fontSize: "12px" }}>
                 <div className="table-responsive" style={{ height: "100%" }}>
                   {expectedOutput.length > 0 && (
                     <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
@@ -925,7 +953,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
         </div>
 
       {/* ===== CODE EDITOR AND CONTROLS (RIGHT PANEL) ===== */}
-      <div className="col-6 lg-8" style={{ height: "100%", display: "flex", flexDirection: "column", width: '55.1%' }}>
+       <div className="col-6 lg-8" style={{ height: "100%", display: "flex", flexDirection: "column", width: '55.1%', maxHeight: '100%' }}>
         
         {/* ===== CODE EDITOR ===== */}
         <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533", padding: "10px" }}>
@@ -1020,7 +1048,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
                     boxShadow: "#888 1px 2px 5px 0px",
                     height: "30px"
                   }}
-                  onClick={onNext}
+                  onClick={nextButtonText === "Test Section" ? handleTestSectionPage : onNext}
                   disabled={processingQuestions.has(currentQuestionIndex)}
                 >
                   {nextButtonText}
@@ -1031,7 +1059,7 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
         </div>
 
         {/* ===== OUTPUT AND TEST RESULTS PANEL ===== */}
-        <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533", position: "relative" }}>
+        <div className="bg-white me-3" style={{ height: "49%", backgroundColor: "#E5E5E533", position: "relative" }}>
           <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
             {/* ===== CODE EXECUTION OUTPUT ===== */}
             {runResponseTable && runResponseTable.length > 0 && (

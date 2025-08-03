@@ -132,6 +132,7 @@ const SubjectRoadMap: React.FC = () => {
     const navigate = useNavigate();
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
     const decryptedCourseId = CryptoJS.AES.decrypt(sessionStorage.getItem('CourseId')!, secretKey).toString(CryptoJS.enc.Utf8);
+    const decryptedBatchId = CryptoJS.AES.decrypt(sessionStorage.getItem('BatchId')!, secretKey).toString(CryptoJS.enc.Utf8);
     // Helper function to build video URL from lesson data
 
 
@@ -400,7 +401,8 @@ const fetchRoadmapData = async () => {
             day_number: dayNumber,
             week_number: weekNumber,
             sub_topic: sessionStorage.getItem('currentSubTopicId') || "",
-            status: false
+            status: false,
+            batch_id: decryptedBatchId
         });
 
         setLoading(false);
@@ -554,7 +556,8 @@ const fetchRoadmapData = async () => {
                     "day_number": dayNumber,
                     "week_number": weekNumber,
                     "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                    "status": false
+                    "status": false,
+                    "batch_id": decryptedBatchId
                 });
             } catch (innerError: any) {
  
@@ -858,7 +861,8 @@ const fetchRoadmapData = async () => {
                 subject: subject.split(" ")[0],
                 week_number: parseInt(weekNumber),
                 day_number: parseInt(dayNumber),
-                course_id: decryptedCourseId
+                course_id: decryptedCourseId,
+                batch_id: decryptedBatchId
             };
 
             setDisablePreviousBtn(true);
@@ -1462,7 +1466,8 @@ const handleNext = useCallback(async () => {
                             "day_number": dayNumber,
                             "week_number": weekNumber,
                             "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                            "status": true
+                            "status": true,
+                            "batch_id": decryptedBatchId
                         });
                         if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                             const nextSubTopicIndex = currentSubTopicIndex + 1;
@@ -1503,8 +1508,8 @@ const handleNext = useCallback(async () => {
                 setCurrentMCQIndex(0);
             } else if (currentChapter.sub_topic_data[currentSubTopicIndex].codingQuestions > 0) {
                 handleViewChange('coding');
-            } else {
-                const isLastContent = currentNotesIndex === currentChapter.sub_topic_data[currentSubTopicIndex].notes.length - 1;
+                            } else {
+                    const isLastContent = currentNotesIndex === currentChapter.sub_topic_data[currentSubTopicIndex].notes.length - 1;
                 if (isLastContent) {
                     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
@@ -1515,7 +1520,8 @@ const handleNext = useCallback(async () => {
                             "day_number": dayNumber,
                             "week_number": weekNumber,
                             "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                            "status": true
+                            "status": true,
+                            "batch_id": decryptedBatchId
                         });
                         if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                             const nextSubTopicIndex = currentSubTopicIndex + 1;
@@ -1590,7 +1596,8 @@ const handleNext = useCallback(async () => {
                                 "day_number": dayNumber,
                                 "week_number": weekNumber,
                                 "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                                "status": true
+                                "status": true,
+                                "batch_id": decryptedBatchId
                             });
                             if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                                 const nextSubTopicIndex = currentSubTopicIndex + 1;
@@ -1653,7 +1660,8 @@ const handleNext = useCallback(async () => {
                     "day_number": dayNumber,
                     "week_number": weekNumber,
                     "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                    "status": true
+                    "status": true,
+                    "batch_id": decryptedBatchId
                 });
                 if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                     const nextSubTopicIndex = currentSubTopicIndex + 1;
@@ -1693,7 +1701,8 @@ const handleNext = useCallback(async () => {
                     "day_number": dayNumber,
                     "week_number": weekNumber,
                     "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                    "status": true
+                    "status": true,
+                    "batch_id": decryptedBatchId
                 });
                 if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                     setDisablePreviousBtn(false);

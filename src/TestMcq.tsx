@@ -287,6 +287,7 @@ const TestMcq: React.FC = () => {
           entered_ans: selectedOption,
           subject_id: subjectId,
           week_number: decryptData(sessionStorage.getItem("WeekNumber") || "0") || "0",
+          batch_id: decryptData(sessionStorage.getItem("BatchId") || ""),
         });
         
         // Update question status in session storage after successful submission

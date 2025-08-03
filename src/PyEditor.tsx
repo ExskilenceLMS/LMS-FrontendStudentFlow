@@ -740,7 +740,8 @@ const handleSubmit = async () => {
       Result: submissionTestCases,
       Attempt: 0,
       final_score: "0/0",
-      course_id: courseId
+      course_id: courseId,
+      batch_id: decryptData(sessionStorage.getItem("BatchId") || "")
     };
 
     const response = await getApiClient().put(url, postData);
