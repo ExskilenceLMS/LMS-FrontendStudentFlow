@@ -66,3 +66,55 @@
   background-color: black;
   color: white;
 }
+
+/* Table scrolling styles for SQL Code Editor */
+.sql-table-container {
+  overflow: auto;
+  max-height: 100%;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+}
+
+.sql-table-container table {
+  margin-bottom: 0;
+}
+
+.sql-table-container th,
+.sql-table-container td {
+  white-space: nowrap;
+  min-width: 120px;
+  padding: 8px 4px;
+}
+
+.sql-table-container th {
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa;
+  z-index: 1;
+}
+
+/* Ensure tables don't overflow their containers */
+.table-responsive {
+  overflow: auto;
+  max-width: 100%;
+}
+
+/* Custom scrollbar for better UX */
+.table-responsive::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

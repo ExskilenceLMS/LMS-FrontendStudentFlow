@@ -47,9 +47,11 @@ function Progress() {
   const { studentId, isCoursesApiLoaded } = useApiLoading();
   const encryptedCourseId = sessionStorage.getItem('CourseId');
   const courseId = encryptedCourseId ? CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : '';
+  const encryptedBatchId = sessionStorage.getItem('BatchId');
+  const batchId = encryptedBatchId ? CryptoJS.AES.decrypt(encryptedBatchId, secretKey).toString(CryptoJS.enc.Utf8) : '';
   // Use SWR for weeklyprogress API with 2-minute cache - only call after courses API is loaded
   const { data: apiData, error } = useAPISWR<ApiResponse>(
-    isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}/${courseId}` : null
+    isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/weeklyprogress/${studentId}/${courseId}/${batchId}` : null
   );
 
   useEffect(() => {

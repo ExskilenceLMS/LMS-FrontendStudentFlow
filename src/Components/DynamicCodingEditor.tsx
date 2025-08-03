@@ -380,67 +380,50 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
   }
 
   return (
-    <div className="container-fluid p-0" style={{ height: '100%', overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
-      <div className="p-0 my-0" style={{ backgroundColor: "#F2EEEE", marginRight: '10px' }}>
-        <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
-          <div className="row g-2">
-            <div className="col-12">
-              <div className="" style={{ height: "87vh", overflow: "hidden", padding: '0px 0px 15px 0px' }}>
+    <div className="container-fluid p-0" style={{  overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
+      <div className="p-0 my-0" style={{ backgroundColor: "#F2EEEE", marginRight: '10px', height: '100%' }}>
+        <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee", height: '100%' }}>
+          <div className="row g-2" style={{ height: '100%' }}>
+            <div className="col-12" style={{ height: '100%' }}>
+              <div className="" style={{ height: "calc(100vh - 87px)", overflow: "hidden", padding: '0px 0px 5px 0px' }}>
                 <div className="d-flex" style={{ height: '100%', width: '100%' }}>
                   
                   {/* ===== QUESTION LIST (LEFT PANEL) ===== */}
                   <div className="col-1 lg-8" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px", height: "100%", overflowY: "auto" }}>
-                    {questions.map((question: any, index: number) => {
-                      const status = getQuestionStatus(question);
-                      const statusColor = getStatusColor(status);
-                      const subject = getSubjectFromQuestion(question);
-                      
-                      return (
-                        <div key={index} className="mb-2">
-                          <button
-                            className="btn rounded-2 px-1 mx-auto position-relative"
-                            style={{
-                              width: "50px",
-                              height: "50px",
-                              backgroundColor: currentQuestionIndex === index ? "grey" : "#fff",
-                              color: currentQuestionIndex === index ? "#fff" : "#000",
-                              cursor: "pointer",
-                              boxShadow: "#888 1px 2px 5px 0px",
-                              border: `2px solid ${statusColor}`,
-                              fontSize: "10px"
-                            }}
-                            onClick={() => handleQuestionChange(index)}
-                            title={`Q${index + 1} - ${subject.toUpperCase()} - ${status}`}
-                          >
-                            <div>Q{index + 1}</div>
-                            <div style={{ fontSize: "8px", marginTop: "2px" }}>
-                              {subject.toUpperCase()}
-                            </div>
-                          </button>
-                          
-                          {/* Status indicator dot */}
-                          {/* <div 
-                            className="position-absolute"
-                            style={{
-                              width: "8px",
-                              height: "8px",
-                              borderRadius: "50%",
-                              backgroundColor: statusColor,
-                              top: "2px",
-                              right: "2px",
-                              border: "1px solid white"
-                            }}
-                          /> */}
-                        </div>
-                      );
-                    })}
+                    {questions.map((_, index) => (
+                      <button
+                        key={index}
+                        className="btn rounded-2 mb-2 px-1 mx-auto"
+                        style={{
+                          width: "50px",
+                          height: "50px",
+                          backgroundColor: (() => {
+                            const questionStatus = questionStatuses[`coding_${questions[index]?.Qn_name}`];
+                            if (questionStatus === "Submitted" || questionStatus === "Attempted") {
+                              return "#42FF58"; // Green for submitted/attempted
+                            } else if (currentQuestionIndex === index) {
+                              return "grey"; // Grey for current question
+                            } else {
+                              return "#fff"; // White for others
+                            }
+                          })(),
+                          color: currentQuestionIndex === index ? "#fff" : "#000",
+                          cursor: "pointer",
+                          boxShadow: "#888 1px 2px 5px 0px"
+                        }}
+                        onClick={() => handleQuestionChange(index)}
+                        // disabled={processingQuestions.has(index)}
+                      >
+                        Q{index + 1}
+                      </button>
+                    ))}
                   </div>
 
                   {/* ===== MAIN CONTENT AREA ===== */}
-                  <div className="col-11" style={{ display: "flex", flexDirection: "column", height: "100%",width:"100%" }}>
+                  <div className="col-11" style={{ display: "flex", flexDirection: "column", height: "100%", width:"100%", maxHeight: "100%" }}>
                     
                     {/* ===== EDITOR CONTENT ===== */}
-                    <div style={{ flex: 1, display: "flex" }}>
+                    <div style={{ flex: 1, display: "flex", height: "100%", maxHeight: "100%" }}>
                       {currentSubject === 'py' ? (
                         <PythonCodeEditor
                           questionData={questionData}

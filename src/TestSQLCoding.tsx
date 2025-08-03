@@ -762,6 +762,7 @@ const TestSQLCoding: React.FC = () => {
       subject: sessionStorage.getItem("TestSubject") || "",
       final_score:"0/0",
       result: runResponseTestCases,
+      batch_id: decryptData(sessionStorage.getItem("BatchId") || ""),
     };
 
     const response = await getApiClient().put(url, postData);
