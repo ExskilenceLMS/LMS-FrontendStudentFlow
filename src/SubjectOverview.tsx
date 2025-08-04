@@ -36,8 +36,8 @@ interface StaticWeek {
   week: number;
   startDate: string;
   endDate: string;
-  totalHours: number;
-  days: {
+  totalHours: number | null;
+  days?: {
     day: string;
     day_key: string;
     date: string;
@@ -134,8 +134,9 @@ const SubjectOverview: React.FC = () => {
         const mergedData = staticData.map((staticWeek: StaticWeek) => {
           const studentWeek = studentData.find((sw: StudentWeek) => sw.week === staticWeek.week);
           
-          const mergedDays = staticWeek.days.map((staticDay) => {
-            const studentDay = studentWeek?.days.find((sd: { day: number }) => sd.day.toString() === staticDay.day);
+          const mergedDays = staticWeek.days?.map((staticDay) => {
+            
+            const studentDay = studentWeek?.days?.find((sd: { day: number }) => sd.day.toString() === staticDay.day);
             
             // Format practice MCQ and coding data based on static data
             const mcqQuestions = staticDay.mcq > 0 ? `${studentDay?.practiceMCQ?.questions?.split('/')[0] || "0"}/${staticDay.mcq}` : "0/0";
@@ -159,17 +160,17 @@ const SubjectOverview: React.FC = () => {
               },
               status: studentDay?.status || "",
             };
-          });
+          }).filter(Boolean) as Day[] || [];
           
           return {
             weekNumber: staticWeek.week,
             startDate: staticWeek.startDate,
             endDate: staticWeek.endDate,
-            totalHours: staticWeek.totalHours.toString(),
+            totalHours: staticWeek.totalHours ? staticWeek.totalHours.toString() : undefined,
             topics: staticWeek.topics || undefined,
             days: mergedDays,
           };
-        });
+        }).filter(Boolean) as Week[];
         
         setData(mergedData);
         setError(null);
@@ -448,7 +449,7 @@ const SubjectOverview: React.FC = () => {
                         )}
  
                         <div style={{ fontSize: "12px", cursor: "default", width: '150px' }}>
-                          {day.practiceMCQ && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test"].some(topic => day.topics?.includes(topic)) && (
+                          {day.practiceMCQ && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test","Onsite Workshop"].some(topic => day.topics?.includes(topic)) && (
                             <>
                               {day.practiceMCQ.questions && (
                                 <p className="m-0 d-flex justify-content-start">
@@ -464,7 +465,7 @@ const SubjectOverview: React.FC = () => {
                           )}
                         </div>
                         <div style={{ fontSize: "12px", cursor: "default", width: '150px' }}>
-                          {day.practiceCoding && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test"].some(topic => day.topics?.includes(topic)) && (
+                          {day.practiceCoding && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test","Onsite Workshop"].some(topic => day.topics?.includes(topic)) && (
                             <>
                               {day.practiceCoding.questions && (
                                 <p className="m-0 d-flex justify-content-start">
