@@ -80,14 +80,14 @@ interface Question {
 /**
  * FastAPI Backend Response Interfaces
  */
-interface FastAPIHealthResponse {
-  status: string;
-  timestamp: string;
-  version: string;
-  redis_connected: boolean;
-  docker_available: boolean;
-  queue_length: number;
-}
+// interface FastAPIHealthResponse {
+//   status: string;
+//   timestamp: string;
+//   version: string;
+//   redis_connected: boolean;
+//   docker_available: boolean;
+//   queue_length: number;
+// }
 
 interface FastAPISubmitResponse {
   submission_id: string;
@@ -199,10 +199,15 @@ const PyEditor: React.FC = () => {
   
   // ===== FASTAPI BACKEND STATE =====
   
-  const [backendHealthy, setBackendHealthy] = useState<boolean>(false);  // Backend health status
-  const [healthCheckInterval, setHealthCheckInterval] = useState<NodeJS.Timeout | null>(null);  // Health check interval
+  // const [backendHealthy, setBackendHealthy] = useState<boolean>(false);  // Backend health status
+  // const [healthCheckInterval, setHealthCheckInterval] = useState<NodeJS.Timeout | null>(null);  // Health check interval
   const [currentSubmissionId, setCurrentSubmissionId] = useState<string | null>(null);  // Current submission ID
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'submitting' | 'executing' | 'completed' | 'error'>('idle');  // Execution status
+  
+  // ===== FASTAPI RESPONSE STORAGE =====
+  
+  const [questionResponses, setQuestionResponses] = useState<{[key: string]: any}>({});
+  const [lastRunCode, setLastRunCode] = useState<{[key: string]: string}>({});
   
   // ===== SESSION STORAGE DATA EXTRACTION =====
   
@@ -261,33 +266,28 @@ const decryptData = (encryptedData: string) => {
    * Checks the health status of the FastAPI backend
    * Updates the backend health state and manages the health check interval
    */
-  const checkBackendHealth = async () => {
-    try {
-      const response = await fetch('https://pyexe.exskilence.com/health');
-      const data: FastAPIHealthResponse = await response.json();
-      setBackendHealthy(data.status === 'healthy');
-    } catch (error) {
-      console.error('Backend health check failed:', error);
-      setBackendHealthy(false);
-    }
-  };
+  // const checkBackendHealth = async () => {
+  //   try {
+  //     const response = await fetch('https://pyexe.exskilence.com/health');
+  //     const data: FastAPIHealthResponse = await response.json();
+  //     setBackendHealthy(data.status === 'healthy');
+  //   } catch (error) {
+  //     console.error('Backend health check failed:', error);
+  //     setBackendHealthy(false);
+  //   }
+  // };
 
   /**
    * Starts periodic health checks every 10 seconds
    */
-  useEffect(() => {
-    // Initial health check
-    checkBackendHealth();
-    
-    // Set up periodic health checks every 10 seconds
-    const interval = setInterval(checkBackendHealth, 10000);
-    setHealthCheckInterval(interval);
-    
-    // Cleanup on unmount
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, []);
+  // const startHealthChecks = () => {
+  //   // Initial health check
+  //   checkBackendHealth();
+  //   
+  //   // Set up periodic health checks every 10 seconds
+  //   const interval = setInterval(checkBackendHealth, 10000);
+  //   setHealthCheckInterval(interval);
+  // };
 
   /**
    * Submits code to FastAPI backend for execution
@@ -566,34 +566,97 @@ const decryptData = (encryptedData: string) => {
       if (result.result.success) {
         setOutput(result.result.actual_output);
         
-        // Process test case results
+        // Store FastAPI response for this question
+        const questionKey = `coding_${currentQuestion.Qn_name}`;
+        const responseData: any = {
+          ...result,
+          runResponseTestCases: [] as any[],
+          output: result.result.actual_output,
+          successMessage: "",
+          additionalMessage: ""
+        };
+        
         if (Array.isArray(result.result.parsed_results)) {
           const testCaseResults = result.result.parsed_results.map((testCase, index) => ({
-            [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
+            id: `TestCase${index + 1}`,
+            passed: testCase.passed,
+            input: testCase.input || '',
+            expected: testCase.expected || '',
+            actual: testCase.actual || ''
           }));
           
           const allPassed = result.result.parsed_results.every((testCase: any) => testCase.passed);
-          const finalResult = { Result: allPassed ? "Passed" : "Failed" };
+          const finalResult = { 
+            id: "Result",
+            passed: allPassed,
+            message: allPassed ? "Passed" : "Failed"
+          };
           
-          setRunResponseTestCases([...testCaseResults, finalResult]);
+          responseData.runResponseTestCases = [...testCaseResults, finalResult];
           
           if (allPassed) {
-            setSuccessMessage("Congratulations!");
-            setAdditionalMessage("You have passed all the test cases. Click the submit code button.");
+            responseData.successMessage = "Congratulations!";
+            responseData.additionalMessage = "You have passed all the test cases. Click the submit code button.";
           } else {
-            setSuccessMessage("Wrong Answer");
-            setAdditionalMessage("You have not passed all the test cases.");
+            responseData.successMessage = "Wrong Answer";
+            responseData.additionalMessage = "You have not passed all the test cases.";
           }
         }
-             } else {
-         // Handle error from parsed_results
-         const parsedResults = result.result.parsed_results;
-         const errorMessage = Array.isArray(parsedResults) 
-           ? 'Unknown error' 
-           : parsedResults?.error || 'Unknown error';
-         setOutput(`Error: ${errorMessage}`);
-         setSuccessMessage('Execution failed');
-       }
+        
+        storeFastApiResponse(questionKey, responseData);
+        
+        // Store the code that was run
+        setLastRunCode(prev => ({
+          ...prev,
+          [questionKey]: Ans
+        }));
+        
+        if (Array.isArray(result.result.parsed_results)) {
+          const testCaseResults = result.result.parsed_results.map((testCase, index) => ({
+            id: `TestCase${index + 1}`,
+            passed: testCase.passed,
+            input: testCase.input || '',
+            expected: testCase.expected || '',
+            actual: testCase.actual || ''
+          }));
+          
+          const allPassed = result.result.parsed_results.every((testCase: any) => testCase.passed);
+          const finalResult = { 
+            id: "Result",
+            passed: allPassed,
+            message: allPassed ? "Passed" : "Failed"
+          };
+          
+          setRunResponseTestCases([...testCaseResults, finalResult]);
+          setSuccessMessage(responseData.successMessage);
+          setAdditionalMessage(responseData.additionalMessage);
+        }
+      } else {
+        const parsedResults = result.result.parsed_results;
+        const errorMessage = Array.isArray(parsedResults) 
+          ? 'Unknown error' 
+          : parsedResults?.error || 'Unknown error';
+        setOutput(`Error: ${errorMessage}`);
+        setSuccessMessage('Execution failed');
+        
+        // Store error response for this question
+        const questionKey = `coding_${currentQuestion.Qn_name}`;
+        const errorResponseData = {
+          ...result,
+          runResponseTestCases: [],
+          output: `Error: ${errorMessage}`,
+          successMessage: "Execution failed",
+          additionalMessage: ""
+        };
+        
+        storeFastApiResponse(questionKey, errorResponseData);
+        
+        // Store the code that was run (even for errors)
+        setLastRunCode(prev => ({
+          ...prev,
+          [questionKey]: Ans
+        }));
+      }
       
       setExecutionStatus('completed');
     } catch (error) {
@@ -695,9 +758,45 @@ const handleNext = () => {
     setRunResponseTestCases([]);
     setSuccessMessage("");
     setAdditionalMessage("");
+    setOutput('');
     setIsSubmitted(false);
   }
 };
+
+  // ===== SUBMIT LOGIC =====
+  
+  /**
+   * Check if submit button should be enabled
+   * Only enables after successful code execution (not when errors occur)
+   */
+  const canSubmitCode = () => {
+    const currentQuestion = questions[currentQuestionIndex];
+    if (!currentQuestion?.Qn_name) {
+      return false; // No current question
+    }
+    
+    // Check for stored response using the correct key pattern
+    const questionKey = `coding_${currentQuestion.Qn_name}`;
+    const storedResponse = getStoredFastApiResponse(questionKey);
+    if (!storedResponse) {
+      return false; // No run response for this question
+    }
+    
+    // Check if the last run was successful (not an error)
+    if (storedResponse.successMessage === "Execution failed" || storedResponse.successMessage === "Error") {
+      return false; // Don't enable if last run had an error
+    }
+    
+    const lastRunCodeForQuestion = lastRunCode[questionKey];
+    if (!lastRunCodeForQuestion) {
+      return false; // No code was run for this question
+    }
+    
+    const currentCode = Ans.trim().replace(/\n/g, " ").replace(/;$/, "");
+    const lastRunCodeTrimmed = lastRunCodeForQuestion.trim().replace(/\n/g, " ").replace(/;$/, "");
+    
+    return currentCode === lastRunCodeTrimmed;
+  };
 
   /**
    * Submits the final answer to the backend
@@ -770,6 +869,25 @@ const handleSubmit = async () => {
     setProcessing(false);
   }
 };
+
+  // ===== UTILITY FUNCTIONS =====
+  
+  /**
+   * Store FastAPI response per question
+   */
+  const storeFastApiResponse = (questionKey: string, response: any) => {
+    setQuestionResponses(prev => ({
+      ...prev,
+      [questionKey]: response
+    }));
+  };
+
+  /**
+   * Get stored FastAPI response for a question
+   */
+  const getStoredFastApiResponse = (questionKey: string) => {
+    return questionResponses[questionKey] || null;
+  };
 
   // ===== RENDERING =====
 
@@ -928,10 +1046,11 @@ const handleSubmit = async () => {
                               gap: "4px"
                             }}
                             onClick={handleRunCode}
-                            disabled={processing || !Ans.trim() || !backendHealthy}
+                            disabled={processing || !Ans.trim()}
+                            // disabled={processing || !Ans.trim() || !backendHealthy}
                           >
                             {/* Health Status Indicator */}
-                            <div 
+                            {/* <div 
                               style={{
                                 width: "8px",
                                 height: "8px",
@@ -945,7 +1064,7 @@ const handleSubmit = async () => {
                                 flexShrink: 0
                               }}
                               title={backendHealthy ? "Backend Connected" : "Backend Disconnected"}
-                            />
+                            /> */}
                             RUN CODE
                             
                           </button>
@@ -962,7 +1081,7 @@ const handleSubmit = async () => {
                               height: "30px"
                             }}
                             onClick={handleSubmit}
-                            disabled={isSubmitted || processing || status }
+                            disabled={isSubmitted || processing || status || !canSubmitCode()}
                           >
                             {(isSubmitted || status) ? "SUBMITTED" : "SUBMIT CODE"}
                           </button>
@@ -992,47 +1111,87 @@ const handleSubmit = async () => {
                     <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533", position: "relative" }}>
                       <div className="p-3 overflow-auto" style={{ height: "calc(100% - 10px)" }}>
                         {/* ===== CODE EXECUTION OUTPUT ===== */}
-                        {output ? (
-                          <pre
-                            className="m-0 "
-                            id="output"
-                            ref={outputRef}
-                            tabIndex={0}
-                            onKeyDown={handleKeyPress}
-                            style={{ 
-                              outline: 'none',
-                              width: '100%',
-                              color: 'black',
-                              border: '1px solid white',
-                              boxShadow: 'rgba(0, 0, 0, 0.25) 0px 4px 4px',
-                              padding: '10px',
-                              whiteSpace: 'pre-wrap',
-                              overflowWrap: 'break-word',
-                              backgroundColor: 'rgb(255, 255, 255)',
-                              minHeight: '1em',
-                             }}
-                          >
-                            {output}
-                          </pre>
-                        ): (
-                          <p style={{ fontSize: "12px" }}></p>
-                        )}
+                        <div style={{ maxHeight: "70%", overflow: "auto" }}>
+                          {output && (
+                            <>
+                              <h6 style={{ 
+                                color: "#333", 
+                                fontWeight: "bold", 
+                                marginBottom: "10px", 
+                                fontSize: "14px",
+                                position: "sticky",
+                                top: "0",
+                                zIndex: 1,
+                                backgroundColor: "#fff",
+                                padding: "5px 0"
+                              }}>Output:</h6>
+                              <pre
+                                className="m-0 "
+                                id="output"
+                                ref={outputRef}
+                                tabIndex={0}
+                                onKeyDown={handleKeyPress}
+                                style={{
+                                  fontSize: "12px",
+                                  fontFamily: "monospace",
+                                  whiteSpace: "pre-wrap",
+                                  wordBreak: "break-word",
+                                  backgroundColor: "#f8f9fa",
+                                  padding: "10px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #e9ecef",
+                                  margin: "0",
+                                  maxHeight: "calc(70% - 40px)",
+                                  overflow: "auto"
+                                }}
+                              >
+                                {output}
+                              </pre>
+                            </>
+                          )}
+                        </div>
                         
                         {/* ===== TEST CASE RESULTS ===== */}
-                        {runResponseTestCases && (
-                          <div className="col mt-3">
-                            {runResponseTestCases.map((testCase, index) => (
-                              <div
-                                key={index}
-                                className="d-flex align-items-center mb-2 border border-ligth shadow bg-white p-2 rounded-2"
-                                style={{ width: "fit-content", fontSize: "12px" }}
-                              >
-                                <span className="me-2">{Object.keys(testCase)[0]}:</span>
-                                <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
-                                  {Object.values(testCase)[0] as React.ReactNode}
-                                </span>
-                              </div>
-                            ))}
+                        {runResponseTestCases && runResponseTestCases.length > 0 && (
+                          <div className="mt-3">
+                            <h6 style={{ 
+                              color: "#333", 
+                              fontWeight: "bold", 
+                              marginBottom: "10px", 
+                              fontSize: "14px",
+                              position: "sticky",
+                              top: "0",
+                              zIndex: 1,
+                              backgroundColor: "#fff",
+                              padding: "5px 0"
+                            }}>Test Cases:</h6>
+                            <div className="d-flex flex-wrap" style={{ gap: "20px" }}>
+                              {runResponseTestCases.map((testCase, index) => (
+                                <div
+                                  key={index}
+                                  className="d-flex align-items-center border border-light shadow bg-white p-2 rounded-2"
+                                  style={{ 
+                                    fontSize: "12px",
+                                    minWidth: "fit-content",
+                                    flex: "0 0 auto"
+                                  }}
+                                >
+                                  <div className="d-flex align-items-center me-2">
+                                    <span className="me-1">{testCase.id}:</span>
+                                    {testCase.passed ? (
+                                      <span className="text-success">✓</span>
+                                    ) : (
+                                      <span className="text-danger">✗</span>
+                                    )}
+                                  </div>
+                                  <div className="text-muted" style={{ fontSize: "11px" }}>
+                                    {testCase.input && `Input: ${testCase.input}`}
+                                    {/* {testCase.expected && ` Expected: ${testCase.expected}`} */}
+                                    {testCase.actual && ` Got: ${testCase.actual}`}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1046,7 +1205,7 @@ const handleSubmit = async () => {
       </div>
       
       {/* ===== CSS ANIMATIONS FOR HEALTH INDICATOR ===== */}
-      <style>
+      {/* <style>
         {`
           @keyframes pulse-green-small {
             0% {
@@ -1084,7 +1243,7 @@ const handleSubmit = async () => {
             }
           }
         `}
-      </style>
+      </style> */}
     </div>
   );
 };

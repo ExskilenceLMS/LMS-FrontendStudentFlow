@@ -363,6 +363,7 @@ const SQLEditor: React.FC = () => {
         query: updatedSqlQuery.replace("/*Write a all SQl commands/clauses in UPPERCASE*/", "").replace(/\s*\n\s*/g, " \n "),
         ExpectedOutput: questions[currentQuestionIndex].ExpectedOutput || [],
         TestCases: questions[currentQuestionIndex].TestCases || [],
+        batch_id: decryptData(sessionStorage.getItem("BatchId") || ""),
       };
       if (updatedSqlQuery) {
         setExecutingQuery(true);
@@ -412,7 +413,8 @@ const SQLEditor: React.FC = () => {
         Result: runResponseTestCases,
         Attempt: 0,
         final_score:"0/0",
-        course_id:courseId
+        course_id:courseId,
+        batch_id: decryptData(sessionStorage.getItem("BatchId") || "")
       };
 
       const response = await getApiClient().put(

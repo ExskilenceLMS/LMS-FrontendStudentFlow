@@ -71,14 +71,14 @@ interface Question {
 /**
  * FastAPI Backend Response Interfaces
  */
-interface FastAPIHealthResponse {
-  status: string;
-  timestamp: string;
-  version: string;
-  redis_connected: boolean;
-  docker_available: boolean;
-  queue_length: number;
-}
+// interface FastAPIHealthResponse {
+//   status: string;
+//   timestamp: string;
+//   version: string;
+//   redis_connected: boolean;
+//   docker_available: boolean;
+//   queue_length: number;
+// }
 
 interface FastAPISubmitResponse {
   submission_id: string;
@@ -168,10 +168,10 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   
   // ===== FASTAPI BACKEND STATE =====
   
-  const [backendHealthy, setBackendHealthy] = useState<boolean>(false);
-  const [healthCheckInterval, setHealthCheckInterval] = useState<NodeJS.Timeout | null>(null);
-  const [currentSubmissionId, setCurrentSubmissionId] = useState<string | null>(null);
-  const [executionStatus, setExecutionStatus] = useState<'idle' | 'submitting' | 'executing' | 'completed' | 'error'>('idle');
+  // const [backendHealthy, setBackendHealthy] = useState<boolean>(false);
+  // const [healthCheckInterval, setHealthCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  // const [currentSubmissionId, setCurrentSubmissionId] = useState<string | null>(null);
+  // const [executionStatus, setExecutionStatus] = useState<'idle' | 'submitting' | 'executing' | 'completed' | 'error'>('idle');
   
   // ===== SESSION STORAGE DATA EXTRACTION =====
   
@@ -393,33 +393,33 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
 
   // ===== FASTAPI BACKEND INTEGRATION =====
   
-  /**
-   * Checks the health status of the FastAPI backend
-   */
-  const checkBackendHealth = async () => {
-    try {
-      const response = await fetch('https://pyexe.exskilence.com/health');
-      const data: FastAPIHealthResponse = await response.json();
-      setBackendHealthy(data.status === 'healthy');
-    } catch (error) {
-      console.error('Backend health check failed:', error);
-      setBackendHealthy(false);
-    }
-  };
+  // /**
+  //  * Checks the health status of the FastAPI backend
+  //  */
+  // const checkBackendHealth = async () => {
+  //   try {
+  //     const response = await fetch('https://pyexe.exskilence.com/health');
+  //     const data: FastAPIHealthResponse = await response.json();
+  //     setBackendHealthy(data.status === 'healthy');
+  //   } catch (error) {
+  //     console.error('Backend health check failed:', error);
+  //     setBackendHealthy(false);
+  //   }
+  // };
 
-  /**
-   * Starts periodic health checks every 10 seconds
-   */
-  useEffect(() => {
-    checkBackendHealth();
+  // /**
+  //  * Starts periodic health checks every 10 seconds
+  //  */
+  // useEffect(() => {
+  //   checkBackendHealth();
     
-    const interval = setInterval(checkBackendHealth, 10000);
-    setHealthCheckInterval(interval);
+  //   const interval = setInterval(checkBackendHealth, 10000);
+  //   setHealthCheckInterval(interval);
     
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, []);
+  //   return () => {
+  //     if (interval) clearInterval(interval);
+  //   };
+  // }, []);
 
   /**
    * Submits code to FastAPI backend for execution
@@ -683,7 +683,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
     }
 
     setProcessing(true);
-    setExecutionStatus('submitting');
+    // setExecutionStatus('submitting'); // Commented out
     setOutput('');
     setSuccessMessage('');
     setAdditionalMessage('');
@@ -694,8 +694,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       const testCases = currentQuestion?.TestCases || [];
 
       const submissionId = await submitCodeToBackend(Ans, testCases, 10, "q790", "practice");
-      setCurrentSubmissionId(submissionId);
-      setExecutionStatus('executing');
+      // setCurrentSubmissionId(submissionId); // Commented out
+      // setExecutionStatus('executing'); // Commented out
 
       const result = await pollExecutionStatus(submissionId, 15);
       
@@ -760,12 +760,12 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         setSuccessMessage('Execution failed');
       }
       
-      setExecutionStatus('completed');
+      // setExecutionStatus('completed'); // Commented out
     } catch (error) {
       console.error('Code execution with tests failed:', error);
       setOutput(`Error: ${error instanceof Error ? error.message : 'Execution failed'}`);
       setSuccessMessage('Execution failed');
-      setExecutionStatus('error');
+      // setExecutionStatus('error'); // Commented out
     } finally {
       setProcessing(false);
     }
@@ -1036,10 +1036,11 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
                   gap: "4px"
                 }}
                 onClick={handleRunCode}
-                disabled={processing || !Ans.trim() || !backendHealthy}
+                disabled={processing || !Ans.trim()}
+                // disabled={processing || !Ans.trim() || !backendHealthy}
               >
                 {/* Health Status Indicator */}
-                <div 
+                {/* <div 
                   style={{
                     width: "8px",
                     height: "8px",
@@ -1053,7 +1054,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
                     flexShrink: 0
                   }}
                   title={backendHealthy ? "Backend Connected" : "Backend Disconnected"}
-                />
+                /> */}
                 RUN CODE
               </button>
               
@@ -1099,47 +1100,80 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         <div className="bg-white me-3" style={{ height: "49%", backgroundColor: "#E5E5E533", position: "relative" }}>
           <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
             {/* ===== CODE EXECUTION OUTPUT ===== */}
-            {output ? (
-              <pre
-                className="m-0"
-                id="output"
-                ref={outputRef}
-                tabIndex={0}
-                onKeyDown={handleKeyPress}
-                style={{ 
-                  outline: 'none',
-                  width: '100%',
-                  color: 'black',
-                  border: '1px solid white',
-                  boxShadow: 'rgba(0, 0, 0, 0.25) 0px 4px 4px',
-                  padding: '10px',
-                  whiteSpace: 'pre-wrap',
-                  overflowWrap: 'break-word',
-                  backgroundColor: 'rgb(255, 255, 255)',
-                  minHeight: '1em',
-                }}
-              >
-                {output}
-              </pre>
-            ): (
-              <p style={{ fontSize: "12px" }}></p>
-            )}
+            <div style={{ maxHeight: "70%", overflow: "auto" }}>
+              {output && (
+                <>
+                  <h6 style={{ 
+                    color: "#333", 
+                    fontWeight: "bold", 
+                    marginBottom: "10px", 
+                    fontSize: "14px",
+                    position: "sticky",
+                    top: "0",
+                    zIndex: 1,
+                    backgroundColor: "#fff",
+                    padding: "5px 0"
+                  }}>Output:</h6>
+                  <pre
+                    className="m-0"
+                    id="output"
+                    ref={outputRef}
+                    tabIndex={0}
+                    onKeyDown={handleKeyPress}
+                    style={{
+                      fontSize: "12px",
+                      fontFamily: "monospace",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      backgroundColor: "#f8f9fa",
+                      padding: "10px",
+                      borderRadius: "4px",
+                      border: "1px solid #e9ecef",
+                      margin: "0",
+                      maxHeight: "calc(70% - 40px)",
+                      overflow: "auto"
+                    }}
+                  >
+                    {output}
+                  </pre>
+                </>
+              )}
+            </div>
             
             {/* ===== TEST CASE RESULTS ===== */}
-            {runResponseTestCases && (
-              <div className="col mt-3">
-                {runResponseTestCases.map((testCase, index) => (
-                  <div
-                    key={index}
-                    className="d-flex align-items-center mb-2 border border-ligth shadow bg-white p-2 rounded-2"
-                    style={{ width: "fit-content", fontSize: "12px" }}
-                  >
-                    <span className="me-2">{Object.keys(testCase)[0]}:</span>
-                    <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
-                      {Object.values(testCase)[0] as React.ReactNode}
-                    </span>
-                  </div>
-                ))}
+            {runResponseTestCases && runResponseTestCases.length > 0 && (
+              <div className="mt-3">
+                <h6 style={{ 
+                  color: "#333", 
+                  fontWeight: "bold", 
+                  marginBottom: "10px", 
+                  fontSize: "14px",
+                  position: "sticky",
+                  top: "0",
+                  zIndex: 1,
+                  backgroundColor: "#fff",
+                  padding: "5px 0"
+                }}>Test Cases:</h6>
+                <div className="d-flex flex-wrap" style={{ gap: "20px" }}>
+                  {runResponseTestCases.map((testCase, index) => (
+                    <div
+                      key={index}
+                      className="d-flex align-items-center border border-light shadow bg-white p-2 rounded-2"
+                      style={{ 
+                        fontSize: "12px",
+                        minWidth: "fit-content",
+                        flex: "0 0 auto"
+                      }}
+                    >
+                      <div className="d-flex align-items-center me-2">
+                        <span className="me-1">{Object.keys(testCase)[0]}:</span>
+                        <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
+                          {Object.values(testCase)[0] === "Passed" ? "✓" : "✗"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1147,7 +1181,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       </div>
       
       {/* ===== CSS ANIMATIONS FOR HEALTH INDICATOR ===== */}
-      <style>
+      {/* <style>
         {`
           @keyframes pulse-green-small {
             0% {
@@ -1185,7 +1219,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
             }
           }
         `}
-      </style>
+      </style> */}
     </div>
   );
 };
