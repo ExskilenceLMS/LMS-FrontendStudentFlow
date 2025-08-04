@@ -1234,7 +1234,7 @@ const renderMCQContent = () => {
 
     return (
         <div className="d-flex flex-grow-1" style={{ height: '100%' }}>
-            <div className="d-flex flex-column align-items-center" style={{ width: '80px' }}>
+            <div className="d-flex flex-column align-items-center" style={{ width: '80px', overflowY: 'auto', maxHeight: '100%' }}>
                 {mcqQuestions.map((_, index) => (
                     <button key={index} className="btn border border-muted rounded-2 my-1 px-1 mx-auto" style={{ width: '50px', height: '55px', backgroundColor: index === currentMCQIndex ? '#42FF58' : '#fff', color: index === currentMCQIndex ? '#000' : '#000', cursor: 'pointer', }}
                         onClick={() => setCurrentMCQIndex(index)}
@@ -1245,7 +1245,7 @@ const renderMCQContent = () => {
             </div>
 
                                         <div className="flex-grow-1 d-flex flex-column" style={{ height: '100%', width:'min-content' }}>
-                                <div className="border border-muted rounded-2" style={{ height: '100%', overflow: 'auto', boxShadow: "#00000033 0px 0px 5px 0px inset", maxHeight: '100%' }}>
+                                <div className="border border-muted " style={{ height: '100%', overflow: 'auto', boxShadow: "#00000033 0px 0px 5px 0px inset", maxHeight: '100%' }}>
 
                     <div className="p-3">
                         <div className="mb-4">
