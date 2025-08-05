@@ -150,6 +150,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   const [currentInput, setCurrentInput] = useState<string>("");
   const inputResolver = useRef<((value: string) => void) | null>(null);
   const outputRef = useRef<HTMLPreElement>(null);
+  const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false);  // Track user interaction
   
   // Test case and validation state
   const [runResponseTestCases, setRunResponseTestCases] = useState<any[]>([]);
@@ -198,6 +199,11 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   const [questionResponses, setQuestionResponses] = useState<{[key: string]: any}>({});
   const [lastRunCode, setLastRunCode] = useState<{[key: string]: string}>({});
   
+  // Reset user interaction state when question changes
+  useEffect(() => {
+    setHasUserInteracted(false);
+  }, [currentQuestionIndex]);
+  
   // ===== UTILITY FUNCTIONS =====
   
   /**
@@ -236,7 +242,6 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
     };
     const encryptedData = encryptData(JSON.stringify(data));
     sessionStorage.setItem(key, encryptedData);
-    console.log("PythonCodeEditor: Stored data for", qnName, "Key:", key, "Data:", data);
   };
 
   /**
@@ -245,10 +250,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   const loadQuestionData = (qnName: string) => {
     const key = getUserCodeKey(qnName);
     const encryptedData = sessionStorage.getItem(key);
-    console.log("PythonCodeEditor: Loading data for", qnName, "Key:", key, "Has data:", !!encryptedData);
     
     if (!encryptedData) {
-      console.log("PythonCodeEditor: No saved data found for", qnName);
       return {
         code: "",
         entered_ans: "",
@@ -259,10 +262,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
     try {
       const decryptedData = decryptData(encryptedData);
       const parsedData = JSON.parse(decryptedData);
-      console.log("PythonCodeEditor: Successfully loaded data for", qnName, ":", parsedData);
       return parsedData;
     } catch (error) {
-      console.error("Error decrypting question data:", error);
       return {
         code: "",
         entered_ans: "",
@@ -330,12 +331,9 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
    */
   const transformTestSectionData = (testSectionQuestion: any) => {
     const qnName = testSectionQuestion.Qn_name;
-    console.log("PythonCodeEditor: Transforming question:", qnName);
     
     // Handle nested question_data structure like SQL editor
-    const questionData = testSectionQuestion.question_data || testSectionQuestion;
-    console.log("PythonCodeEditor: Question data structure:", questionData);
-    
+    const questionData = testSectionQuestion.question_data || testSectionQuestion;    
     return {
       Qn_name: testSectionQuestion.Qn_name,
       Qn: questionData.Qn || testSectionQuestion.Qn,
@@ -424,8 +422,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       return Ans;
     }
     
-    // If user explicitly cleared the editor (Ans is empty string), return empty
-    if (Ans === "") {
+    // If user has interacted and cleared the editor, return empty
+    if (hasUserInteracted && Ans === "") {
       return "";
     }
     
@@ -534,10 +532,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
     if (questionData && questionData.qns_data && questionData.qns_data.coding) {
       try {
         // Transform TestSection data to PyEditor format
-        console.log("PythonCodeEditor: Processing coding questions:", questionData.qns_data.coding.length);
         const transformedQuestions = questionData.qns_data.coding.map((q: any) => {
           const transformed = transformTestSectionData(q);
-          console.log("PythonCodeEditor: Transformed question:", transformed.Qn_name, "Subject:", transformed.Qn_name.substring(1, 3));
           return transformed;
         });
         
@@ -591,7 +587,6 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   useEffect(() => {
     if (questions.length > 0 && currentQuestionIndex >= 0 && currentQuestionIndex < questions.length) {
       const currentQuestion = questions[currentQuestionIndex];
-      console.log("PythonCodeEditor: Question index changed to:", currentQuestionIndex, "Question:", currentQuestion.Qn_name);
       
       if (currentQuestion) {
         setStatus(currentQuestion.status);
@@ -604,7 +599,6 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         setAns(savedCode);
         setFunctionCall(currentQuestion.FunctionCall || '');
         
-        console.log("PythonCodeEditor: Loaded code for question:", currentQuestion.Qn_name, "Code:", savedCode);
         
         // Process test cases for the new question
         const processedTestCases = processTestCases(currentQuestion.TestCases || []);
@@ -613,7 +607,6 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         // Restore previous run response if available (like SQL editor)
         const questionKey = `coding_${currentQuestion.Qn_name}`;
         const storedResponse = getStoredFastApiResponse(questionKey);
-        console.log("PythonCodeEditor: Stored response for", questionKey, ":", storedResponse);
         
         if (storedResponse) {
           setRunResponseTestCases(storedResponse.runResponseTestCases || []);
@@ -642,13 +635,11 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         status: questions[currentQuestionIndex].status,
         score: questions[currentQuestionIndex].score
       };
-      console.log("PythonCodeEditor: Auto-saving code for question:", questions[currentQuestionIndex].Qn_name);
       storeQuestionData(questions[currentQuestionIndex].Qn_name, Ans, questionData);
     } else if (questions[currentQuestionIndex]?.Qn_name && Ans === "") {
       // Explicitly clear session storage if Ans becomes empty for a question
       const key = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
       sessionStorage.removeItem(key);
-      console.log("PythonCodeEditor: Cleared session storage for empty code:", questions[currentQuestionIndex].Qn_name);
     }
   }, [Ans]); // Only depend on Ans, not currentQuestionIndex
 
@@ -659,6 +650,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
    */
   const handleCodeChange = (newCode: string) => {
     setAns(newCode);
+    setHasUserInteracted(true); // Mark user interaction
     
     // Save code to session storage for current question
     if (questions[currentQuestionIndex]?.Qn_name) {
@@ -667,13 +659,11 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         score: questions[currentQuestionIndex].score
       };
       if (newCode) {
-        console.log("PythonCodeEditor: Saving code for question:", questions[currentQuestionIndex].Qn_name);
         storeQuestionData(questions[currentQuestionIndex].Qn_name, newCode, questionData);
       } else {
         // If newCode is empty, remove from session storage
         const key = getUserCodeKey(questions[currentQuestionIndex].Qn_name);
         sessionStorage.removeItem(key);
-        console.log("PythonCodeEditor: Cleared session storage for empty code:", questions[currentQuestionIndex].Qn_name);
       }
     }
   };
@@ -994,7 +984,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
               if (mandatoryKeywords.length > 0) {
                 return (
                   <div className="mt-4">
-                    <h6 style={{ color: "#333", fontWeight: "bold", marginBottom: "10px" }}>Use keywords:</h6>
+                    <h6 style={{ color: "#333", fontWeight: "bold", marginBottom: "10px" }}>Must-Use Keywords and Variables in your code :</h6>
                     <div className="mb-3 p-3" style={{ 
                       backgroundColor: "#f8f9fa", 
                       border: "1px solid #dee2e6", 

@@ -142,8 +142,6 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
       try {
         // Extract coding questions
         const codingQuestions = questionData.qns_data.coding;
-        console.log("DynamicCodingEditor: Found coding questions:", codingQuestions.length);
-        console.log("DynamicCodingEditor: Sample question:", codingQuestions[0]);
         
         setQuestions(codingQuestions);
         
@@ -156,7 +154,6 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
         if (codingQuestions.length > 0) {
           const initialQuestion = codingQuestions[initialIndex];
           const initialSubject = getSubjectFromQuestion(initialQuestion);
-          console.log("DynamicCodingEditor: Initial subject:", initialSubject);
           setCurrentSubject(initialSubject);
         }
         
@@ -175,7 +172,6 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
         setError("Failed to load questions. Please try again.");
       }
     } else {
-      console.log("DynamicCodingEditor: No coding questions found in questionData:", questionData);
       setError("No coding questions available.");
     }
   }, [questionData]);
