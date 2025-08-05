@@ -531,9 +531,9 @@ const TestReport: React.FC = () => {
                   {popupData ? (
                     <div className="p-4">
                       {popupData.question && (
-                        <p className="pb-3">
+                        <pre className="pb-3">
                           {popupData.id}. {popupData.question}
-                        </p>
+                        </pre>
                       )}
                       {popupData.answer && (
                         <>
