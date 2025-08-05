@@ -391,6 +391,26 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
     return result;
   };
 
+  /**
+   * Extract mandatory keywords from the first test case
+   */
+  const extractMandatoryKeywords = (testCases: TestCase[]) => {
+    if (!testCases || testCases.length === 0) return [];
+    
+    const firstTestCase = testCases[0];
+    if (!firstTestCase || !firstTestCase.Testcase) return [];
+    
+    // Get the first test case value (keywords)
+    const testCaseValue = Array.isArray(firstTestCase.Testcase) 
+      ? firstTestCase.Testcase 
+      : firstTestCase.Testcase.Value;
+    
+    if (!Array.isArray(testCaseValue)) return [];
+    
+    // Filter out keywords that contain "def" and return the rest
+    return testCaseValue.filter(keyword => !keyword.includes('def'));
+  };
+
   // ===== FASTAPI BACKEND INTEGRATION =====
   
   // /**
@@ -937,6 +957,31 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
           <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
             <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{questions[currentQuestionIndex]?.Qn}</pre>
             
+            {/* ===== MANDATORY KEYWORDS SECTION ===== */}
+            {(() => {
+              const currentQuestion = questions[currentQuestionIndex];
+              const mandatoryKeywords = extractMandatoryKeywords(currentQuestion?.TestCases || []);
+              
+              if (mandatoryKeywords.length > 0) {
+                return (
+                  <div className="mt-4">
+                    <h6 style={{ color: "#333", fontWeight: "bold", marginBottom: "10px" }}>Use keywords:</h6>
+                    <div className="mb-3 p-3" style={{ 
+                      backgroundColor: "#f8f9fa", 
+                      border: "1px solid #dee2e6", 
+                      borderRadius: "8px",
+                      fontSize: "13px"
+                    }}>
+                      <span style={{ color: "#212529" }}>
+                        {mandatoryKeywords.join(', ')}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+            
             {/* ===== EXAMPLES SECTION ===== */}
             {questions[currentQuestionIndex]?.Examples && questions[currentQuestionIndex].Examples.length > 0 && (
               <div className="mt-4">
@@ -998,11 +1043,18 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
             mode="python"
             theme="dreamweaver"
             onChange={handleCodeChange}
-            value={Ans || enteredAns}
+            value={Ans || enteredAns || (questions[currentQuestionIndex]?.Template || "")}
             fontSize={14}
             showPrintMargin={false}
             wrapEnabled={true}
             style={{ width: "100%", height: "100%", margin: '0px' }}
+            placeholder={questions[currentQuestionIndex]?.Template ? "" : `Write your Code here.
+
+Instructions :
+1. Don't use input() function. 
+2. It is mandatory to use the exact variable names provided in the question or example [variable names are case-sensitive ]
+
+`}
           />
         </div>
 
@@ -1220,6 +1272,16 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
           }
         `}
       </style> */}
+      
+      {/* ===== PLACEHOLDER STYLING ===== */}
+      <style>
+        {`
+          .ace_comment.ace_placeholder {
+            margin: 0px 0px 0px 5px !important;
+            padding: 0 !important;
+          }
+        `}
+      </style>
     </div>
   );
 };

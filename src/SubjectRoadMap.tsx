@@ -1373,7 +1373,7 @@ const renderMCQContent = () => {
         }
 
         return (
-            <div className="p-3 CodingInfo" style={{ height: 'calc(100% - 60px)', overflow: 'auto' }}>
+            <div className="p-3 CodingInfo" style={{ height: 'calc(100%)', overflow: 'auto' }}>
                 {codingQuestions.map((question) => (
                     <div key={question.id} className="mb-4">
                         <div className="d-flex align-items-start justify-content-between">
