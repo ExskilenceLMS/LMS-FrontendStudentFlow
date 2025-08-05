@@ -150,6 +150,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   const [currentInput, setCurrentInput] = useState<string>("");
   const inputResolver = useRef<((value: string) => void) | null>(null);
   const outputRef = useRef<HTMLPreElement>(null);
+  const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false);  // Track user interaction
   
   // Test case and validation state
   const [runResponseTestCases, setRunResponseTestCases] = useState<any[]>([]);
@@ -197,6 +198,11 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   
   const [questionResponses, setQuestionResponses] = useState<{[key: string]: any}>({});
   const [lastRunCode, setLastRunCode] = useState<{[key: string]: string}>({});
+  
+  // Reset user interaction state when question changes
+  useEffect(() => {
+    setHasUserInteracted(false);
+  }, [currentQuestionIndex]);
   
   // ===== UTILITY FUNCTIONS =====
   
@@ -424,8 +430,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       return Ans;
     }
     
-    // If user explicitly cleared the editor (Ans is empty string), return empty
-    if (Ans === "") {
+    // If user has interacted and cleared the editor, return empty
+    if (hasUserInteracted && Ans === "") {
       return "";
     }
     
@@ -659,6 +665,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
    */
   const handleCodeChange = (newCode: string) => {
     setAns(newCode);
+    setHasUserInteracted(true); // Mark user interaction
     
     // Save code to session storage for current question
     if (questions[currentQuestionIndex]?.Qn_name) {

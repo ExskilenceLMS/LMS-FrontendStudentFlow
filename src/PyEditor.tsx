@@ -179,6 +179,7 @@ const PyEditor: React.FC = () => {
   const [currentInput, setCurrentInput] = useState<string>("");       // Current input for prompts
   const inputResolver = useRef<((value: string) => void) | null>(null);  // Resolver for input prompts
   const outputRef = useRef<HTMLPreElement>(null);                    // Reference to output element
+  const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false);  // Track user interaction
   
   // Test case and validation state
   const [runResponseTestCases, setRunResponseTestCases] = useState<any[]>([]);  // Test case results
@@ -442,8 +443,8 @@ const decryptData = (encryptedData: string) => {
       return Ans;
     }
     
-    // If user explicitly cleared the editor (Ans is empty string), return empty
-    if (Ans === "") {
+    // If user has interacted and cleared the editor, return empty
+    if (hasUserInteracted && Ans === "") {
       return "";
     }
     
@@ -526,6 +527,7 @@ const decryptData = (encryptedData: string) => {
    */
   const handleCodeChange = (newCode: string) => {
     setAns(newCode);
+    setHasUserInteracted(true); // Mark user interaction
     
     // Save code to session storage for current question
     if (questions[currentQuestionIndex]?.Qn_name) {
@@ -734,6 +736,7 @@ const handleQuestionChange = (index: number) => {
 
   setOutput('');
   setCurrentQuestionIndex(index);
+  setHasUserInteracted(false); // Reset interaction state for new question
 
   // Retrieve and decrypt the submit status from session storage
   const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questions[index].Qn_name}`;
@@ -785,6 +788,7 @@ const handleNext = () => {
   } else {
     const nextIndex = currentQuestionIndex + 1;
     setCurrentQuestionIndex(nextIndex);
+    setHasUserInteracted(false); // Reset interaction state for next question
 
     const nextQuestionKey = getUserCodeKey(questions[nextIndex].Qn_name);
     const savedCode = sessionStorage.getItem(nextQuestionKey);
