@@ -67,6 +67,7 @@ interface questionData {
 const TestReport: React.FC = () => {
   const navigate = useNavigate();
   const [choice, setChoice] = useState<"mcq" | "coding">("mcq");
+  const testType = sessionStorage.getItem("TestType") || "";
   const [data, setData] = useState<Data1>({
     timeTaken: "",
     total_time: "",
@@ -115,10 +116,7 @@ const TestReport: React.FC = () => {
   const testId = decryptedTestId;
   const [loading, setLoading] = useState<boolean>(false);
   const handleClose = () => setShowModal(false);
-  const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
- 
+  
   useEffect(() => {
     setLoading(true);
     const fetchData = async () => {
@@ -223,7 +221,7 @@ const TestReport: React.FC = () => {
               <div className="container-fluid border rounded-3 shadow-sm" style={{ backgroundColor: '#f8f9fa', padding: '2rem' }}>
                 {/* <h4 className="text-center mb-4" style={{ color: '#2c3e50', fontWeight: '600' }}>Test Summary</h4> */}
                 <div className="row align-items-stretch">
-                  <div className="col-3 mb-3">
+                  <div className={testType === "Final Test" ? "col-3 mb-3" : "col-4 mb-3"}>
                     <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                       <div className="h4 mb-2" style={{ color: '#3498db', fontWeight: 'normal' }}>
                         {data.timeTaken !== undefined ? data.timeTaken : "0"}
@@ -234,7 +232,7 @@ const TestReport: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="col-3 mb-3">
+                  <div className={testType === "Final Test" ? "col-3 mb-3" : "col-4 mb-3"}>
                     <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                       <div className="h4 mb-2" style={{ color: '#e74c3c', fontWeight: 'normal' }}>
                         {data.score.user !== undefined ? data.score.user : "0"}
@@ -245,7 +243,7 @@ const TestReport: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="col-3 mb-3">
+                  <div className={testType === "Final Test" ? "col-3 mb-3" : "col-4 mb-3"}>
                     <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                       <div className="h4 mb-2" style={{ color: data.result.status === 'Passed' ? '#27ae60' : '#e74c3c', fontWeight: 'normal' }}>
                         {data.result.status !== undefined ? data.result.status : "Failed"}
@@ -256,7 +254,7 @@ const TestReport: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="col-3 mb-3">
+                  <div className={testType === "Final Test" ? "col-3 mb-3" : "col-4 mb-3"}>
                     <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                       <div className="h4 mb-2" style={{ color: '#f39c12', fontWeight: 'normal' }}>
                         {data.problems.user !== undefined ? data.problems.user : "0"}
@@ -266,8 +264,8 @@ const TestReport: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                
-                      <div className="col-3">
+                       {testType === "Final Test" && (
+                        <div className="col-3 mb-3">
                         <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                           <div className="h5 mb-2" style={{ color: '#9b59b6', fontWeight: 'normal' }}>
                             {data.rank.college_rank !== undefined && data.rank.college_rank !== "-1" && data.rank.college_rank !== -1 ? data.rank.college_rank.toString() : "--"}
@@ -277,7 +275,9 @@ const TestReport: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="col-3">
+                      )}
+                      {testType === "Final Test" && (
+                      <div className="col-3 mb-3">
                         <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                           <div className="h5 mb-2" style={{ color: '#9b59b6', fontWeight: 'normal' }}>
                             {data.rank.overall_rank !== undefined && data.rank.overall_rank !== "-1" && data.rank.overall_rank !== -1 ? data.rank.overall_rank.toString() : "--"}
@@ -287,43 +287,47 @@ const TestReport: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <div className="col-3">
-                        <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                          <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
-                            {data.time.actual_start !== undefined ? data.time.actual_start : "0"}
-                          </div>
-                          <p className="fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                          Test Assigned at
-                          </p>
-                          <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
-                            {data.total_time !== undefined ? data.total_time : "0"}
-                          </div>
-                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                            Duration
-                          </p>
-                        </div>
+                      )}
+
+
+
+                  <div className={testType === "Final Test" ? "col-3 mb-3" : "col-4 mb-3"}>
+                    <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                        {data.time.actual_start !== undefined ? data.time.actual_start : "0"}
                       </div>
-                      <div className="col-3">
-                        <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                          <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
-                            {data.time.start !== undefined ? data.time.start : "0"}
-                          </div>
-                          <p className="mb-2 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                            Test Started at
-                          </p>
-                          <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
-                            {data.time.end !== undefined ? data.time.end : "0"}
-                          </div>
-                          <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
-                            Test Ended at
-                          </p>
-                        </div>
+                      <p className="fw-bold mb-2" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                      Test Assigned at
+                      </p>
+                      <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                        {data.total_time !== undefined ? data.total_time : "0"}
                       </div>
+                      <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                        Duration
+                      </p>
+                    </div>
                   </div>
-                
+
+                  <div className={testType === "Final Test" ? "col-3 mb-3" : "col-4 mb-3"}>
+                    <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                        {data.time.start !== undefined ? data.time.start : "0"}
+                      </div>
+                      <p className="mb-2 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                        Test Started at
+                      </p>
+                      <div className="h6 mb-0" style={{ color: '#34495e', fontWeight: 'normal', fontSize: '0.9rem' }}>
+                        {data.time.end !== undefined ? data.time.end : "0"}
+                      </div>
+                      <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.85rem' }}>
+                        Test Ended at
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
               {(data.good.length > 0 || data.average.length > 0 || data.bad.length > 0) ? (
-                <div className="container-fluid mt-5 border rounded-2 shadow">
+                <div className="container-fluid mt-5 border rounded-2 shadow pb-2">
                     {data.good.length > 0 && (
                      <div className="row align-items-center pb-2">
                        <div className="col-2 mt-2 p-2 ps-3">
@@ -428,7 +432,7 @@ const TestReport: React.FC = () => {
                       {Object.keys(expandedTopics).filter(topic => expandedTopics[topic]).length > 0 ? (
                         questionsData[choice]
                           .filter(question =>
-                            Object.keys(expandedTopics).filter(topic => expandedTopics[topic]).every(topic => question.topic === topic)
+                            Object.keys(expandedTopics).filter(topic => expandedTopics[topic]).some(topic => question.topic === topic)
                           )
                           .map((question) => (
                             <tr key={question.id}>

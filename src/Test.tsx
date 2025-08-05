@@ -259,6 +259,7 @@ const Test: React.FC = () => {
     } else if (mappedStatus === "Completed") {
       const encryptedTestId = CryptoJS.AES.encrypt(data.test_id, process.env.REACT_APP_SECRET_KEY || '').toString();
       sessionStorage.setItem("TestId", encryptedTestId);
+      sessionStorage.setItem("TestType", data.testtype);
       const encryptedTestSubject = CryptoJS.AES.encrypt(data.subject_id, process.env.REACT_APP_SECRET_KEY || '').toString();
       sessionStorage.setItem("TestSubjectId", encryptedTestSubject);
       navigate("/test-report");
