@@ -194,14 +194,22 @@ const SubjectOverview: React.FC = () => {
   useEffect(() => {
     const newOpenWeeks = new Set<number>();
  
-    data.forEach((week) => {
-      const hasRelevantStatus = week.days?.some((day) =>
-        ["Resume", "Start", "Completed"].includes(day.status)
+    // Find the current week (week with Start or Resume status)
+    let currentWeekNumber = null;
+    for (const week of data) {
+      const hasStartOrResume = week.days?.some((day) =>
+        ["Resume", "Start"].includes(day.status)
       );
-      if (hasRelevantStatus) {
-        newOpenWeeks.add(week.weekNumber);
+      if (hasStartOrResume) {
+        currentWeekNumber = week.weekNumber;
+        break;
       }
-    });
+    }
+ 
+    // Only open the current week if found
+    if (currentWeekNumber !== null) {
+      newOpenWeeks.add(currentWeekNumber);
+    }
  
     setOpenWeeks(newOpenWeeks);
  
