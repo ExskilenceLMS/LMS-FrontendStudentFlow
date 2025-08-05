@@ -429,6 +429,35 @@ const decryptData = (encryptedData: string) => {
     return testCaseValue.filter(keyword => !keyword.includes('def'));
   };
 
+  /**
+   * Generate editor value with FunctionCall appended to template
+   */
+  const generateEditorValue = () => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const template = currentQuestion?.Template || "";
+    const functionCall = currentQuestion?.FunctionCall || "";
+    
+    // If user has entered code (and it's not empty), use that
+    if (Ans && Ans.trim() !== "") {
+      return Ans;
+    }
+    
+    // If user explicitly cleared the editor (Ans is empty string), return empty
+    if (Ans === "") {
+      return "";
+    }
+    
+    // If template exists, append FunctionCall
+    if (template) {
+      if (functionCall) {
+        return template + '\n\n\n\n\n' + functionCall;
+      }
+      return template;
+    }
+    
+    return "";
+  };
+
   // ===== DATA FETCHING =====
   
   /**
@@ -1063,20 +1092,18 @@ const handleSubmit = async () => {
                         mode="python"
                         theme="dreamweaver"
                         onChange={handleCodeChange}
-                        value={Ans || enteredAns || (questions[currentQuestionIndex]?.Template || "")}
+                        value={generateEditorValue()}
                         fontSize={14}
                         showPrintMargin={false}
                         wrapEnabled={true}
                         className="pe-3"
                         style={{ width: "95%", height: "calc(100% - 60px)", marginTop: "20px", margin: '15px' }}
-                        placeholder={questions[currentQuestionIndex]?.Template ? "" : `Write your Code here.
-
-Instructions :
+                        placeholder={questions[currentQuestionIndex]?.Template || questions[currentQuestionIndex]?.FunctionCall ? "" : `Instructions :
 1. Don't use input() function. 
 2. It is mandatory to use the exact variable names provided in the question or example [variable names are case-sensitive ]
 
 
-`}
+Write your Code here.`}
                       />
                     </div>
 
