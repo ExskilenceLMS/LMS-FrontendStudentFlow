@@ -1018,7 +1018,7 @@ const handleSubmit = async () => {
                           if (mandatoryKeywords.length > 0) {
                             return (
                               <div className="mt-4">
-                                <h6 style={{ color: "#333", fontWeight: "bold", marginBottom: "10px" }}>Use keywords:</h6>
+                                <h6 style={{ color: "#333", fontWeight: "bold", marginBottom: "10px" }}>Must-Use Keywords and Variables in your code :</h6>
                                 <div className="mb-3 p-3" style={{ 
                                   backgroundColor: "#f8f9fa", 
                                   border: "1px solid #dee2e6", 
