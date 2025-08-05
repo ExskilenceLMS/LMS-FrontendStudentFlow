@@ -44,8 +44,23 @@ const TestHeader: React.FC = () => {
   const decryptedStudentId = useMemo(() => CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8), [encryptedStudentId]);
   const studentId = decryptedStudentId;
   const encryptedTestId = sessionStorage.getItem("TestId") || "";
-  const decryptedTestId = useMemo(() => CryptoJS.AES.decrypt(encryptedTestId!, secretKey).toString(CryptoJS.enc.Utf8), [encryptedTestId]);
+  const decryptedTestId = useMemo(() => {
+    if (!encryptedTestId) return "";
+    try {
+      return CryptoJS.AES.decrypt(encryptedTestId, secretKey).toString(CryptoJS.enc.Utf8);
+    } catch (error) {
+      console.error("Error decrypting testId:", error);
+      return "";
+    }
+  }, [encryptedTestId]);
   const testId = decryptedTestId;
+
+  // Check if testId is available, if not navigate to tests page
+  useEffect(() => {
+    if (!testId && (location.pathname === '/test-section' || location.pathname === '/test-introduction' || location.pathname === '/mcq-temp' || location.pathname === '/coding-temp' || location.pathname.includes('dynamic-coding'))) {
+      navigate('/test');
+    }
+  }, [testId, location.pathname, navigate]);
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);

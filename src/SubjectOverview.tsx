@@ -194,14 +194,22 @@ const SubjectOverview: React.FC = () => {
   useEffect(() => {
     const newOpenWeeks = new Set<number>();
  
-    data.forEach((week) => {
-      const hasRelevantStatus = week.days?.some((day) =>
-        ["Resume", "Start", "Completed"].includes(day.status)
+    // Find the current week (week with Start or Resume status)
+    let currentWeekNumber = null;
+    for (const week of data) {
+      const hasStartOrResume = week.days?.some((day) =>
+        ["Resume", "Start"].includes(day.status)
       );
-      if (hasRelevantStatus) {
-        newOpenWeeks.add(week.weekNumber);
+      if (hasStartOrResume) {
+        currentWeekNumber = week.weekNumber;
+        break;
       }
-    });
+    }
+ 
+    // Only open the current week if found
+    if (currentWeekNumber !== null) {
+      newOpenWeeks.add(currentWeekNumber);
+    }
  
     setOpenWeeks(newOpenWeeks);
  
@@ -449,7 +457,7 @@ const SubjectOverview: React.FC = () => {
                         )}
  
                         <div style={{ fontSize: "12px", cursor: "default", width: '150px' }}>
-                          {day.practiceMCQ && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test","Onsite Workshop"].some(topic => day.topics?.includes(topic)) && (
+                          {day.practiceMCQ && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test","Onsite Workshop","Internals"].some(topic => day.topics?.includes(topic)) && (
                             <>
                               {day.practiceMCQ.questions && (
                                 <p className="m-0 d-flex justify-content-start">
@@ -465,7 +473,7 @@ const SubjectOverview: React.FC = () => {
                           )}
                         </div>
                         <div style={{ fontSize: "12px", cursor: "default", width: '150px' }}>
-                          {day.practiceCoding && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test","Onsite Workshop"].some(topic => day.topics?.includes(topic)) && (
+                          {day.practiceCoding && !["Internship", "Semester Exam", "Preparation Day", "Festivals", "Weekly Test","Onsite Workshop","Internals"].some(topic => day.topics?.includes(topic)) && (
                             <>
                               {day.practiceCoding.questions && (
                                 <p className="m-0 d-flex justify-content-start">
@@ -494,9 +502,17 @@ const SubjectOverview: React.FC = () => {
                         {day.status && (
                           <div>
                             <button
-                              style={{ width: "85px", height: "30px", backgroundColor: "#E9EBFF", boxShadow: "0px 6px 6px rgba(0, 0, 0, 0.3)" }}
+                              style={{ 
+                                width: "85px", 
+                                height: "30px", 
+                                backgroundColor: "#E9EBFF", 
+                                boxShadow: "0px 6px 6px rgba(0, 0, 0, 0.3)",
+                                cursor: (day.status === "Completed" && day.topics?.includes("Weekly Test")) ? "not-allowed" : "pointer",
+                                opacity: (day.status === "Completed" && day.topics?.includes("Weekly Test")) ? 0.6 : 1,
+                              }}
                               className="btn btn-sm"
                               onClick={() => handleStartButtonClickVideo(day.day_key, week.weekNumber, day.status, day.topics)}
+                              disabled={day.status === "Completed" && day.topics?.includes("Weekly Test")}
                             >
                               {day.status}
                             </button>
