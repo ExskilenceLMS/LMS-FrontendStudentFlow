@@ -812,19 +812,30 @@ const handleSubmit = async () => {
     const encryptedCourseId = sessionStorage.getItem('CourseId');
     const courseId = encryptedCourseId ? CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : "course19";
 
-        // Prepare test case results - always send the same number of test cases as available in the question
-    let submissionTestCases = runResponseTestCases;
+    // Transform test case results to the required format
+    let submissionTestCases: Array<{[key: string]: string}> = [];
 
-    if (runResponseTestCases.length === 0) {
+    if (runResponseTestCases.length > 0) {
+      // Transform the complex test case objects to simple format
+      submissionTestCases = runResponseTestCases.map((testCase, index) => {
+        if (testCase.id === "Result") {
+          // Final result should be "True" or "False"
+          return { "Result": testCase.passed ? "True" : "False" };
+        } else {
+          // Individual test cases should be "Passed" or "Failed"
+          return { [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed" };
+        }
+      });
+    } else {
       // If no test cases were run, create failed test cases based on the current question's test cases
       const currentQuestion = questions[currentQuestionIndex];
       if (currentQuestion && currentQuestion.TestCases && currentQuestion.TestCases.length > 0) {
         const failedTestCases = currentQuestion.TestCases.map((_, index) => ({
           [`TestCase${index + 1}`]: "Failed"
         }));
-        const finalResult = { Result: "Failed" };
+        const finalResult = { "Result": "False" };
         submissionTestCases = [...failedTestCases, finalResult];
-            }
+      }
     }
 
     const postData = {
