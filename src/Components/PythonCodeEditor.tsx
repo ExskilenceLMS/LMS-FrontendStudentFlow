@@ -411,6 +411,35 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
     return testCaseValue.filter(keyword => !keyword.includes('def'));
   };
 
+  /**
+   * Generate editor value with FunctionCall appended to template
+   */
+  const generateEditorValue = () => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const template = currentQuestion?.Template || "";
+    const functionCall = currentQuestion?.FunctionCall || "";
+    
+    // If user has entered code (and it's not empty), use that
+    if (Ans && Ans.trim() !== "") {
+      return Ans;
+    }
+    
+    // If user explicitly cleared the editor (Ans is empty string), return empty
+    if (Ans === "") {
+      return "";
+    }
+    
+    // If template exists, append FunctionCall
+    if (template) {
+      if (functionCall) {
+        return template + '\n\n\n\n\n' + functionCall;
+      }
+      return template;
+    }
+    
+    return "";
+  };
+
   // ===== FASTAPI BACKEND INTEGRATION =====
   
   // /**
@@ -1043,12 +1072,12 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
             mode="python"
             theme="dreamweaver"
             onChange={handleCodeChange}
-            value={Ans || enteredAns || (questions[currentQuestionIndex]?.Template || "")}
+            value={generateEditorValue()}
             fontSize={14}
             showPrintMargin={false}
             wrapEnabled={true}
             style={{ width: "100%", height: "100%", margin: '0px' }}
-            placeholder={questions[currentQuestionIndex]?.Template ? "" : `Write your Code here.
+            placeholder={questions[currentQuestionIndex]?.Template || questions[currentQuestionIndex]?.FunctionCall ? "" : `Write your Code here.
 
 Instructions :
 1. Don't use input() function. 
