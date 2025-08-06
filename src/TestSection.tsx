@@ -160,12 +160,12 @@ import { secretKey } from "./constants";
           });
         } catch (error) {
           console.error("Error processing test data:", error);
-          navigate("/test");
+          navigate("/test", { replace: true });
         }
       } else {
         // If no test data is found, redirect back to test page
         console.error("No test data found in location.state");
-        navigate("/test");
+        navigate("/test", { replace: true });
       }
     }, [testId, studentId, navigate]);
 
@@ -217,7 +217,7 @@ import { secretKey } from "./constants";
     const handleViewReport = () => {
       // Clean up all test-related session storage data
       cleanupTestSessionData(testId);
-      navigate("/test-report");
+      navigate("/test-report", { replace: true });
     };
 
     const handleQuestionClick = (questionType: string, index: number) => {
@@ -234,17 +234,23 @@ import { secretKey } from "./constants";
         navigate(`/mcq-temp?index=${index}`, { 
           state: { 
             sectionData: questionList 
-          } 
+          },
+          replace: true
         });
       } else if (questionType === "Coding") {
         // Set the Coding current question index in session storage
         sessionStorage.setItem("codingCurrentQuestionIndex", index.toString());
         
+        // Store test data in session storage as backup
+        const encryptedTestData = CryptoJS.AES.encrypt(JSON.stringify(questionList), secretKey).toString();
+        sessionStorage.setItem('testSectionData', encryptedTestData);
+        
         // Navigate to Dynamic Coding Editor with test data
         navigate(`/dynamic-coding-editor`, { 
           state: { 
             sectionData: questionList 
-          } 
+          },
+          replace: true
         });
       }
     };
@@ -473,7 +479,7 @@ import { secretKey } from "./constants";
           show={showModal}
           onHide={() => {
             setShowModal(false);
-            navigate("/test"); 
+            navigate("/test", { replace: true }); 
           }}
         >
           <Modal.Header>

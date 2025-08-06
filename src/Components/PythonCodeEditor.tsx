@@ -862,7 +862,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
     navigate('/test-section', { 
       state: { 
         sectionData: sectionData 
-      } 
+      },
+      replace: true
     });
   };
 

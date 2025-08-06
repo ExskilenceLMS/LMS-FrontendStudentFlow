@@ -259,7 +259,7 @@ const SubjectOverview: React.FC = () => {
           sessionStorage.setItem("TestSubjectId", encryptedTestSubjectId);
         }
  
-        navigate("/test-introduction");
+        navigate("/test-introduction", { replace: true });
       } else {
         if (day_status === "Start") {
           await getApiClient().post(url1, {
@@ -271,7 +271,7 @@ const SubjectOverview: React.FC = () => {
           });
         }
  
-        navigate("/subject-roadmap");
+        navigate("/subject-roadmap", { replace: true });
       }
     } catch (error) {
       console.error("Error in handleStartButtonClickVideo:", error);

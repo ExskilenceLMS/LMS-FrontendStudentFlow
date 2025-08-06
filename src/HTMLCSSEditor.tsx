@@ -766,7 +766,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                     className="w-full h-full"
                     srcDoc={srcCode}
                     title="output"
-                    sandbox="allow-scripts allow-same-origin"
+                    sandbox="allow-scripts"
                     width="100%"
                     height="100%"
                     ></iframe>
@@ -794,7 +794,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                     className="w-full h-full"
                     srcDoc={srcCode}
                     title="output"
-                    sandbox="allow-scripts allow-same-origin"
+                    sandbox="allow-scripts"
                     width="100%"
                     height="100%"
                 ></iframe>

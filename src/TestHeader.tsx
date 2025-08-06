@@ -12,6 +12,7 @@ import { getApiClient } from './utils/apiAuth';
 import { performLogout } from './utils/apiAuth';
 import { cleanupTestSessionData } from './utils/sessionCleanup';
 import { IoArrowBackCircleOutline } from "react-icons/io5";
+import { getBackNavigationPath, isBackNavigationAllowed } from './utils/navigationRules';
 
 const TestHeader: React.FC = () => {
   const location = useLocation();
@@ -58,7 +59,7 @@ const TestHeader: React.FC = () => {
   // Check if testId is available, if not navigate to tests page
   useEffect(() => {
     if (!testId && (location.pathname === '/test-section' || location.pathname === '/test-introduction' || location.pathname === '/mcq-temp' || location.pathname === '/coding-temp' || location.pathname.includes('dynamic-coding'))) {
-      navigate('/test');
+      navigate('/test', { replace: true });
     }
   }, [testId, location.pathname, navigate]);
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
@@ -74,7 +75,7 @@ const TestHeader: React.FC = () => {
       
       // Check API response status
       if (response.data.status === "Test Already Completed" || response.data.status === "Completed") {
-        navigate('/test');
+        navigate('/test', { replace: true });
         return;
       }
       
@@ -88,7 +89,7 @@ const TestHeader: React.FC = () => {
     } catch (error: any) {
       if (error.response?.status === 500) {
         alert("Test Already Completed");
-        navigate('/test');
+        navigate('/test', { replace: true });
         return;
       }
     }
@@ -103,7 +104,7 @@ const TestHeader: React.FC = () => {
       const { time_left } = response.data;
       
       if (response.data.status === "Test Already Completed" || response.data.status === "Completed" || response.status !== 200) {
-        navigate('/test');
+        navigate('/test', { replace: true });
         return;
       }
       
@@ -117,7 +118,7 @@ const TestHeader: React.FC = () => {
     } catch (error: any) {
       if (error.response?.status === 500) {
         alert("Test Already Completed");
-        navigate('/test');
+        navigate('/test', { replace: true });
         return;
       }
     } finally {
@@ -282,7 +283,7 @@ useEffect(() => {
   }, []);
 
   const handleViewProfile = useCallback(() => {
-    navigate('/Profile');
+    navigate('/Profile', { replace: true });
     setShowUserMenu(false);
   }, [navigate]);
 
@@ -291,12 +292,12 @@ useEffect(() => {
       // Call logout function (session will be cleared immediately)
       performLogout(studentId, isInactivityLogout, false);
       // Navigate immediately without waiting for API call
-      navigate('/');
+      navigate('/', { replace: true });
       setShowUserMenu(false);
     } catch (error) {
       console.error("Logout error:", error);
       // Still navigate even if logout fails
-      navigate('/');
+      navigate('/', { replace: true });
       setShowUserMenu(false);
     }
   }, [navigate, studentId]);
@@ -317,20 +318,49 @@ useEffect(() => {
 
   const handleViewReport = useCallback(() => {
     setShowModal(false);
-    navigate('/test-report');
+    navigate('/test-report', { replace: true });
   }, [navigate]);
 
-  const handleBackBtn = () => {
-    if (location.pathname.includes("Subject Roadmap")) {
-      navigate(`/SubjectOverview`);
-      return ;
+  const handleBackBtn = useCallback(() => {
+    const currentPath = location.pathname;
+    
+    // Check if back navigation is allowed for current path
+    if (!isBackNavigationAllowed(currentPath)) {
+      return;
     }
-    if (location.pathname.includes("SubjectOverview")) {
-      navigate(`/Dashboard`);
-      return ;
+    
+    // Get the target path for back navigation
+    const targetPath = getBackNavigationPath(currentPath);
+    
+    // Special handling for test pages that need to preserve test data
+    if (currentPath.toLowerCase().includes('/mcq-temp') || 
+        currentPath.toLowerCase().includes('/coding-temp') || 
+        currentPath.toLowerCase().includes('/dynamic-coding-editor')) {
+      
+      // Try to get test data from session storage
+      const encryptedTestData = sessionStorage.getItem('testSectionData');
+      let sectionData = null;
+      
+      if (encryptedTestData) {
+        try {
+          sectionData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+        } catch (error) {
+          console.error("Error decrypting test data for navigation:", error);
+        }
+      }
+      
+      // Navigate with preserved test data
+      navigate(targetPath, { 
+        state: { 
+          sectionData: sectionData 
+        },
+        replace: true
+      });
+    } else {
+      // Regular navigation for other test pages
+      navigate(targetPath, { replace: true });
     }
-    navigate(-1)
-   }
+  }, [location.pathname, navigate]);
 
   return (
     <div className='pe-2'>

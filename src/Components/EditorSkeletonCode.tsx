@@ -109,7 +109,7 @@ const EditorSkeletonCode = () => {
                         style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
                         className="w-full h-full"
                         title="output"
-                        sandbox="allow-scripts allow-same-origin"
+                        sandbox="allow-scripts"
                         width="100%"
                         height="100%"
                         ></iframe>

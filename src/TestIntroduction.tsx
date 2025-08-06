@@ -82,9 +82,12 @@ const TestIntroduction: React.FC = () => {
     const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response.data), secretKey).toString();
     sessionStorage.setItem("sectionData", encryptedSectionData);
     if (response.data.status === "completed") {
-      navigate("/test-report");
+      navigate("/test-report", { replace: true });
     } else {
-      navigate("/test-section", { state: { sectionData } });
+      navigate("/test-section", { 
+        state: { sectionData },
+        replace: true 
+      });
     }
   };
 

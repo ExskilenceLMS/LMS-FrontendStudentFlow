@@ -8,7 +8,7 @@ function Footer() {
       className="d-flex justify-content-end "
       style={{ position: "fixed", bottom: "0px", left: "60px" }}
     >
-      <img src={FAQ} onClick={() => navigate("/faq")} alt="FAQ" />
+      <img src={FAQ} onClick={() => navigate("/faq", { replace: true })} alt="FAQ" />
     </div>
   );
 }
