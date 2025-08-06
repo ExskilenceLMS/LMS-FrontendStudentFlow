@@ -230,7 +230,8 @@ function AppContent() {
     <>
       <AppRoutes />
    
-      <Modal show={showLogoutWarning} onHide={resetTimer}>
+      <Modal show={showLogoutWarning} onHide={resetTimer} backdrop="static"
+      style={{backdropFilter: 'blur(10px)'}} centered>
         <Modal.Header closeButton>
           <Modal.Title>Session Timeout Warning</Modal.Title>
         </Modal.Header>
