@@ -12,6 +12,7 @@ import { getApiClient } from './utils/apiAuth';
 import { performLogout } from './utils/apiAuth';
 import { cleanupTestSessionData } from './utils/sessionCleanup';
 import { IoArrowBackCircleOutline } from "react-icons/io5";
+import { getBackNavigationPath, isBackNavigationAllowed } from './utils/navigationRules';
 
 const TestHeader: React.FC = () => {
   const location = useLocation();
@@ -320,17 +321,45 @@ useEffect(() => {
     navigate('/test-report');
   }, [navigate]);
 
-  const handleBackBtn = () => {
-    if (location.pathname.includes("Subject Roadmap")) {
-      navigate(`/SubjectOverview`);
-      return ;
+  const handleBackBtn = useCallback(() => {
+    const currentPath = location.pathname;
+    
+    // Check if back navigation is allowed for current path
+    if (!isBackNavigationAllowed(currentPath)) {
+      return;
     }
-    if (location.pathname.includes("SubjectOverview")) {
-      navigate(`/Dashboard`);
-      return ;
+    
+    // Get the target path for back navigation
+    const targetPath = getBackNavigationPath(currentPath);
+    
+    // Special handling for test pages that need to preserve test data
+    if (currentPath.toLowerCase().includes('/mcq-temp') || 
+        currentPath.toLowerCase().includes('/coding-temp') || 
+        currentPath.toLowerCase().includes('/dynamic-coding-editor')) {
+      
+      // Try to get test data from session storage
+      const encryptedTestData = sessionStorage.getItem('testSectionData');
+      let sectionData = null;
+      
+      if (encryptedTestData) {
+        try {
+          sectionData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+        } catch (error) {
+          console.error("Error decrypting test data for navigation:", error);
+        }
+      }
+      
+      // Navigate with preserved test data
+      navigate(targetPath, { 
+        state: { 
+          sectionData: sectionData 
+        } 
+      });
+    } else {
+      // Regular navigation for other test pages
+      navigate(targetPath);
     }
-    navigate(-1)
-   }
+  }, [location.pathname, navigate]);
 
   return (
     <div className='pe-2'>

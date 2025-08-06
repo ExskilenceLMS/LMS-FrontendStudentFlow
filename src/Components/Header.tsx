@@ -10,6 +10,7 @@ import { CiLogout } from "react-icons/ci";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import apiClient from "../utils/apiAuth";
 import { performLogout } from '../utils/apiAuth';
+import { getBackNavigationPath, isBackNavigationAllowed } from '../utils/navigationRules';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -73,17 +74,21 @@ const Header: React.FC = () => {
     }, 300);
   }, []);
 
-  const handleBackBtn = () => {
-    if (location.pathname.includes("Subject Roadmap")) {
-      navigate(`/SubjectOverview`);
-      return ;
+  const handleBackBtn = useCallback(() => {
+    const currentPath = location.pathname;
+    
+    // Check if back navigation is allowed for current path
+    if (!isBackNavigationAllowed(currentPath)) {
+      console.log('Back navigation not allowed for:', currentPath);
+      return;
     }
-    if (location.pathname.includes("SubjectOverview")) {
-      navigate(`/Dashboard`);
-      return ;
-    }
-    navigate(-1)
-   }
+    
+    // Get the target path for back navigation
+    const targetPath = getBackNavigationPath(currentPath);
+    
+    // Navigate to the target path
+    navigate(targetPath);
+  }, [location.pathname, navigate]);
 
   return (
     <div className='pe-2'>
