@@ -8,7 +8,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [showSidebar, setShowSidebar] = useState<boolean>(false);
   const location = useLocation();
 
-  const pathsToHideSidebar = ["/coding-temp", "/test-section", "/mcq-temp", "/SQL-MCQ-Testing"];
+  const pathsToHideSidebar = ["/coding-temp", "/test-section", "/mcq-temp", "/SQL-MCQ-Testing", "/dynamic-coding-editor"];
   const pathsWithTestHeader = ["/coding-temp", "/test-section", "/mcq-temp"];
   
   // Check if current path includes dynamic coding editor
