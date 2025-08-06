@@ -48,7 +48,7 @@ function DashBoardProfile() {
             className="rounded-circle p-0"
             style={{ width: "100px", height: "100px" }}
           />
-          <LiaEditSolid size={20} className="ps-5 ms-3 d-flex flex-end pr-auto justify-content-end text-end" style={{ cursor: "pointer" }} title="Edit Profile" onClick={() => navigate('/Profile')} />
+          <LiaEditSolid size={20} className="ps-5 ms-3 d-flex flex-end pr-auto justify-content-end text-end" style={{ cursor: "pointer" }} title="Edit Profile" onClick={() => navigate('/Profile', { replace: true })} />
         </div>
         <div className="row mt-2">
           {data?.name ? (

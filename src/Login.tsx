@@ -117,7 +117,7 @@ const Login: React.FC = () => {
 
           // Check if login was successful by checking if we have the required data
           if (response.data.student_id && response.data.course_id && response.data.batch_id) {
-            navigate("/Dashboard");
+            navigate("/Dashboard", { replace: true });
           } else {
             setAlertMessage("User not found");
             setShowAlert(true);
@@ -207,7 +207,7 @@ const Login: React.FC = () => {
                     localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
 
                     try {
-                      navigate("/Dashboard");
+                      navigate("/Dashboard", { replace: true });
                     } catch (navError) {
                       console.error("Navigation failed:", navError);
                     }

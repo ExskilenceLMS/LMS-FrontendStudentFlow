@@ -255,14 +255,14 @@ const Test: React.FC = () => {
       sessionStorage.setItem("TestId", encryptedTestId);
       const encryptedTestSubjectId = CryptoJS.AES.encrypt(data.subject_id, process.env.REACT_APP_SECRET_KEY || '').toString();
       sessionStorage.setItem("TestSubjectId", encryptedTestSubjectId);
-      navigate("/test-introduction");
+      navigate("/test-introduction", { replace: true });
     } else if (mappedStatus === "Completed") {
       const encryptedTestId = CryptoJS.AES.encrypt(data.test_id, process.env.REACT_APP_SECRET_KEY || '').toString();
       sessionStorage.setItem("TestId", encryptedTestId);
       sessionStorage.setItem("TestType", data.testtype);
       const encryptedTestSubject = CryptoJS.AES.encrypt(data.subject_id, process.env.REACT_APP_SECRET_KEY || '').toString();
       sessionStorage.setItem("TestSubjectId", encryptedTestSubject);
-      navigate("/test-report");
+      navigate("/test-report", { replace: true });
     }
   };
   // const handleTest1 = () => {

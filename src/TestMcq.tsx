@@ -206,7 +206,7 @@ const TestMcq: React.FC = () => {
     } else {
       // If no test data available, redirect back to test section
       console.error("No test data found, redirecting to test section");
-      navigate('/test-section');
+      navigate('/test-section', { replace: true });
     }
   }, [location.search, location.state, navigate]);
 
@@ -404,7 +404,8 @@ const TestMcq: React.FC = () => {
     navigate('/test-section', { 
       state: { 
         sectionData: sectionData 
-      } 
+      },
+      replace: true
     });
   };
 

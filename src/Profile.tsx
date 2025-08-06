@@ -318,7 +318,7 @@ const orderedEducation = educationOrder.map((degreeTitle) => {
                 <div className="m-3">
                   <div className="border-black border-bottom w-75 mx-auto pb-3">
                     <div className="d-flex justify-content-end">
-                    <button className="btn btn-info btn-sm" style={{ fontSize:'10px'}} onClick={() => navigate("/EditProfile",  { state: { userData: profile } })}>Edit Profile</button>
+                    <button className="btn btn-info btn-sm" style={{ fontSize:'10px'}} onClick={() => navigate("/EditProfile",  { state: { userData: profile }, replace: true })}>Edit Profile</button>
                     </div>
                     {profile?.profile_details && (
                       <div className="d-flex justify-content-center align-items-center position-relative">

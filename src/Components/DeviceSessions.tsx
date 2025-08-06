@@ -98,7 +98,7 @@ const DeviceSessions: React.FC = () => {
         localStorage.removeItem('jwt_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('current_device');
-        navigate('/');
+        navigate('/', { replace: true });
       } else if (sessionToRevoke) {
         await apiClient.post(
           url1,
@@ -114,7 +114,7 @@ const DeviceSessions: React.FC = () => {
           localStorage.removeItem('jwt_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('current_device');
-          navigate('/');
+          navigate('/', { replace: true });
         } else {
           fetchSessions();
         }

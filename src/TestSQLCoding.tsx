@@ -339,14 +339,14 @@ const TestSQLCoding: React.FC = () => {
         }
       } catch (error) {
         console.error("Error processing coding questions:", error);
-        navigate("/test-section");
+        navigate("/test-section", { replace: true });
       } finally {
         setLoading(false);
       }
     } else {
       // If no test data available, redirect back to test section
       console.error("No coding test data found, redirecting to test section");
-      navigate('/test-section');
+      navigate('/test-section', { replace: true });
     }
     };
 
@@ -769,7 +769,7 @@ const TestSQLCoding: React.FC = () => {
 
     const responseData = response.data;
     if(responseData.message == "Test Already Completed"){
-    navigate('/test')
+    navigate('/test', { replace: true })
     }
     
     // Update question status in session storage after successful submission
@@ -836,7 +836,8 @@ const TestSQLCoding: React.FC = () => {
     navigate('/test-section', { 
       state: { 
         sectionData: sectionData 
-      } 
+      },
+      replace: true
     });
   };
 

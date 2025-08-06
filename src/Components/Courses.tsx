@@ -66,7 +66,10 @@ const Courses: React.FC = () => {
     const encryptedSubject = CryptoJS.AES.encrypt(subject, secretKey).toString();
     sessionStorage.setItem('SubjectId', encryptedSubjectId);
     sessionStorage.setItem("Subject", encryptedSubject);
-    navigate("/SubjectOverview", { state: { title: courseTitle } });
+    navigate("/SubjectOverview", { 
+      state: { title: courseTitle },
+      replace: true 
+    });
   };
 
   // Use the context instead of making our own API call

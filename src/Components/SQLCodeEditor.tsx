@@ -701,7 +701,8 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
     navigate('/test-section', { 
       state: { 
         sectionData: sectionData 
-      } 
+      },
+      replace: true
     });
   };
 
