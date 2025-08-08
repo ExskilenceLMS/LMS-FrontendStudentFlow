@@ -76,7 +76,6 @@ const validationInProgressRef = useRef(false);
       window.location.href = '/'; 
     }
     catch (error){
-      console.error("Logout error:", error);
       // Still redirect even if API call fails
       window.location.href = '/';
     }
@@ -148,7 +147,6 @@ const validationInProgressRef = useRef(false);
         startCountdown();
       }, (parseInt(process.env.REACT_APP_SESSION_TIMEOUT_MINUTES || "2") * 60 * 1000)); // Use environment variable for session timeout
     } catch (error) {
-      console.error("Error checking session data from localStorage:", error);
     }
   }, [startCountdown, location.pathname]);
 
@@ -189,9 +187,7 @@ const validationInProgressRef = useRef(false);
     
       try {
         getApiClient().get(`${process.env.REACT_APP_BACKEND_URL}api/validate-session/`);
-        console.log("Session is still valid.");
       } catch (error) {
-        console.error("Session validation failed:", error);
       } finally {
         sessionValidationFlagRef.current = false;
         validationInProgressRef.current = false;
@@ -244,7 +240,6 @@ const validationInProgressRef = useRef(false);
           }
         };
       } catch (error) {
-        console.error("Error checking session data from localStorage:", error);
       }
     };
 
