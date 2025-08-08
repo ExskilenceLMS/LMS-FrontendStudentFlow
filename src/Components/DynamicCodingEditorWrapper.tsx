@@ -1,6 +1,9 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import DynamicCodingEditor from "./DynamicCodingEditor";
+import { getBackNavigationPath, navigateBackWithReplace } from "../utils/navigationRules";
+import { secretKey } from "../constants";
+import CryptoJS from "crypto-js";
 
 /**
  * DynamicCodingEditorWrapper Component
@@ -13,9 +16,32 @@ const DynamicCodingEditorWrapper: React.FC = () => {
   // Extract question data from location state
   const questionData = location.state?.sectionData;
   
-  // Handle back navigation
+  // Handle back navigation using navigation rules with history replacement
   const handleBack = () => {
-    navigate("/test-section");
+    const currentPath = location.pathname;
+    
+    // Pass the question data back to maintain state
+    if (getBackNavigationPath(currentPath) === '/test-section') {
+      // Get test data from location state or session storage as fallback
+      let sectionData = questionData;
+      if (!sectionData) {
+        const encryptedTestData = sessionStorage.getItem('testSectionData');
+        if (encryptedTestData) {
+          try {
+            sectionData = JSON.parse(CryptoJS.AES.decrypt(encryptedTestData, secretKey).toString(CryptoJS.enc.Utf8));
+          } catch (error) {
+            console.error("Error decrypting test data for navigation:", error);
+          }
+        }
+      }
+      
+      // Use navigateBackWithReplace to prevent back button access
+      navigateBackWithReplace(navigate, currentPath, { 
+        sectionData: sectionData 
+      });
+    } else {
+      navigateBackWithReplace(navigate, currentPath);
+    }
   };
   
   // Show loading if no data

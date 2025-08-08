@@ -306,7 +306,7 @@ const EditProfile: React.FC = () => {
 
       if (response.status === 200) {
         alert('Profile updated successfully!');
-        navigate('/Profile');
+        navigate('/Profile', { replace: true });
       }
     } 
     catch (innerError: any) {
@@ -644,7 +644,7 @@ const EditProfile: React.FC = () => {
           <button
             type="button"
             className="btn btn-secondary me-2"
-            onClick={() => navigate('/Profile')}
+            onClick={() => navigate('/Profile', { replace: true })}
           >
             Cancel
           </button>

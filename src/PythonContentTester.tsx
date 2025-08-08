@@ -116,6 +116,7 @@ const PythonContentTester: React.FC = () => {
   const [additionalMessage, setAdditionalMessage] = useState<string>("");
   const [backendHealthy, setBackendHealthy] = useState<boolean>(false);
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'submitting' | 'executing' | 'completed' | 'error'>('idle');
+  const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false);  // Track user interaction
 
   // ===== API CONFIGURATION =====
   
@@ -133,7 +134,6 @@ const PythonContentTester: React.FC = () => {
       const data: FastAPIHealthResponse = await response.json();
       setBackendHealthy(data.status === 'healthy');
     } catch (error) {
-      console.error('Backend health check failed:', error);
       setBackendHealthy(false);
     }
   };
@@ -206,20 +206,69 @@ const PythonContentTester: React.FC = () => {
   };
 
   /**
-   * Processes test cases to handle mixed format
+   * Processes test cases to handle mixed format (array and object formats)
    */
   const processTestCases = (testCases: TestCase[]) => {
-    return testCases.map((testCase, index) => {
+    return testCases.map(testCase => {
       if (Array.isArray(testCase.Testcase)) {
+        // If Testcase is already an array, return as is
+        return testCase;
+      } else {
+        // If Testcase is an object, convert to array format
         return {
-          Testcase: {
-            Value: testCase.Testcase,
-            Output: "validation_check"
-          }
+          Testcase: testCase.Testcase.Value || []
         };
       }
-      return testCase;
     });
+  };
+
+  /**
+   * Extract mandatory keywords from the first test case
+   */
+  const extractMandatoryKeywords = (testCases: TestCase[]) => {
+    if (!testCases || testCases.length === 0) return [];
+    
+    const firstTestCase = testCases[0];
+    if (!firstTestCase || !firstTestCase.Testcase) return [];
+    
+    // Get the first test case value (keywords)
+    const testCaseValue = Array.isArray(firstTestCase.Testcase) 
+      ? firstTestCase.Testcase 
+      : firstTestCase.Testcase.Value;
+    
+    if (!Array.isArray(testCaseValue)) return [];
+    
+    // Filter out keywords that contain "def" and return the rest
+    return testCaseValue.filter(keyword => !keyword.includes('def'));
+  };
+
+  /**
+   * Generate editor value with FunctionCall appended to template
+   */
+  const generateEditorValue = () => {
+    const currentQuestion = questions[currentQuestionIndex];
+    const template = currentQuestion?.Template || "";
+    const functionCall = currentQuestion?.FunctionCall || "";
+    
+    // If user has entered code (and it's not empty), use that
+    if (pythonCode && pythonCode.trim() !== "") {
+      return pythonCode;
+    }
+    
+    // If user has interacted and cleared the editor, return empty
+    if (hasUserInteracted && pythonCode === "") {
+      return "";
+    }
+    
+    // If template exists, append FunctionCall
+    if (template) {
+      if (functionCall) {
+        return template + '\n\n\n\n\n' + functionCall;
+      }
+      return template;
+    }
+    
+    return "";
   };
 
   // ===== DATA FETCHING =====
@@ -263,6 +312,7 @@ const PythonContentTester: React.FC = () => {
    */
   const handleCodeChange = (newCode: string) => {
     setPythonCode(newCode);
+    setHasUserInteracted(true); // Mark user interaction
   };
 
   /**
@@ -275,6 +325,7 @@ const PythonContentTester: React.FC = () => {
     setRunResponseTestCases([]);
     setSuccessMessage('');
     setAdditionalMessage('');
+    setHasUserInteracted(false); // Reset interaction state for new question
   };
 
   // ===== FASTAPI CODE EXECUTION =====
@@ -401,6 +452,31 @@ const PythonContentTester: React.FC = () => {
                         </h6>
                         <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{questions[currentQuestionIndex]?.Qn}</pre>
                         
+                        {/* ===== MANDATORY KEYWORDS SECTION ===== */}
+                        {(() => {
+                          const currentQuestion = questions[currentQuestionIndex];
+                          const mandatoryKeywords = extractMandatoryKeywords(currentQuestion?.TestCases || []);
+                          
+                          if (mandatoryKeywords.length > 0) {
+                            return (
+                              <div className="mt-4">
+                                <h6 style={{ color: "#333", fontWeight: "bold", marginBottom: "10px" }}>Use keywords:</h6>
+                                <div className="mb-3 p-3" style={{ 
+                                  backgroundColor: "#f8f9fa", 
+                                  border: "1px solid #dee2e6", 
+                                  borderRadius: "8px",
+                                  fontSize: "13px"
+                                }}>
+                                  <span style={{ color: "#212529" }}>
+                                    {mandatoryKeywords.join(', ')}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                        
                         {/* ===== EXAMPLES SECTION ===== */}
                         {questions[currentQuestionIndex]?.Examples && questions[currentQuestionIndex].Examples.length > 0 && (
                           <div className="mt-4">
@@ -459,12 +535,19 @@ const PythonContentTester: React.FC = () => {
                         mode="python"
                         theme="dreamweaver"
                         onChange={handleCodeChange}
-                        value={pythonCode}
+                        value={generateEditorValue()}
                         fontSize={14}
                         showPrintMargin={false}
                         wrapEnabled={true}
                         className="pe-3"
                         style={{ width: "95%", height: "calc(100% - 60px)", marginTop: "20px", margin: '15px' }}
+                        placeholder={questions[currentQuestionIndex]?.Template || questions[currentQuestionIndex]?.FunctionCall ? "" : `Write your Code here.
+
+Instructions :
+1. Don't use input() function. 
+2. It is mandatory to use the exact variable names provided in the question or example [variable names are case-sensitive ]
+
+`}
                       />
                     </div>
 
@@ -526,43 +609,76 @@ const PythonContentTester: React.FC = () => {
                     <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533", position: "relative" }}>
                       <div className="p-3 overflow-auto" style={{ height: "calc(100% - 10px)" }}>
                         {/* ===== CODE EXECUTION OUTPUT ===== */}
-                        {output ? (
-                          <pre
-                            className="m-0"
-                            style={{ 
-                              outline: 'none',
-                              width: '100%',
-                              color: 'black',
-                              border: '1px solid white',
-                              boxShadow: 'rgba(0, 0, 0, 0.25) 0px 4px 4px',
-                              padding: '10px',
-                              whiteSpace: 'pre-wrap',
-                              overflowWrap: 'break-word',
-                              backgroundColor: 'rgb(255, 255, 255)',
-                              minHeight: '1em',
-                             }}
-                          >
-                            {output}
-                          </pre>
-                        ): (
-                          <p style={{ fontSize: "12px" }}></p>
-                        )}
+                        <div style={{ maxHeight: "70%", overflow: "auto" }}>
+                          {output && (
+                            <>
+                              <h6 style={{ 
+                                color: "#333", 
+                                fontWeight: "bold", 
+                                marginBottom: "10px", 
+                                fontSize: "14px",
+                                position: "sticky",
+                                top: "0",
+                                zIndex: 1,
+                                backgroundColor: "#fff",
+                                padding: "5px 0"
+                              }}>Output:</h6>
+                              <pre
+                                className="m-0"
+                                style={{
+                                  fontSize: "12px",
+                                  fontFamily: "monospace",
+                                  whiteSpace: "pre-wrap",
+                                  wordBreak: "break-word",
+                                  backgroundColor: "#f8f9fa",
+                                  padding: "10px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #e9ecef",
+                                  margin: "0",
+                                  maxHeight: "calc(70% - 40px)",
+                                  overflow: "auto"
+                                }}
+                              >
+                                {output}
+                              </pre>
+                            </>
+                          )}
+                        </div>
                         
                         {/* ===== TEST CASE RESULTS ===== */}
-                        {runResponseTestCases && (
-                          <div className="col mt-3">
-                            {runResponseTestCases.map((testCase, index) => (
-                              <div
-                                key={index}
-                                className="d-flex align-items-center mb-2 border border-ligth shadow bg-white p-2 rounded-2"
-                                style={{ width: "fit-content", fontSize: "12px" }}
-                              >
-                                <span className="me-2">{Object.keys(testCase)[0]}:</span>
-                                <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
-                                  {Object.values(testCase)[0] as React.ReactNode}
-                                </span>
-                              </div>
-                            ))}
+                        {runResponseTestCases && runResponseTestCases.length > 0 && (
+                          <div className="mt-3">
+                            <h6 style={{ 
+                              color: "#333", 
+                              fontWeight: "bold", 
+                              marginBottom: "10px", 
+                              fontSize: "14px",
+                              position: "sticky",
+                              top: "0",
+                              zIndex: 1,
+                              backgroundColor: "#fff",
+                              padding: "5px 0"
+                            }}>Test Cases:</h6>
+                            <div className="d-flex flex-wrap" style={{ gap: "20px" }}>
+                              {runResponseTestCases.map((testCase, index) => (
+                                <div
+                                  key={index}
+                                  className="d-flex align-items-center border border-light shadow bg-white p-2 rounded-2"
+                                  style={{ 
+                                    fontSize: "12px",
+                                    minWidth: "fit-content",
+                                    flex: "0 0 auto"
+                                  }}
+                                >
+                                  <div className="d-flex align-items-center me-2">
+                                    <span className="me-1">{Object.keys(testCase)[0]}:</span>
+                                    <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
+                                      {Object.values(testCase)[0] === "Passed" ? "✓" : "✗"}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -612,6 +728,16 @@ const PythonContentTester: React.FC = () => {
               opacity: 1;
               box-shadow: 0 0 4px rgba(239, 68, 68, 0.6);
             }
+          }
+        `}
+      </style>
+      
+      {/* ===== PLACEHOLDER STYLING ===== */}
+      <style>
+        {`
+          .ace_comment.ace_placeholder {
+            margin: 0 !important;
+            padding: 0 !important;
           }
         `}
       </style>

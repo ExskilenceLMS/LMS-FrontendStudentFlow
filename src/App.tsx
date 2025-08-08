@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { Detector } from "react-detect-offline";
 import apiClient from "./utils/apiAuth";
+import { getApiClient } from "./utils/apiAuth";
+
 import { Modal } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -44,15 +46,16 @@ function AppContent() {
   const location = useLocation();
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [countdown, setCountdown] = useState(60);
+const sessionValidationFlagRef = useRef(false);
+const validationInProgressRef = useRef(false);
+
+  
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const encryptedStudentId = sessionStorage.getItem('StudentId') || "";
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
-  // const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  // const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  // const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
   // Check if user is on login page
   const isOnLoginPage = () => {
@@ -68,7 +71,6 @@ function AppContent() {
       window.location.href = '/'; 
     }
     catch (error){
-      console.error("Logout error:", error);
       // Still redirect even if API call fails
       window.location.href = '/';
     }
@@ -140,9 +142,18 @@ function AppContent() {
         startCountdown();
       }, (parseInt(process.env.REACT_APP_SESSION_TIMEOUT_MINUTES || "2") * 60 * 1000)); // Use environment variable for session timeout
     } catch (error) {
-      console.error("Error checking session data from localStorage:", error);
     }
   }, [startCountdown, location.pathname]);
+
+  useEffect(() => {
+    if (showLogoutWarning) {
+      sessionValidationFlagRef.current = true;
+    }
+  }, [showLogoutWarning]);
+  
+
+  
+
 
   useEffect(() => {
     // Add global right-click disable for all pages including login
@@ -164,6 +175,22 @@ function AppContent() {
       return;
     }
 
+    const validateSession = async () => {
+      if (validationInProgressRef.current) return; // Prevent multiple calls
+    
+      validationInProgressRef.current = true;
+    
+      try {
+        getApiClient().get(`${process.env.REACT_APP_BACKEND_URL}api/validate-session/`);
+      } catch (error) {
+      } finally {
+        sessionValidationFlagRef.current = false;
+        validationInProgressRef.current = false;
+      }
+    };
+    
+    
+
     // Check if user has valid session data from localStorage
     const checkSessionAndSetupTimer = async () => {
       try {
@@ -176,12 +203,16 @@ function AppContent() {
 
         const events = ['mousemove', 'keypress', 'scroll', 'click'];
         const handleActivity = () => {
-          // Double-check we're not on login page before resetting timer
-          if (isOnLoginPage()) {
-            return;
+          if (isOnLoginPage()) return;
+        
+          if (sessionValidationFlagRef.current) {
+            validateSession(); // This will now trigger correctly
           }
+        
           resetTimer();
         };
+        
+        
 
         events.forEach((event) => {
           window.addEventListener(event, handleActivity);
@@ -204,7 +235,6 @@ function AppContent() {
           }
         };
       } catch (error) {
-        console.error("Error checking session data from localStorage:", error);
       }
     };
 
@@ -230,12 +260,14 @@ function AppContent() {
     <>
       <AppRoutes />
    
-      <Modal show={showLogoutWarning} onHide={resetTimer}>
+      <Modal show={showLogoutWarning} onHide={resetTimer} backdrop="static"
+      style={{backdropFilter: 'blur(10px)'}} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Session Timeout Warning</Modal.Title>
+          <Modal.Title>Still there?</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          You will be logged out in {countdown} seconds due to in-active.
+        You’ve been inactive. You’ll be logged out in {countdown} seconds.
+        Note : Please move your cursor or click any button.
         </Modal.Body>
       </Modal>
     </>

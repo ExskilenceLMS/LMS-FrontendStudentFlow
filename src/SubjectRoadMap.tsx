@@ -1405,7 +1405,7 @@ const renderMCQContent = () => {
                                 <button className={`btn me-3`} style={{ minWidth: '80px', backgroundColor: question.isSolved ? '#63F67E' : '#D4DCFF', border: '1px solid black', color: 'black', }}
                                     onClick={() => {
                                         sessionStorage.setItem('currentQuestionIndex', (codingQuestions.indexOf(question)).toString());
-                                        navigate(navigateTo);
+                                        navigate(navigateTo, { replace: true });
                                     }}
                                     >
                                     {question.isSolved ? 'Solved' : 'Solve'}
@@ -1424,7 +1424,7 @@ const handleNext = useCallback(async () => {
     const unlockedSubtopicsArray = JSON.parse(sessionStorage.getItem('unlockedSubtopics') || '[]');
 
     if (unlockedSubtopicsArray.length === 0) {
-        navigate('/SubjectOverview');
+        navigate('/SubjectOverview', { replace: true });
         return;
     }
 
@@ -1487,7 +1487,7 @@ const handleNext = useCallback(async () => {
                                 setDisablePreviousBtn(false);
                             }
                         } else if (response3.data.message === "Day Completed") {
-                            navigate("/SubjectOverview");
+                            navigate("/SubjectOverview", { replace: true });
                         } else {
                             setShowUpdateModal(true);
                             setModalMessage(response3.data.qns_status);
@@ -1541,7 +1541,7 @@ const handleNext = useCallback(async () => {
                                 setDisablePreviousBtn(false);
                             }
                         } else if (response3.data.message === "Day Completed") {
-                            navigate("/SubjectOverview");
+                            navigate("/SubjectOverview", { replace: true });
                         } else {
                             setShowUpdateModal(true);
                             setModalMessage(response3.data.qns_status);
@@ -1617,7 +1617,7 @@ const handleNext = useCallback(async () => {
                                     setDisablePreviousBtn(false);
                                 }
                             } else if (response3.data.message === "Day Completed") {
-                                navigate("/SubjectOverview");
+                                navigate("/SubjectOverview", { replace: true });
                             } else {
                                 setShowUpdateModal(true);
                                 setModalMessage(response3.data.qns_status);
@@ -1681,7 +1681,7 @@ const handleNext = useCallback(async () => {
                         setDisablePreviousBtn(false);
                     }
                 } else if (response3.data.message === "Day Completed") {
-                    navigate("/SubjectOverview");
+                    navigate("/SubjectOverview", { replace: true });
                 } else {
                     setShowUpdateModal(true);
                     setModalMessage(response3.data.qns_status);
@@ -1707,7 +1707,7 @@ const handleNext = useCallback(async () => {
                 if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                     setDisablePreviousBtn(false);
                 } else if (response3.data.message === "Day Completed") {
-                    navigate("/SubjectOverview");
+                    navigate("/SubjectOverview", { replace: true });
                 } else {
                     setShowUpdateModal(true);
                     setModalMessage(response3.data.qns_status);

@@ -124,7 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({ show, toggleSidebar }) => {
     if (subItem.onClick) {
       subItem.onClick();
     } else if (subItem.path) {
-      navigate(`/${subItem.path}`);
+      navigate(`/${subItem.path}`, { replace: true });
       setActiveSubMenu(subItem.label);
     }
     setHoverMenu(null);
@@ -182,7 +182,7 @@ const Sidebar: React.FC<SidebarProps> = ({ show, toggleSidebar }) => {
           onClick={() => {
             if (!item.subMenu) {
               if (item.path) {
-                navigate(`/${item.path}`);
+                navigate(`/${item.path}`, { replace: true });
                 setActiveMainMenu(item.label);
               }
             }
