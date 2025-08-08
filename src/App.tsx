@@ -273,10 +273,11 @@ const validationInProgressRef = useRef(false);
       <Modal show={showLogoutWarning} onHide={resetTimer} backdrop="static"
       style={{backdropFilter: 'blur(10px)'}} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Session Timeout Warning</Modal.Title>
+          <Modal.Title>Still there?</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          You will be logged out in {countdown} seconds due to in-active.
+        You’ve been inactive. You’ll be logged out in {countdown} seconds.
+        Note : Please move your cursor/click any button.
         </Modal.Body>
       </Modal>
     </>
