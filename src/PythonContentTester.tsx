@@ -134,7 +134,6 @@ const PythonContentTester: React.FC = () => {
       const data: FastAPIHealthResponse = await response.json();
       setBackendHealthy(data.status === 'healthy');
     } catch (error) {
-      console.error('Backend health check failed:', error);
       setBackendHealthy(false);
     }
   };

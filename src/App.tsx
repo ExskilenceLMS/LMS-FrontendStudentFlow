@@ -46,7 +46,6 @@ function AppContent() {
   const location = useLocation();
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [countdown, setCountdown] = useState(60);
-// const [sessionValidationFlag, setSessionValidationFlag] = useState(false);
 const sessionValidationFlagRef = useRef(false);
 const validationInProgressRef = useRef(false);
 
@@ -57,10 +56,6 @@ const validationInProgressRef = useRef(false);
   const encryptedStudentId = sessionStorage.getItem('StudentId') || "";
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
-
-  // const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
-  // const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
-  // const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
 
   // Check if user is on login page
   const isOnLoginPage = () => {
