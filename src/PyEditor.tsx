@@ -300,9 +300,43 @@ const decryptData = (encryptedData: string) => {
    * @returns Submission ID from the backend
    */
   const submitCodeToBackend = async (code: string, testCases: any[], timeout: number = 15, questionId: string = "q123", testId: string ="practice"): Promise<string> => {
+    // Transform test cases to match the expected API format
+    const transformedTestCases = testCases.map((testCase, index) => {
+      if (index === 0 && Array.isArray(testCase.Testcase)) {
+        // First test case should remain as simple array for keyword validation
+        return {
+          Testcase: testCase.Testcase
+        };
+      } else if (testCase.Testcase && testCase.Testcase.Value) {
+        // Other test cases with Value property, use as is
+        return {
+          Testcase: {
+            Value: testCase.Testcase.Value,
+            Output: testCase.Testcase.Output
+          }
+        };
+      } else if (Array.isArray(testCase.Testcase)) {
+        // If Testcase is an array but not the first one, convert to Value format
+        return {
+          Testcase: {
+            Value: testCase.Testcase,
+            Output: "validation_check"
+          }
+        };
+      } else {
+        // Fallback for other formats
+        return {
+          Testcase: {
+            Value: Array.isArray(testCase) ? testCase : [testCase],
+            Output: "validation_check"
+          }
+        };
+      }
+    });
+
     const payload = {
       code: code,
-      TestCases: testCases,
+      TestCases: transformedTestCases,
       FunctionCall: "",
       language: "python",
       timeout: timeout,
@@ -396,17 +430,10 @@ const decryptData = (encryptedData: string) => {
    * @returns Processed test cases in consistent object format
    */
   const processTestCases = (testCases: TestCase[]) => {
-    return testCases.map((testCase, index) => {
-      if (Array.isArray(testCase.Testcase)) {
-        // Convert array format (validation test) to object format for consistency
-        return {
-          Testcase: {
-            Value: testCase.Testcase,
-            Output: "validation_check"
-          }
-        };
-      }
-      return testCase; // Already in correct object format
+    return testCases.map(testCase => {
+      // Do not convert array format to object format here.
+      // The submitCodeToBackend function will handle the final API payload formatting.
+      return testCase;
     });
   };
 
