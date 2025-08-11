@@ -30,6 +30,7 @@ const TestIntroduction: React.FC = () => {
   const [sectionCount2, setSectionCount2] = useState<number>(0);
   const [testDuration, setTestDuration] = useState<number>(0);
   const [responseLoading, setResponseLoading] = useState<boolean>(false);
+  const [buttonText, setButtonText] = useState<string>("Start Test");
 
   // Use SWR for test instruction API with 1-hour cache
   const instructionUrl = testId && studentId 
@@ -53,6 +54,17 @@ const TestIntroduction: React.FC = () => {
           (window as any).updateTimerSync();
         }
         
+        // Get button text from session storage or determine from API response
+        const storedButtonStatus = sessionStorage.getItem('TestButtonStatus');
+        if (storedButtonStatus) {
+          setButtonText(storedButtonStatus === "Start" ? "Start Test" : "Resume Test");
+        } else if (instructionData) {
+          // If no stored status, check if test has already started based on API response
+          // This handles cases where user navigates back to test introduction
+          const testStatus = instructionData.test_status || "Pending";
+          setButtonText(testStatus === "Started" ? "Resume Test" : "Start Test");
+        }
+        
         // Use cached instruction and section data from SWR
         if (instructionData && cachedSectionData) {
           setDuration(instructionData.test_duration_minutes);
@@ -74,6 +86,13 @@ const TestIntroduction: React.FC = () => {
     fetchData();
   }, [testId, studentId, navigate, instructionData, cachedSectionData]);
 
+  // Cleanup effect to clear button status when component unmounts
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem('TestButtonStatus');
+    };
+  }, []);
+
   const handleStartTest = async () => {
     // sessionStorage.setItem("timer", duration);
     // api/student/test/start/25EABCXIS001/Test1/
@@ -81,6 +100,10 @@ const TestIntroduction: React.FC = () => {
     const response = await getApiClient().patch(url);
     const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response.data), secretKey).toString();
     sessionStorage.setItem("sectionData", encryptedSectionData);
+    
+    // Clear the button status from session storage as it's no longer needed
+    sessionStorage.removeItem('TestButtonStatus');
+    
     if (response.data.status === "completed") {
       navigate("/test-report", { replace: true });
     } else {
@@ -232,7 +255,7 @@ const TestIntroduction: React.FC = () => {
                 onClick={handleStartTest}
                 disabled={responseLoading}
               >
-                Start Test
+                {buttonText}
               </button>
             </div>
           </div>
