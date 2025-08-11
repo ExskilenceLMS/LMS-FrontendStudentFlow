@@ -344,7 +344,7 @@ const Login: React.FC = () => {
       <div className="row w-100 justify-content-center">
       <div className="col-12 col-lg-8 d-flex align-items-center justify-content-center">
             <div className="">
-              <span className="block text-start fw-bolder" style={{ color: '#fff', fontSize: '60px' }}>Exskilence SF</span>
+              <span className="block text-start fw-bolder" style={{ color: '#fff', fontSize: '60px' }}>Exskilence</span>
               <p className='ps-5 text-start mb-3'  style={{
         background: "linear-gradient(to right, #f5d547, #48e28f)",
         WebkitBackgroundClip: "text",
