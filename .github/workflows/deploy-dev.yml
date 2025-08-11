@@ -46,6 +46,6 @@ jobs:
           port: 22
           script: |
             set -e
-            cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow:latest
+            cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
             docker compose pull
             docker compose up -d --remove-orphans
