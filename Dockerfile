@@ -7,12 +7,22 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# Accept build args for env file and build command
+ARG ENV_FILE=.env.prod
+ARG BUILD_COMMAND=build:prod
+
 # Copy source code and env file
 COPY . .
-COPY .env.prod .env
+# COPY .env.prod .env
 
-# Build React app using production environment
-RUN npm run build:prod
+# Copy the correct environment file into .env
+COPY ${ENV_FILE} .env
+
+# # Build React app using production environment
+# RUN npm run build:prod
+
+# Build React app using selected build command
+RUN npm run ${BUILD_COMMAND}
 
 # Stage 2: Serve with NGINX
 FROM nginx:alpine
