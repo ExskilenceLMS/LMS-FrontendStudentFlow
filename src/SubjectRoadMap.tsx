@@ -312,11 +312,23 @@ const fetchRoadmapData = async () => {
             }
 
             const newUnlockedSubtopics = new Set<string>();
-            chapter.sub_topic_data.forEach((subtopic: SubTopic) => {
-                if (subtopic.subtopicid <= userSubtopicId) {
+            
+            // If day is completed, unlock all subtopics
+            if (chapter.day_completed) {
+                chapter.sub_topic_data.forEach((subtopic: SubTopic) => {
                     newUnlockedSubtopics.add(subtopic.subtopicid);
+                });
+            } else {
+                // Otherwise, unlock subtopics based on user progress
+                // Find the current subtopic index and unlock all up to that point
+                const currentSubtopicIndex = chapter.sub_topic_data.findIndex((subtopic: SubTopic) => subtopic.subtopicid === userSubtopicId);
+                if (currentSubtopicIndex !== -1) {
+                    // Unlock all subtopics up to and including the current one
+                    for (let i = 0; i <= currentSubtopicIndex; i++) {
+                        newUnlockedSubtopics.add(chapter.sub_topic_data[i].subtopicid);
+                    }
                 }
-            });
+            }
 
             setUnlockedSubtopics(newUnlockedSubtopics);
             sessionStorage.setItem('unlockedSubtopics', JSON.stringify(Array.from(newUnlockedSubtopics)));
@@ -640,16 +652,16 @@ const fetchRoadmapData = async () => {
                 setCurrentLessonIndex(nextIndex);
             } else if (chapters[0].sub_topic_data.length > currentSubTopicIndex + 1) {
                 const nextSubTopicIndex = currentSubTopicIndex + 1;
-                setCurrentSubTopicIndex(nextSubTopicIndex);
-                setCurrentLessonIndex(0);
-                
-                // Clear the last content type when moving to next subtopic
-                sessionStorage.removeItem("lastContentType");
+                    setCurrentSubTopicIndex(nextSubTopicIndex);
+                    setCurrentLessonIndex(0);
+                    
+                    // Clear the last content type when moving to next subtopic
+                    sessionStorage.removeItem("lastContentType");
 
-                if (currentView === 'mcq') {
-                    fetchMCQQuestions(nextSubTopicIndex);
-                } else if (currentView === 'coding') {
-                    fetchCodingQuestions(nextSubTopicIndex);
+                    if (currentView === 'mcq') {
+                        fetchMCQQuestions(nextSubTopicIndex);
+                    } else if (currentView === 'coding') {
+                        fetchCodingQuestions(nextSubTopicIndex);
                 }
             }
         }
@@ -659,21 +671,21 @@ const fetchRoadmapData = async () => {
         if (currentLessonIndex > 0) {
             const prevIndex = currentLessonIndex - 1;
             setCurrentLessonIndex(prevIndex);
-        } else if (currentSubTopicIndex > 0) {
-            const prevSubTopicIndex = currentSubTopicIndex - 1;
-            const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
-            setCurrentSubTopicIndex(prevSubTopicIndex);
-            setCurrentLessonIndex(prevSubTopic.lesson ? prevSubTopic.lesson.length - 1 : 0);
-            
-            // Clear the last content type when moving to previous subtopic
-            sessionStorage.removeItem("lastContentType");
-            
-            if (currentView === 'mcq') {
-                fetchMCQQuestions(prevSubTopicIndex);
-            } else if (currentView === 'coding') {
-                fetchCodingQuestions(prevSubTopicIndex);
-            }
-        }
+                        } else if (currentSubTopicIndex > 0) {
+                    const prevSubTopicIndex = currentSubTopicIndex - 1;
+                    const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
+                    setCurrentSubTopicIndex(prevSubTopicIndex);
+                    setCurrentLessonIndex(prevSubTopic.lesson ? prevSubTopic.lesson.length - 1 : 0);
+                    
+                    // Clear the last content type when moving to previous subtopic
+                    sessionStorage.removeItem("lastContentType");
+                    
+                    if (currentView === 'mcq') {
+                        fetchMCQQuestions(prevSubTopicIndex);
+                    } else if (currentView === 'coding') {
+                        fetchCodingQuestions(prevSubTopicIndex);
+                    }
+                }
     }, [chapters, currentSubTopicIndex, currentLessonIndex, currentView, fetchMCQQuestions, fetchCodingQuestions]);
 
     const handleNextNotes = useCallback(async () => {
@@ -686,16 +698,16 @@ const fetchRoadmapData = async () => {
                 setCurrentNoteId(noteId);
             } else if (chapters[0].sub_topic_data.length > currentSubTopicIndex + 1) {
                 const nextSubTopicIndex = currentSubTopicIndex + 1;
-                setCurrentSubTopicIndex(nextSubTopicIndex);
-                setCurrentNotesIndex(0);
-                
-                // Clear the last content type when moving to next subtopic
-                sessionStorage.removeItem("lastContentType");
+                    setCurrentSubTopicIndex(nextSubTopicIndex);
+                    setCurrentNotesIndex(0);
+                    
+                    // Clear the last content type when moving to next subtopic
+                    sessionStorage.removeItem("lastContentType");
 
-                const nextSubTopic = chapters[0].sub_topic_data[nextSubTopicIndex];
-                if (nextSubTopic.notes && nextSubTopic.notes.length > 0) {
-                    const noteId = nextSubTopic.notes[0];
-                    setCurrentNoteId(noteId);
+                    const nextSubTopic = chapters[0].sub_topic_data[nextSubTopicIndex];
+                    if (nextSubTopic.notes && nextSubTopic.notes.length > 0) {
+                        const noteId = nextSubTopic.notes[0];
+                        setCurrentNoteId(noteId);
                 }
             }
         }
@@ -748,13 +760,13 @@ const fetchRoadmapData = async () => {
             setCurrentMCQIndex(currentMCQIndex - 1);
         } else {
             if (currentSubTopicIndex > 0) {
-                const prevSubTopicIndex = currentSubTopicIndex - 1;
-                setCurrentSubTopicIndex(prevSubTopicIndex);
-                
-                // Clear the last content type when moving to previous subtopic
-                sessionStorage.removeItem("lastContentType");
-                
-                fetchMCQQuestions(prevSubTopicIndex);
+            const prevSubTopicIndex = currentSubTopicIndex - 1;
+            setCurrentSubTopicIndex(prevSubTopicIndex);
+            
+            // Clear the last content type when moving to previous subtopic
+            sessionStorage.removeItem("lastContentType");
+            
+            fetchMCQQuestions(prevSubTopicIndex);
             }
         }
     }, [currentMCQIndex, mcqQuestions, currentSubTopicIndex, chapters, fetchMCQQuestions]);
@@ -1726,41 +1738,41 @@ const handlePrevious = useCallback(async () => {
   if (currentView === 'lesson') {
       if (currentLessonIndex > 0) {
           handlePreviousLesson();
-              } else if (currentSubTopicIndex > 0) {
-            // Go to last content of previous subtopic
-            const prevSubTopicIndex = currentSubTopicIndex - 1;
-            const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
-            sessionStorage.removeItem("lastContentType");
-            // Update currentSubTopicId to the previous subtopic
-            sessionStorage.setItem("currentSubTopicId", prevSubTopic.subtopicid);
-            // Find last available content type in order: coding, mcq, notes, lesson
-            if (prevSubTopic.codingQuestions > 0) {
-                setCurrentSubTopicIndex(prevSubTopicIndex);
-                setCurrentView('coding');
-                sessionStorage.setItem("lastContentType", 'coding');
-                fetchCodingQuestions(prevSubTopicIndex);
-                setHasFetched(true);
-            } else if (prevSubTopic.mcqQuestions > 0) {
-                setCurrentSubTopicIndex(prevSubTopicIndex);
-                setCurrentMCQIndex(prevSubTopic.mcqQuestions - 1);
-                setCurrentView('mcq');
-                sessionStorage.setItem("lastContentType", 'mcq');
-                fetchMCQQuestions(prevSubTopicIndex);
-                setHasFetched(true);
-            } else if (prevSubTopic.notes && prevSubTopic.notes.length > 0) {
-                setCurrentSubTopicIndex(prevSubTopicIndex);
-                setCurrentNotesIndex(prevSubTopic.notes.length - 1);
-                setCurrentView('notes');
-                sessionStorage.setItem("lastContentType", 'notes');
-                const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
-                setCurrentNoteId(noteId);
-            } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
-                setCurrentSubTopicIndex(prevSubTopicIndex);
-                setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
-                setCurrentView('lesson');
-                sessionStorage.setItem("lastContentType", 'lesson');
-            }
-        }
+      } else if (currentSubTopicIndex > 0) {
+          // Go to last content of previous subtopic
+          const prevSubTopicIndex = currentSubTopicIndex - 1;
+          const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
+          sessionStorage.removeItem("lastContentType");
+          // Update currentSubTopicId to the previous subtopic
+          sessionStorage.setItem("currentSubTopicId", prevSubTopic.subtopicid);
+          // Find last available content type in order: coding, mcq, notes, lesson
+          if (prevSubTopic.codingQuestions > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentView('coding');
+              sessionStorage.setItem("lastContentType", 'coding');
+              fetchCodingQuestions(prevSubTopicIndex);
+              setHasFetched(true);
+          } else if (prevSubTopic.mcqQuestions > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentMCQIndex(prevSubTopic.mcqQuestions - 1);
+              setCurrentView('mcq');
+              sessionStorage.setItem("lastContentType", 'mcq');
+              fetchMCQQuestions(prevSubTopicIndex);
+              setHasFetched(true);
+          } else if (prevSubTopic.notes && prevSubTopic.notes.length > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentNotesIndex(prevSubTopic.notes.length - 1);
+              setCurrentView('notes');
+              sessionStorage.setItem("lastContentType", 'notes');
+              const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
+              setCurrentNoteId(noteId);
+          } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
+              setCurrentView('lesson');
+              sessionStorage.setItem("lastContentType", 'lesson');
+          }
+      }
   } else if (currentView === 'notes') {
       if (currentNotesIndex > 0) {
           handlePreviousNotes();
@@ -1770,37 +1782,37 @@ const handlePrevious = useCallback(async () => {
           if (currentSubTopic.lesson && currentSubTopic.lesson.length > 0) {
               handleViewChange('lesson');
               setCurrentLessonIndex(currentSubTopic.lesson.length - 1);
-          } else if (currentSubTopicIndex > 0) {
-              // Go to last content of previous subtopic
-              const prevSubTopicIndex = currentSubTopicIndex - 1;
-              const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
-              sessionStorage.removeItem("lastContentType");
-              if (prevSubTopic.codingQuestions > 0) {
-                  setCurrentSubTopicIndex(prevSubTopicIndex);
-                  setCurrentView('coding');
-                  sessionStorage.setItem("lastContentType", 'coding');
-                  fetchCodingQuestions(prevSubTopicIndex);
-                  setHasFetched(true);
-              } else if (prevSubTopic.mcqQuestions > 0) {
-                  setCurrentSubTopicIndex(prevSubTopicIndex);
-                  setCurrentMCQIndex(prevSubTopic.mcqQuestions - 1);
-                  setCurrentView('mcq');
-                  sessionStorage.setItem("lastContentType", 'mcq');
-                  fetchMCQQuestions(prevSubTopicIndex);
-                  setHasFetched(true);
-              } else if (prevSubTopic.notes && prevSubTopic.notes.length > 0) {
-                  setCurrentSubTopicIndex(prevSubTopicIndex);
-                  setCurrentNotesIndex(prevSubTopic.notes.length - 1);
-                  setCurrentView('notes');
-                  sessionStorage.setItem("lastContentType", 'notes');
-                  const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
-                  setCurrentNoteId(noteId);
-              } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
-                  setCurrentSubTopicIndex(prevSubTopicIndex);
-                  setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
-                  setCurrentView('lesson');
-                  sessionStorage.setItem("lastContentType", 'lesson');
-              }
+      } else if (currentSubTopicIndex > 0) {
+          // Go to last content of previous subtopic
+          const prevSubTopicIndex = currentSubTopicIndex - 1;
+          const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
+          sessionStorage.removeItem("lastContentType");
+          if (prevSubTopic.codingQuestions > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentView('coding');
+              sessionStorage.setItem("lastContentType", 'coding');
+              fetchCodingQuestions(prevSubTopicIndex);
+              setHasFetched(true);
+          } else if (prevSubTopic.mcqQuestions > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentMCQIndex(prevSubTopic.mcqQuestions - 1);
+              setCurrentView('mcq');
+              sessionStorage.setItem("lastContentType", 'mcq');
+              fetchMCQQuestions(prevSubTopicIndex);
+              setHasFetched(true);
+          } else if (prevSubTopic.notes && prevSubTopic.notes.length > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentNotesIndex(prevSubTopic.notes.length - 1);
+              setCurrentView('notes');
+              sessionStorage.setItem("lastContentType", 'notes');
+              const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
+              setCurrentNoteId(noteId);
+          } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
+              setCurrentView('lesson');
+              sessionStorage.setItem("lastContentType", 'lesson');
+          }
           }
       }
   } else if (currentView === 'mcq') {
@@ -1815,39 +1827,39 @@ const handlePrevious = useCallback(async () => {
           } else if (currentSubTopic.lesson && currentSubTopic.lesson.length > 0) {
               handleViewChange('lesson');
               setCurrentLessonIndex(currentSubTopic.lesson.length - 1);
-          } else if (currentSubTopicIndex > 0) {
-              // Go to last content of previous subtopic
-              const prevSubTopicIndex = currentSubTopicIndex - 1;
-              const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
-              sessionStorage.removeItem("lastContentType");
-              // Update currentSubTopicId to the previous subtopic
-              sessionStorage.setItem("currentSubTopicId", prevSubTopic.subtopicid);
-              if (prevSubTopic.codingQuestions > 0) {
-                  setCurrentSubTopicIndex(prevSubTopicIndex);
-                  setCurrentView('coding');
-                  sessionStorage.setItem("lastContentType", 'coding');
-                  fetchCodingQuestions(prevSubTopicIndex);
-                  setHasFetched(true);
-              } else if (prevSubTopic.mcqQuestions > 0) {
-                  setCurrentSubTopicIndex(prevSubTopicIndex);
-                  setCurrentMCQIndex(prevSubTopic.mcqQuestions - 1);
-                  setCurrentView('mcq');
-                  sessionStorage.setItem("lastContentType", 'mcq');
-                  fetchMCQQuestions(prevSubTopicIndex);
-                  setHasFetched(true);
-              } else if (prevSubTopic.notes && prevSubTopic.notes.length > 0) {
-                  setCurrentSubTopicIndex(prevSubTopicIndex);
-                  setCurrentNotesIndex(prevSubTopic.notes.length - 1);
-                  setCurrentView('notes');
-                  sessionStorage.setItem("lastContentType", 'notes');
-                  const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
-                  setCurrentNoteId(noteId);
-              } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
-                  setCurrentSubTopicIndex(prevSubTopicIndex);
-                  setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
-                  setCurrentView('lesson');
-                  sessionStorage.setItem("lastContentType", 'lesson');
-              }
+      } else if (currentSubTopicIndex > 0) {
+          // Go to last content of previous subtopic
+          const prevSubTopicIndex = currentSubTopicIndex - 1;
+          const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
+          sessionStorage.removeItem("lastContentType");
+          // Update currentSubTopicId to the previous subtopic
+          sessionStorage.setItem("currentSubTopicId", prevSubTopic.subtopicid);
+          if (prevSubTopic.codingQuestions > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentView('coding');
+              sessionStorage.setItem("lastContentType", 'coding');
+              fetchCodingQuestions(prevSubTopicIndex);
+              setHasFetched(true);
+          } else if (prevSubTopic.mcqQuestions > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentMCQIndex(prevSubTopic.mcqQuestions - 1);
+              setCurrentView('mcq');
+              sessionStorage.setItem("lastContentType", 'mcq');
+              fetchMCQQuestions(prevSubTopicIndex);
+              setHasFetched(true);
+          } else if (prevSubTopic.notes && prevSubTopic.notes.length > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentNotesIndex(prevSubTopic.notes.length - 1);
+              setCurrentView('notes');
+              sessionStorage.setItem("lastContentType", 'notes');
+              const noteId = prevSubTopic.notes[prevSubTopic.notes.length - 1];
+              setCurrentNoteId(noteId);
+          } else if (prevSubTopic.lesson && prevSubTopic.lesson.length > 0) {
+              setCurrentSubTopicIndex(prevSubTopicIndex);
+              setCurrentLessonIndex(prevSubTopic.lesson.length - 1);
+              setCurrentView('lesson');
+              sessionStorage.setItem("lastContentType", 'lesson');
+          }
           }
       }
   } else if (currentView === 'coding') {
@@ -1862,14 +1874,14 @@ const handlePrevious = useCallback(async () => {
                 } else if (currentSubTopic.lesson && currentSubTopic.lesson.length > 0) {
               handleViewChange('lesson');
               setCurrentLessonIndex(currentSubTopic.lesson.length - 1);
-          } else if (currentSubTopicIndex > 0) {
-              // Go to last content of previous subtopic
-              const prevSubTopicIndex = currentSubTopicIndex - 1;
-              const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
-              sessionStorage.removeItem("lastContentType");
-              // Update currentSubTopicId to the previous subtopic
-              sessionStorage.setItem("currentSubTopicId", prevSubTopic.subtopicid);
-              if (prevSubTopic.codingQuestions > 0) {
+      } else if (currentSubTopicIndex > 0) {
+          // Go to last content of previous subtopic
+          const prevSubTopicIndex = currentSubTopicIndex - 1;
+          const prevSubTopic = chapters[0].sub_topic_data[prevSubTopicIndex];
+          sessionStorage.removeItem("lastContentType");
+          // Update currentSubTopicId to the previous subtopic
+          sessionStorage.setItem("currentSubTopicId", prevSubTopic.subtopicid);
+          if (prevSubTopic.codingQuestions > 0) {
               setCurrentSubTopicIndex(prevSubTopicIndex);
               setCurrentView('coding');
               sessionStorage.setItem("lastContentType", 'coding');

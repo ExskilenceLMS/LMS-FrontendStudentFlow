@@ -267,6 +267,7 @@ const validationInProgressRef = useRef(false);
         </Modal.Header>
         <Modal.Body>
         You’ve been inactive. You’ll be logged out in {countdown} seconds.
+        <br />
         Note : Please move your cursor or click any button.
         </Modal.Body>
       </Modal>
