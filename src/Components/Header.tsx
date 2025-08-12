@@ -105,7 +105,23 @@ const Header: React.FC = () => {
           formattedTitle === "Profile" ? "Profile" :
           formattedTitle === "Editprofile" ? "Edit Profile" :
           formattedTitle === "Test Section" ? "Test" :
-          formattedTitle}
+          formattedTitle === "Test Report" ? (
+            <>
+              Test Report
+              {sessionStorage.getItem("TestName") && (
+                <span> &gt; {sessionStorage.getItem("TestName")}</span>
+              )}
+            </>
+          ) : formattedTitle === "Test Introduction" ? (
+            <>
+              Test Introduction
+              {sessionStorage.getItem("TestName") && (
+                <span> &gt; {sessionStorage.getItem("TestName")}</span>
+              )}
+            </>
+          ) : (
+            formattedTitle
+          )}
           </span>
         </span>
         <span className="text-center fs-6">
