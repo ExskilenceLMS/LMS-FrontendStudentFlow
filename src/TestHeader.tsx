@@ -369,7 +369,7 @@ useEffect(() => {
         <IoArrowBackCircleOutline size={30} className="me-1 pb-1 cursor-pointer" onClick={handleBackBtn} style={{ cursor: 'pointer'}} />
           
           {formattedTitle === "Test Section" || formattedTitle === "Mcq Temp" || formattedTitle === "Coding Temp" || location.pathname.includes("dynamic-coding") ?
-            <> <span className='fw-bold'>{sessionStorage.getItem("TestType") || ""}</span> </>
+            <> <span className='fw-bold'>{sessionStorage.getItem("TestType") || ""}</span> {sessionStorage.getItem("TestName")?<> &gt; <span className='fw-bold'>{sessionStorage.getItem("TestName")}</span> </> : ""} </>
             :
             <></>}
         </span>

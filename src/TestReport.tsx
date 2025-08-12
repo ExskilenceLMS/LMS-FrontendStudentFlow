@@ -538,19 +538,19 @@ const TestReport: React.FC = () => {
                       {popupData.answer && (
                         <>
                           <div className="container-fluid">
-                            <div className="row">
-                              <div className="col border border-black rounded-3 p-3 px-5 me-4">
+                            <div className="row gap-2">
+                              <div className="col border border-black rounded-3 p-3 px-5 d-flex flex-column">
                                 <p className="fw-bold pb-0 mb-0">Your answer</p>
                                 <hr className="mt-0 pt-0" />
-                                <div>
-                                  {popupData.answer.user}
+                                <div className="w-100 overflowX-auto flex-grow-1">
+                                  <pre className="mb-0">{popupData.answer.user}</pre>
                                 </div>
                               </div>
-                              <div className="col border border-black rounded-2 p-3 px-5">
+                              <div className="col border border-black rounded-2 p-3 px-5 d-flex flex-column">
                                 <p className="fw-bold pb-0 mb-0">Optimal answer</p>
                                 <hr className="mt-0 pt-0" />
-                                <div>
-                                  {popupData.answer.correct}
+                                <div className="w-100 overflowX-auto flex-grow-1">
+                                  <pre className="mb-0">{popupData.answer.correct}</pre>
                                 </div>
                               </div>
                             </div>

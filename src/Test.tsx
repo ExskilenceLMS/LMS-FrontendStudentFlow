@@ -78,13 +78,33 @@ const Test: React.FC = () => {
   const navigate = useNavigate();
   const [testDetails, setTestDetails] = useState<TestDetail[]>([]);
   const [filteredDetails, setFilteredDetails] = useState<TestDetail[]>([]);
-  const [filterState, setFilterState] = useState<FilterState>({
-    testType: "",
-    subject: "",
-    testStatus: "Ongoing",
-    topic: "",
-    startDate: "",
-    endDate: "",
+  const [filterState, setFilterState] = useState<FilterState>(() => {
+    // Try to restore filter state from session storage on component mount
+    const storedFilters = sessionStorage.getItem('TestFilters');
+    if (storedFilters) {
+      try {
+        const parsedFilters = JSON.parse(storedFilters);
+        return {
+          testType: parsedFilters.testType || "",
+          subject: parsedFilters.subject || "",
+          testStatus: parsedFilters.testStatus || "Ongoing",
+          topic: parsedFilters.topic || "",
+          startDate: parsedFilters.startDate || "",
+          endDate: parsedFilters.endDate || "",
+        };
+      } catch (error) {
+        console.error('Error parsing stored filters:', error);
+      }
+    }
+    // Default values if no stored data
+    return {
+      testType: "",
+      subject: "",
+      testStatus: "Ongoing",
+      topic: "",
+      startDate: "",
+      endDate: "",
+    };
   });
   const [sortState, setSortState] = useState<SortState>({
     column: 'startdate',
@@ -106,15 +126,50 @@ const Test: React.FC = () => {
       try {
         const response = await getApiClient().get(url);
         setTestDetails(response.data.test_details);
-        // Apply initial filter to show only ongoing tests
-        const ongoingTests = response.data.test_details.filter((detail: TestDetail) => {
-          const mappedStatus = statusMapping[detail.status] || detail.status;
-          return mappedStatus === "Ongoing";
-        });
         
-        // Apply initial sorting by start date descending
-        const sortedTests = sortData(ongoingTests);
-        setFilteredDetails(sortedTests);
+        // Check if we have stored filters and apply them
+        const storedFilters = sessionStorage.getItem('TestFilters');
+        if (storedFilters) {
+          try {
+            const parsedFilters = JSON.parse(storedFilters);
+            // Apply stored filters to the fetched data
+            const filtered = response.data.test_details.filter((detail: TestDetail) => {
+              const mappedStatus = statusMapping[detail.status] || detail.status;
+              return (
+                (parsedFilters.testType === "" || detail.testtype === parsedFilters.testType) &&
+                (parsedFilters.subject === "" || detail.subject === parsedFilters.subject) &&
+                (parsedFilters.testStatus === "" || mappedStatus === parsedFilters.testStatus) &&
+                (parsedFilters.topic === "" || detail.topic === parsedFilters.topic) &&
+                (parsedFilters.startDate === "" || detail.startdate >= parsedFilters.startDate) &&
+                (parsedFilters.endDate === "" || detail.enddate <= parsedFilters.endDate)
+              );
+            });
+            
+            // Apply initial sorting by start date descending
+            const sortedTests = sortData(filtered);
+            setFilteredDetails(sortedTests);
+          } catch (error) {
+            console.error('Error applying stored filters:', error);
+            // Fallback to default behavior if stored filters are invalid
+            const ongoingTests = response.data.test_details.filter((detail: TestDetail) => {
+              const mappedStatus = statusMapping[detail.status] || detail.status;
+              return mappedStatus === "Ongoing";
+            });
+            const sortedTests = sortData(ongoingTests);
+            setFilteredDetails(sortedTests);
+          }
+        } else {
+          // Apply initial filter to show only ongoing tests (default behavior)
+          const ongoingTests = response.data.test_details.filter((detail: TestDetail) => {
+            const mappedStatus = statusMapping[detail.status] || detail.status;
+            return mappedStatus === "Ongoing";
+          });
+          
+          // Apply initial sorting by start date descending
+          const sortedTests = sortData(ongoingTests);
+          setFilteredDetails(sortedTests);
+        }
+        
         setLoading(false);
       } catch (innerError: any) {
         console.error("Error fetching test details:", innerError);
@@ -174,6 +229,9 @@ const Test: React.FC = () => {
   };
 
   const handleApplyFilter = () => {
+    // Store filter values in session storage
+    sessionStorage.setItem('TestFilters', JSON.stringify(filterState));
+    
     const filtered = testDetails.filter((detail) => {
       const mappedStatus = statusMapping[detail.status] || detail.status;
       return (
@@ -405,17 +463,17 @@ const isTestTimeMatch = (test: TestDetail) => {
                     <option value="Upcoming">Upcoming</option>
                     <option value="Completed">Completed</option>
                   </select>
-                  <label className="form-label m-0 p-0 pt-2 ps-1">Topic</label>
+                  {/* <label className="form-label m-0 p-0 pt-2 ps-1">Topic</label>
                   <select className="form-select" name="topic" value={filterState.topic} onChange={handleFilterChange}>
                     <option value="">All</option>
                     <option value="TEST">TEST</option>
-                  </select>
+                  </select> */}
                   <label className="form-label m-0 p-0 pt-2 ps-1">Start Date</label>
                   <input type="date" className="form-control" name="startDate" value={filterState.startDate} onChange={handleFilterChange} />
                   <label className="form-label m-0 p-0 pt-2 ps-1">End Date</label>
                   <input type="date" className="form-control" name="endDate" value={filterState.endDate} onChange={handleFilterChange} />
                   <div className="d-flex justify-content-center my-4">
-                    <button className="btn border-black btn-sm" style={{ backgroundColor: "#E4F0FF", width: "90px" }} onClick={handleApplyFilter}>
+                    <button type='button' className="btn btn-primary" onClick={handleApplyFilter}>
                       Apply
                     </button>
                   </div>
@@ -562,6 +620,7 @@ const isTestTimeMatch = (test: TestDetail) => {
                                         // Store test status for button text in test introduction
                                         const buttonText = data.teststatus === "Pending" ? "Start" : data.teststatus === "Started" ? "Resume" : "Start";
                                         sessionStorage.setItem('TestButtonStatus', buttonText);
+                                        sessionStorage.setItem('TestName', data.title);
                                       }}
                                       style={{ width: "80px", backgroundColor: "#28a745", color: "white" }}
                                     >
@@ -569,7 +628,7 @@ const isTestTimeMatch = (test: TestDetail) => {
                                     </button>
                                   ) : mappedStatus === "Completed" ? (
                                     <HiOutlineClipboardDocumentList
-                                      onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
+                                      onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); sessionStorage.setItem('TestName', data.title); }}
                                       style={{ width: "30px", height: "30px", cursor: "pointer" }}
                                     />
                                   ) : (
@@ -592,11 +651,22 @@ const isTestTimeMatch = (test: TestDetail) => {
                         ) : (
                           <TableRow>
                             <TableCell colSpan={7} align="center">
-                              <Box sx={{ py: 4 }}>
-                                <Typography variant="body1" color="textSecondary">
-                                  No {filterState.testStatus.toLowerCase()} tests found
-                                </Typography>
-                              </Box>
+                                                             <Box sx={{ py: 4 }}>
+                                 <Typography variant="body1" color="textSecondary">
+                                   No {(() => {
+                                     const storedFilters = sessionStorage.getItem('TestFilters');
+                                     if (storedFilters) {
+                                       try {
+                                         const parsedFilters = JSON.parse(storedFilters);
+                                         return (parsedFilters.testStatus || 'Ongoing').toLowerCase();
+                                       } catch (error) {
+                                         return 'ongoing';
+                                       }
+                                     }
+                                     return 'ongoing';
+                                   })()} tests found
+                                 </Typography>
+                               </Box>
                             </TableCell>
                           </TableRow>
                         )}
