@@ -133,6 +133,7 @@ const SubjectRoadMap: React.FC = () => {
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
     const decryptedCourseId = CryptoJS.AES.decrypt(sessionStorage.getItem('CourseId')!, secretKey).toString(CryptoJS.enc.Utf8);
     const decryptedBatchId = CryptoJS.AES.decrypt(sessionStorage.getItem('BatchId')!, secretKey).toString(CryptoJS.enc.Utf8);
+    const [incompleteSubtopics, setIncompleteSubtopics] = useState<string[]>([]);
     // Helper function to build video URL from lesson data
 
 
@@ -406,7 +407,7 @@ const fetchRoadmapData = async () => {
             }
         }
 
-        await getApiClient().post(url1, {
+        const statusResponse = await getApiClient().post(url1, {
             student_id: studentId,
             subject: subject,
             subject_id: subjectId,
@@ -416,6 +417,13 @@ const fetchRoadmapData = async () => {
             status: false,
             batch_id: decryptedBatchId
         });
+
+        // Check for incomplete subtopics in the response
+        if (statusResponse.data && statusResponse.data.incomplete_sub_topics) {
+            setIncompleteSubtopics(statusResponse.data.incomplete_sub_topics);
+        } else {
+            setIncompleteSubtopics([]);
+        }
 
         setLoading(false);
         setDisablePreviousBtn(false);
@@ -1481,6 +1489,14 @@ const handleNext = useCallback(async () => {
                             "status": true,
                             "batch_id": decryptedBatchId
                         });
+                        
+                        // Update incomplete subtopics from the response
+                        if (response3.data && response3.data.incomplete_sub_topics) {
+                            setIncompleteSubtopics(response3.data.incomplete_sub_topics);
+                        } else {
+                            setIncompleteSubtopics([]);
+                        }
+                        
                         if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                             const nextSubTopicIndex = currentSubTopicIndex + 1;
                             if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
@@ -1494,16 +1510,19 @@ const handleNext = useCallback(async () => {
                                 sessionStorage.setItem("currentSubTopicId", nextSubTopic.subtopicid);
                                 sessionStorage.setItem("lastContentType", 'lesson');
                                 handleSubTopicChange(nextSubTopicIndex, false);
-                                setCurrentView('lesson');
-                                setCurrentLessonIndex(0);
-                                setDisablePreviousBtn(false);
-                            }
-                        } else if (response3.data.message === "Day Completed") {
-                            navigate("/SubjectOverview", { replace: true });
-                        } else {
+                                                            setCurrentView('lesson');
+                            setCurrentLessonIndex(0);
+                            setDisablePreviousBtn(false);
+                        }
+                    } else if (response3.data.message === "Day Completed") {
+                        navigate("/SubjectOverview", { replace: true });
+                    } else {
+                        // Only show modal if there are no incomplete subtopics
+                        if (!response3.data.incomplete_sub_topics || response3.data.incomplete_sub_topics.length === 0) {
                             setShowUpdateModal(true);
                             setModalMessage(response3.data.qns_status);
                         }
+                    }
                     } catch (innerError: any) {
  
             console.error("Error fetching update status data:", innerError);
@@ -1535,6 +1554,14 @@ const handleNext = useCallback(async () => {
                             "status": true,
                             "batch_id": decryptedBatchId
                         });
+                        
+                        // Update incomplete subtopics from the response
+                        if (response3.data && response3.data.incomplete_sub_topics) {
+                            setIncompleteSubtopics(response3.data.incomplete_sub_topics);
+                        } else {
+                            setIncompleteSubtopics([]);
+                        }
+                        
                         if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                             const nextSubTopicIndex = currentSubTopicIndex + 1;
                             if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
@@ -1555,9 +1582,12 @@ const handleNext = useCallback(async () => {
                         } else if (response3.data.message === "Day Completed") {
                             navigate("/SubjectOverview", { replace: true });
                         } else {
-                            setShowUpdateModal(true);
-                            setModalMessage(response3.data.qns_status);
+                            // Only show modal if there are no incomplete subtopics
+                            if (!response3.data.incomplete_sub_topics || response3.data.incomplete_sub_topics.length === 0) {
+                                setShowUpdateModal(true);
+                                setModalMessage(response3.data.qns_status);
                         }
+                    }
                     } catch (innerError: any) {
  
             console.error("Error fetching update status data:", innerError);
@@ -1611,6 +1641,14 @@ const handleNext = useCallback(async () => {
                                 "status": true,
                                 "batch_id": decryptedBatchId
                             });
+                            
+                            // Update incomplete subtopics from the response
+                            if (response3.data && response3.data.incomplete_sub_topics) {
+                                setIncompleteSubtopics(response3.data.incomplete_sub_topics);
+                            } else {
+                                setIncompleteSubtopics([]);
+                            }
+                            
                             if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                                 const nextSubTopicIndex = currentSubTopicIndex + 1;
                                 if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
@@ -1631,8 +1669,11 @@ const handleNext = useCallback(async () => {
                             } else if (response3.data.message === "Day Completed") {
                                 navigate("/SubjectOverview", { replace: true });
                             } else {
-                                setShowUpdateModal(true);
-                                setModalMessage(response3.data.qns_status);
+                                // Only show modal if there are no incomplete subtopics
+                                if (!response3.data.incomplete_sub_topics || response3.data.incomplete_sub_topics.length === 0) {
+                                    setShowUpdateModal(true);
+                                    setModalMessage(response3.data.qns_status);
+                                }
                             }
                         } catch (innerError: any) {
  
@@ -1675,6 +1716,14 @@ const handleNext = useCallback(async () => {
                     "status": true,
                     "batch_id": decryptedBatchId
                 });
+                
+                // Update incomplete subtopics from the response
+                if (response3.data && response3.data.incomplete_sub_topics) {
+                    setIncompleteSubtopics(response3.data.incomplete_sub_topics);
+                } else {
+                    setIncompleteSubtopics([]);
+                }
+                
                 if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                     const nextSubTopicIndex = currentSubTopicIndex + 1;
                     if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
@@ -1695,8 +1744,11 @@ const handleNext = useCallback(async () => {
                 } else if (response3.data.message === "Day Completed") {
                     navigate("/SubjectOverview", { replace: true });
                 } else {
-                    setShowUpdateModal(true);
-                    setModalMessage(response3.data.qns_status);
+                    // Only show modal if there are no incomplete subtopics
+                    if (!response3.data.incomplete_sub_topics || response3.data.incomplete_sub_topics.length === 0) {
+                        setShowUpdateModal(true);
+                        setModalMessage(response3.data.qns_status);
+                    }
                 }
             }catch (innerError: any) {
  
@@ -1716,13 +1768,24 @@ const handleNext = useCallback(async () => {
                     "status": true,
                     "batch_id": decryptedBatchId
                 });
+                
+                // Update incomplete subtopics from the response
+                if (response3.data && response3.data.incomplete_sub_topics) {
+                    setIncompleteSubtopics(response3.data.incomplete_sub_topics);
+                } else {
+                    setIncompleteSubtopics([]);
+                }
+                
                 if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
                     setDisablePreviousBtn(false);
                 } else if (response3.data.message === "Day Completed") {
                     navigate("/SubjectOverview", { replace: true });
                 } else {
-                    setShowUpdateModal(true);
-                    setModalMessage(response3.data.qns_status);
+                    // Only show modal if there are no incomplete subtopics
+                    if (!response3.data.incomplete_sub_topics || response3.data.incomplete_sub_topics.length === 0) {
+                        setShowUpdateModal(true);
+                        setModalMessage(response3.data.qns_status);
+                    }
                 }
             } catch (innerError: any) {
  
@@ -1976,7 +2039,14 @@ const handlePrevious = useCallback(async () => {
                     {chapters[0].sub_topic_data.map((subTopic, index) => (
                         <Accordion.Item key={index} eventKey={index.toString()}>
                             <Accordion.Header className="py-1">
-                                <span style={{ fontSize: '14px', width: '80%', fontWeight: '500' }}><span style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>{index + 1}.</span> {subTopic.sub_topic}</span>
+                                <span style={{ 
+                                    fontSize: '14px', 
+                                    width: '80%', 
+                                    fontWeight: '500',
+                                    color: incompleteSubtopics.includes(subTopic.subtopicid) ? 'orange' : 'inherit'
+                                }}>
+                                    <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#666' }}>{index + 1}.</span> {subTopic.sub_topic}
+                                </span>
                                 <CiSquareChevUp size={16} className="accordion-icon" /> 
                             </Accordion.Header>
                             <Accordion.Body className="py-1">
