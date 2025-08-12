@@ -472,35 +472,9 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
    * Submits code to FastAPI backend for execution
    */
   const submitCodeToBackend = async (code: string, testCases: any[], timeout: number = 15, questionId: string = "q123", testId: string ="practice"): Promise<string> => {
-    // Transform test cases to match the expected API format
-    const transformedTestCases = testCases.map(testCase => {
-      if (Array.isArray(testCase.Testcase)) {
-        // If Testcase is already an array, keep it as is (for keyword validation)
-        return {
-          Testcase: testCase.Testcase
-        };
-      } else if (testCase.Testcase && testCase.Testcase.Value) {
-        // If Testcase is an object with Value property, use it directly
-        return {
-          Testcase: {
-            Value: testCase.Testcase.Value,
-            Output: testCase.Testcase.Output
-          }
-        };
-      } else {
-        // Fallback for other formats (e.g., if testCase itself is an array)
-        return {
-          Testcase: {
-            Value: Array.isArray(testCase) ? testCase : [testCase],
-            Output: "validation_check"
-          }
-        };
-      }
-    });
-
     const payload = {
       code: code,
-      TestCases: transformedTestCases,
+      TestCases: testCases,
       FunctionCall: "",
       language: "python",
       timeout: timeout,

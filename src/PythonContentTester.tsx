@@ -151,40 +151,14 @@ const PythonContentTester: React.FC = () => {
    * Submits code to FastAPI backend for execution
    */
   const submitCodeToBackend = async (code: string, testCases: any[], timeout: number = 15, questionId: string = "q123", testId: string ="practice"): Promise<string> => {
-    // Transform test cases to match the expected API format
-    const transformedTestCases = testCases.map(testCase => {
-      if (Array.isArray(testCase.Testcase)) {
-        // If Testcase is already an array, keep it as is (for keyword validation)
-        return {
-          Testcase: testCase.Testcase
-        };
-      } else if (testCase.Testcase && testCase.Testcase.Value) {
-        // If Testcase is an object with Value property, use it directly
-        return {
-          Testcase: {
-            Value: testCase.Testcase.Value,
-            Output: testCase.Testcase.Output
-          }
-        };
-      } else {
-        // Fallback for other formats
-        return {
-          Testcase: {
-            Value: Array.isArray(testCase) ? testCase : [testCase],
-            Output: "validation_check"
-          }
-        };
-      }
-    });
-
     const payload = {
       code: code,
-      TestCases: transformedTestCases,
+      TestCases: testCases,
       FunctionCall: "",
       language: "python",
       timeout: timeout,
       memory_limit: timeout === 10 ? "100m" : "200m",
-      user_id: "25SABCXIS019", // Updated to match the expected format
+      user_id: "tester",
       question_id: questionId,
       test_id: testId
     };
@@ -238,9 +212,6 @@ const PythonContentTester: React.FC = () => {
     return testCases.map(testCase => {
       if (Array.isArray(testCase.Testcase)) {
         // If Testcase is already an array, return as is
-        return testCase;
-      } else if (testCase.Testcase && testCase.Testcase.Value) {
-        // If Testcase is an object with Value property, return as is
         return testCase;
       } else {
         // If Testcase is an object, convert to array format

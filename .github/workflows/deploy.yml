@@ -2,7 +2,7 @@ name: Frontend CI & Deploy
 
 on:
   push:
-    branches: [ master ]  # or main if preferred
+    branches: [ Code ]  # or main if preferred
 
 jobs:
   build-and-push:
@@ -26,9 +26,6 @@ jobs:
           context: .
           push: true
           tags: docker.io/${{ secrets.DOCKERHUB_USER }}/studentflow-frontend:latest
-          build-args: |
-            ENV_FILE=.env.prod
-            BUILD_COMMAND=build:prod
 
   deploy:
     needs: build-and-push

@@ -265,6 +265,11 @@ const Test: React.FC = () => {
       navigate("/test-report", { replace: true });
     }
   };
+  // const handleTest1 = () => {
+  //  const encryptedTestId = CryptoJS.AES.encrypt("Test1", process.env.REACT_APP_SECRET_KEY || '').toString();
+  //   sessionStorage.setItem("TestId", encryptedTestId);
+  //   navigate("/test-introduction");
+  // };
 
   const convertTo24HourFormat = (timeStr: string) => {
     const [time, modifier] = timeStr.split(' ');
@@ -555,14 +560,7 @@ const isTestTimeMatch = (test: TestDetail) => {
                                   {isOngoing ? (
                                     <button
                                       className="btn border-black btn-sm"
-                                      onClick={() => { 
-                                        handleTest(data); 
-                                        sessionStorage.setItem('TestType', data.testtype); 
-                                        sessionStorage.setItem('TestSubject', data.subject);
-                                        // Store test status for button text in test introduction
-                                        const buttonText = data.teststatus === "Pending" ? "Start" : data.teststatus === "Started" ? "Resume" : "Start";
-                                        sessionStorage.setItem('TestButtonStatus', buttonText);
-                                      }}
+                                      onClick={() => { handleTest(data); sessionStorage.setItem('TestType', data.testtype); sessionStorage.setItem('TestSubject', data.subject); }}
                                       style={{ width: "80px", backgroundColor: "#28a745", color: "white" }}
                                     >
                                       {data.teststatus? data.teststatus ==="Pending" ? "Start" :data.teststatus==="Started" ? "Resume" : "Start" : "Start"}
