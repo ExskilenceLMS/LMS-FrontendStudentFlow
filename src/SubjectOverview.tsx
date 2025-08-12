@@ -257,6 +257,10 @@ const SubjectOverview: React.FC = () => {
           sessionStorage.setItem("TestType", "Weekly Test");
           const encryptedTestSubjectId = CryptoJS.AES.encrypt(subjectId, secretKey).toString();
           sessionStorage.setItem("TestSubjectId", encryptedTestSubjectId);
+          
+          // Store test status for button text in test introduction
+          const buttonText = day_status === "Resume" ? "Resume" : "Start";
+          sessionStorage.setItem('TestButtonStatus', buttonText);
         }
  
         navigate("/test-introduction", { replace: true });

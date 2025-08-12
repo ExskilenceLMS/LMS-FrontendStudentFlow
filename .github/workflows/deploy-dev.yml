@@ -1,8 +1,8 @@
-name: Frontend CI & Deploy
+name: Frontend CI & Deploy staging
 
 on:
   push:
-    branches: [ master ]  # or main if preferred
+    branches: [ dev ]  # or main if preferred
 
 jobs:
   build-and-push:
@@ -27,8 +27,8 @@ jobs:
           push: true
           tags: docker.io/${{ secrets.DOCKERHUB_USER }}/studentflow-frontend:latest
           build-args: |
-            ENV_FILE=.env.prod
-            BUILD_COMMAND=build:prod
+            ENV_FILE=.env.staging
+            BUILD_COMMAND=build:staging
 
   deploy:
     needs: build-and-push
@@ -40,12 +40,12 @@ jobs:
       - name: SSH & Deploy
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ secrets.VPS_HOST }}
+          host: ${{ secrets.VPS_HOST_STAGING }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
           script: |
             set -e
             cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
-            docker-compose pull
-            docker-compose up -d --remove-orphans
+            docker compose pull
+            docker compose up -d --remove-orphans
