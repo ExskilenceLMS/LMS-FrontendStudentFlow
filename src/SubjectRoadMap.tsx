@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { getApiClient } from "./utils/apiAuth";
 import "./SubjectRoadMap.css";
 import Skeleton from "react-loading-skeleton";
-
+import { SUBJECT_ROADMAP } from "./constants/constants";
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
 import { Modal, Accordion, Spinner } from "react-bootstrap";
@@ -1935,8 +1935,8 @@ const SubjectRoadMap: React.FC = () => {
               const response3 = await updateLessonStatus(true);
 
               if (
-                response3.message === "Already Completed" ||
-                response3.message === "Updated"
+                response3.message === SUBJECT_ROADMAP.ALREADY_COMPLETED ||
+                response3.message === SUBJECT_ROADMAP.UPDATED
               ) {
                 const nextSubTopicIndex = currentSubTopicIndex + 1;
                 if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
@@ -1961,16 +1961,16 @@ const SubjectRoadMap: React.FC = () => {
                   setCurrentLessonIndex(0);
                   setDisablePreviousBtn(false);
                 }
-              } else if (response3.data.message === "Day Completed") {
+              } else if (response3.message === SUBJECT_ROADMAP.DAY_COMPLETED) {
                 navigate("/SubjectOverview", { replace: true });
               } else {
                 // Only show modal if there are no incomplete subtopics
                 if (
-                  !response3.data.incomplete_sub_topics ||
-                  response3.data.incomplete_sub_topics.length === 0
+                  !response3.incomplete_sub_topics ||
+                  response3.incomplete_sub_topics.length === 0
                 ) {
                   setShowUpdateModal(true);
-                  setModalMessage(response3.data.qns_status);
+                  setModalMessage(response3.qns_status);
                 }
               }
             } catch (innerError: any) {
@@ -2006,8 +2006,8 @@ const SubjectRoadMap: React.FC = () => {
               const response3 = await updateLessonStatus(true);
 
               if (
-                response3.message === "Already Completed" ||
-                response3.message === "Updated"
+                response3.message === SUBJECT_ROADMAP.ALREADY_COMPLETED ||
+                response3.message === SUBJECT_ROADMAP.UPDATED
               ) {
                 const nextSubTopicIndex = currentSubTopicIndex + 1;
                 if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
@@ -2032,16 +2032,16 @@ const SubjectRoadMap: React.FC = () => {
                   setCurrentLessonIndex(0);
                   setDisablePreviousBtn(false);
                 }
-              } else if (response3.data.message === "Day Completed") {
+              } else if (response3.message === SUBJECT_ROADMAP.DAY_COMPLETED) {
                 navigate("/SubjectOverview", { replace: true });
               } else {
                 // Only show modal if there are no incomplete subtopics
                 if (
-                  !response3.data.incomplete_sub_topics ||
-                  response3.data.incomplete_sub_topics.length === 0
+                  !response3.incomplete_sub_topics ||
+                  response3.incomplete_sub_topics.length === 0
                 ) {
                   setShowUpdateModal(true);
-                  setModalMessage(response3.data.qns_status);
+                  setModalMessage(response3.qns_status);
                 }
               }
             } catch (innerError: any) {
@@ -2099,8 +2099,8 @@ const SubjectRoadMap: React.FC = () => {
                 const response3 = await updateLessonStatus(true);
 
                 if (
-                  response3.message === "Already Completed" ||
-                  response3.message === "Updated"
+                  response3.message === SUBJECT_ROADMAP.ALREADY_COMPLETED ||
+                  response3.message === SUBJECT_ROADMAP.UPDATED
                 ) {
                   const nextSubTopicIndex = currentSubTopicIndex + 1;
                   if (
@@ -2127,16 +2127,16 @@ const SubjectRoadMap: React.FC = () => {
                     setCurrentLessonIndex(0);
                     setDisablePreviousBtn(false);
                   }
-                } else if (response3.data.message === "Day Completed") {
+                } else if (response3.message === SUBJECT_ROADMAP.DAY_COMPLETED) {
                   navigate("/SubjectOverview", { replace: true });
                 } else {
                   // Only show modal if there are no incomplete subtopics
                   if (
-                    !response3.data.incomplete_sub_topics ||
-                    response3.data.incomplete_sub_topics.length === 0
+                    !response3.incomplete_sub_topics ||
+                    response3.incomplete_sub_topics.length === 0
                   ) {
                     setShowUpdateModal(true);
-                    setModalMessage(response3.data.qns_status);
+                    setModalMessage(response3.qns_status);
                   }
                 }
               } catch (innerError: any) {
@@ -2182,8 +2182,8 @@ const SubjectRoadMap: React.FC = () => {
           const response3 = await updateLessonStatus(true);
 
           if (
-            response3.message === "Already Completed" ||
-            response3.message === "Updated"
+            response3.message === SUBJECT_ROADMAP.ALREADY_COMPLETED ||
+            response3.message === SUBJECT_ROADMAP.UPDATED
           ) {
             const nextSubTopicIndex = currentSubTopicIndex + 1;
             if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
@@ -2208,16 +2208,16 @@ const SubjectRoadMap: React.FC = () => {
               setCurrentLessonIndex(0);
               setDisablePreviousBtn(false);
             }
-          } else if (response3.data.message === "Day Completed") {
+          } else if (response3.message === SUBJECT_ROADMAP.DAY_COMPLETED) {
             navigate("/SubjectOverview", { replace: true });
           } else {
             // Only show modal if there are no incomplete subtopics
             if (
-              !response3.data.incomplete_sub_topics ||
-              response3.data.incomplete_sub_topics.length === 0
+              !response3.incomplete_sub_topics ||
+              response3.incomplete_sub_topics.length === 0
             ) {
               setShowUpdateModal(true);
-              setModalMessage(response3.data.qns_status);
+              setModalMessage(response3.qns_status);
             }
           }
         } catch (innerError: any) {
@@ -2229,11 +2229,11 @@ const SubjectRoadMap: React.FC = () => {
           const response3 = await updateLessonStatus(true);
 
           if (
-            response3.message === "Already Completed" ||
-            response3.message === "Updated"
+            response3.message === SUBJECT_ROADMAP.ALREADY_COMPLETED ||
+            response3.message === SUBJECT_ROADMAP.UPDATED
           ) {
             setDisablePreviousBtn(false);
-          } else if (response3.message === "Day Completed") {
+          } else if (response3.message === SUBJECT_ROADMAP.DAY_COMPLETED) {
             navigate("/SubjectOverview", { replace: true });
           } else {
             // Only show modal if there are no incomplete subtopics
