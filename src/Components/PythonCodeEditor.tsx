@@ -501,7 +501,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
     const payload = {
       code: code,
       TestCases: transformedTestCases,
-      FunctionCall: "",
+      FunctionCall: functionCall,
       language: "python",
       timeout: timeout,
       memory_limit: timeout === 10 ? "100m" : "200m",
