@@ -255,7 +255,7 @@ const SQLEditor: React.FC = () => {
     setIsNextBtn(false);
 
     if (currentQuestionIndex === questions.length - 1) {
-      navigate('/subject-roadmap', { replace: true });
+      navigate('/Subject-Roadmap', { replace: true });
       return;
     }
 

@@ -463,11 +463,6 @@ const isTestTimeMatch = (test: TestDetail) => {
                     <option value="Upcoming">Upcoming</option>
                     <option value="Completed">Completed</option>
                   </select>
-                  {/* <label className="form-label m-0 p-0 pt-2 ps-1">Topic</label>
-                  <select className="form-select" name="topic" value={filterState.topic} onChange={handleFilterChange}>
-                    <option value="">All</option>
-                    <option value="TEST">TEST</option>
-                  </select> */}
                   <label className="form-label m-0 p-0 pt-2 ps-1">Start Date</label>
                   <input type="date" className="form-control" name="startDate" value={filterState.startDate} onChange={handleFilterChange} />
                   <label className="form-label m-0 p-0 pt-2 ps-1">End Date</label>

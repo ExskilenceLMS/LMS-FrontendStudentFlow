@@ -275,7 +275,7 @@ const SubjectOverview: React.FC = () => {
           });
         }
  
-        navigate("/subject-roadmap", { replace: true });
+        navigate("/Subject-Roadmap", { replace: true });
       }
     } catch (error) {
       console.error("Error in handleStartButtonClickVideo:", error);
@@ -397,7 +397,7 @@ const SubjectOverview: React.FC = () => {
                       {week.totalHours && (
                         <div className="d-flex align-items-center justify-content-start">
                           <h5 className="m-0 p-0 pe-2">{week.totalHours}hrs</h5>
-                          <span role="button" title={`${week.totalHours} learning contents has been assigned for the week ${week.weekNumber} and you are expected to spend minimum 2 hrs per day`} style={{ fontSize: "20px", cursor: "default" }} className="mb-1">
+                          <span role="button" title={`${week.totalHours} learning ${parseFloat(week.totalHours) >1 ? "contents" : "content"} has been assigned for the week ${week.weekNumber} and you are expected to spend minimum 2 hours per day`} style={{ fontSize: "20px", cursor: "default" }} className="mb-1">
                             <IoMdInformationCircleOutline />
                           </span>
                         </div>
