@@ -1961,16 +1961,16 @@ const SubjectRoadMap: React.FC = () => {
                   setCurrentLessonIndex(0);
                   setDisablePreviousBtn(false);
                 }
-              } else if (response3.data.message === "Day Completed") {
+              } else if (response3.message === "Day Completed") {
                 navigate("/SubjectOverview", { replace: true });
               } else {
                 // Only show modal if there are no incomplete subtopics
                 if (
-                  !response3.data.incomplete_sub_topics ||
-                  response3.data.incomplete_sub_topics.length === 0
+                  !response3.incomplete_sub_topics ||
+                  response3.incomplete_sub_topics.length === 0
                 ) {
                   setShowUpdateModal(true);
-                  setModalMessage(response3.data.qns_status);
+                  setModalMessage(response3.qns_status);
                 }
               }
             } catch (innerError: any) {
@@ -2032,16 +2032,16 @@ const SubjectRoadMap: React.FC = () => {
                   setCurrentLessonIndex(0);
                   setDisablePreviousBtn(false);
                 }
-              } else if (response3.data.message === "Day Completed") {
+              } else if (response3.message === "Day Completed") {
                 navigate("/SubjectOverview", { replace: true });
               } else {
                 // Only show modal if there are no incomplete subtopics
                 if (
-                  !response3.data.incomplete_sub_topics ||
-                  response3.data.incomplete_sub_topics.length === 0
+                  !response3.incomplete_sub_topics ||
+                  response3.incomplete_sub_topics.length === 0
                 ) {
                   setShowUpdateModal(true);
-                  setModalMessage(response3.data.qns_status);
+                  setModalMessage(response3.qns_status);
                 }
               }
             } catch (innerError: any) {
@@ -2127,16 +2127,16 @@ const SubjectRoadMap: React.FC = () => {
                     setCurrentLessonIndex(0);
                     setDisablePreviousBtn(false);
                   }
-                } else if (response3.data.message === "Day Completed") {
+                } else if (response3.message === "Day Completed") {
                   navigate("/SubjectOverview", { replace: true });
                 } else {
                   // Only show modal if there are no incomplete subtopics
                   if (
-                    !response3.data.incomplete_sub_topics ||
-                    response3.data.incomplete_sub_topics.length === 0
+                    !response3.incomplete_sub_topics ||
+                    response3.incomplete_sub_topics.length === 0
                   ) {
                     setShowUpdateModal(true);
-                    setModalMessage(response3.data.qns_status);
+                    setModalMessage(response3.qns_status);
                   }
                 }
               } catch (innerError: any) {
@@ -2208,16 +2208,16 @@ const SubjectRoadMap: React.FC = () => {
               setCurrentLessonIndex(0);
               setDisablePreviousBtn(false);
             }
-          } else if (response3.data.message === "Day Completed") {
+          } else if (response3.message === "Day Completed") {
             navigate("/SubjectOverview", { replace: true });
           } else {
             // Only show modal if there are no incomplete subtopics
             if (
-              !response3.data.incomplete_sub_topics ||
-              response3.data.incomplete_sub_topics.length === 0
+              !response3.incomplete_sub_topics ||
+              response3.incomplete_sub_topics.length === 0
             ) {
               setShowUpdateModal(true);
-              setModalMessage(response3.data.qns_status);
+              setModalMessage(response3.qns_status);
             }
           }
         } catch (innerError: any) {
