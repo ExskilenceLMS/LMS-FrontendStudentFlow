@@ -136,6 +136,42 @@ const SubjectRoadMap: React.FC = () => {
     const [incompleteSubtopics, setIncompleteSubtopics] = useState<string[]>([]);
     // Helper function to build video URL from lesson data
 
+    // Centralized function to handle status API calls
+    const updateLessonStatus = async (status: boolean) => {
+        const statusUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`;
+        try {
+            const response = await getApiClient().post(statusUrl, {
+                "student_id": studentId,
+                "subject": subject,
+                "subject_id": subjectId,
+                "day_number": dayNumber,
+                "week_number": weekNumber,
+                "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
+                "status": status,
+                "batch_id": decryptedBatchId
+            });
+            
+            // Update incomplete subtopics from the response
+            if (response.data && response.data.incomplete_sub_topics) {
+                setIncompleteSubtopics(response.data.incomplete_sub_topics);
+                
+                // Show incomplete subtopics message in existing modal if there are incomplete subtopics
+                if (response.data.incomplete_sub_topics.length > 0) {
+                    const count = response.data.incomplete_sub_topics.length;
+                    const message = `You have not completed ${count} ${count === 1 ? 'subtopic' : 'subtopics'}`;
+                    setModalMessage(message);
+                    setShowUpdateModal(true);
+                }
+            } else {
+                setIncompleteSubtopics([]);
+            }
+            
+            return response.data;
+        } catch (error: any) {
+            console.error("Error updating lesson status:", error);
+            throw error;
+        }
+    };
 
     const fetchVideoData = async (videoId: number): Promise<{ otp: string; playback_info: string }> => {
         try {
@@ -283,7 +319,6 @@ useEffect(() => {
 useEffect(() => {
 const fetchRoadmapData = async () => {
     const url = `${process.env.REACT_APP_BACKEND_URL}api/student/learningmodules/${studentId}/${subject}/${subjectId}/${dayNumber}/${weekNumber}/`;
-    const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`;
 
     try {
         setLoading(true);
@@ -407,20 +442,11 @@ const fetchRoadmapData = async () => {
             }
         }
 
-        const statusResponse = await getApiClient().post(url1, {
-            student_id: studentId,
-            subject: subject,
-            subject_id: subjectId,
-            day_number: dayNumber,
-            week_number: weekNumber,
-            sub_topic: sessionStorage.getItem('currentSubTopicId') || "",
-            status: false,
-            batch_id: decryptedBatchId
-        });
+        const statusResponse = await updateLessonStatus(false);
 
         // Check for incomplete subtopics in the response
-        if (statusResponse.data && statusResponse.data.incomplete_sub_topics) {
-            setIncompleteSubtopics(statusResponse.data.incomplete_sub_topics);
+        if (statusResponse && statusResponse.incomplete_sub_topics) {
+            setIncompleteSubtopics(statusResponse.incomplete_sub_topics);
         } else {
             setIncompleteSubtopics([]);
         }
@@ -567,21 +593,10 @@ const fetchRoadmapData = async () => {
 
         if (!isUserInitiated) {
             setDisablePreviousBtn(true);
-            const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                await getApiClient().post(url, {
-                    "student_id": studentId,
-                    "subject": subject,
-                    "subject_id": subjectId,
-                    "day_number": dayNumber,
-                    "week_number": weekNumber,
-                    "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                    "status": false,
-                    "batch_id": decryptedBatchId
-                });
+                await updateLessonStatus(false);
             } catch (innerError: any) {
- 
-            console.error("Error fetching handle subtopic change data:", innerError);
+                console.error("Error fetching handle subtopic change data:", innerError);
             } finally {
                 setDisablePreviousBtn(false);
             }
@@ -1477,27 +1492,10 @@ const handleNext = useCallback(async () => {
                     // No more content in this subtopic, move to next subtopic
                     const isLastContent = subTopic.lesson ? currentLessonIndex === subTopic.lesson.length - 1 : true;
                 if (isLastContent) {
-                    const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
-                        const response3 = await getApiClient().post(url, {
-                            "student_id": studentId,
-                            "subject": subject,
-                            "subject_id": subjectId,
-                            "day_number": dayNumber,
-                            "week_number": weekNumber,
-                            "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                            "status": true,
-                            "batch_id": decryptedBatchId
-                        });
+                        const response3 = await updateLessonStatus(true);
                         
-                        // Update incomplete subtopics from the response
-                        if (response3.data && response3.data.incomplete_sub_topics) {
-                            setIncompleteSubtopics(response3.data.incomplete_sub_topics);
-                        } else {
-                            setIncompleteSubtopics([]);
-                        }
-                        
-                        if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
+                        if (response3.message === 'Already Completed' || response3.message === "Updated") {
                             const nextSubTopicIndex = currentSubTopicIndex + 1;
                             if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
                                 const nextSubTopic = currentChapter.sub_topic_data[nextSubTopicIndex];
@@ -1542,27 +1540,10 @@ const handleNext = useCallback(async () => {
                             } else {
                     const isLastContent = currentNotesIndex === currentChapter.sub_topic_data[currentSubTopicIndex].notes.length - 1;
                 if (isLastContent) {
-                    const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                     try {
-                        const response3 = await getApiClient().post(url, {
-                            "student_id": studentId,
-                            "subject": subject,
-                            "subject_id": subjectId,
-                            "day_number": dayNumber,
-                            "week_number": weekNumber,
-                            "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                            "status": true,
-                            "batch_id": decryptedBatchId
-                        });
+                        const response3 = await updateLessonStatus(true);
                         
-                        // Update incomplete subtopics from the response
-                        if (response3.data && response3.data.incomplete_sub_topics) {
-                            setIncompleteSubtopics(response3.data.incomplete_sub_topics);
-                        } else {
-                            setIncompleteSubtopics([]);
-                        }
-                        
-                        if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
+                        if (response3.message === 'Already Completed' || response3.message === "Updated") {
                             const nextSubTopicIndex = currentSubTopicIndex + 1;
                             if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
                                 const nextSubTopic = currentChapter.sub_topic_data[nextSubTopicIndex];
@@ -1629,27 +1610,10 @@ const handleNext = useCallback(async () => {
                     
                     if (isLastContent) {
                         // MCQ is the last content type, call status API
-                        const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
                         try {
-                            const response3 = await getApiClient().post(url, {
-                                "student_id": studentId,
-                                "subject": subject,
-                                "subject_id": subjectId,
-                                "day_number": dayNumber,
-                                "week_number": weekNumber,
-                                "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                                "status": true,
-                                "batch_id": decryptedBatchId
-                            });
+                            const response3 = await updateLessonStatus(true);
                             
-                            // Update incomplete subtopics from the response
-                            if (response3.data && response3.data.incomplete_sub_topics) {
-                                setIncompleteSubtopics(response3.data.incomplete_sub_topics);
-                            } else {
-                                setIncompleteSubtopics([]);
-                            }
-                            
-                            if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
+                            if (response3.message === 'Already Completed' || response3.message === "Updated") {
                                 const nextSubTopicIndex = currentSubTopicIndex + 1;
                                 if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
                                     const nextSubTopic = currentChapter.sub_topic_data[nextSubTopicIndex];
@@ -1704,27 +1668,10 @@ const handleNext = useCallback(async () => {
         });
         const isLastContent = contentOrder[contentOrder.length - 1] === 'codingQuestions';
         if (isLastContent) {
-            const url=`${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                const response3 = await getApiClient().post(url, {
-                    "student_id": studentId,
-                    "subject": subject,
-                    "subject_id": subjectId,
-                    "day_number": dayNumber,
-                    "week_number": weekNumber,
-                    "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                    "status": true,
-                    "batch_id": decryptedBatchId
-                });
+                const response3 = await updateLessonStatus(true);
                 
-                // Update incomplete subtopics from the response
-                if (response3.data && response3.data.incomplete_sub_topics) {
-                    setIncompleteSubtopics(response3.data.incomplete_sub_topics);
-                } else {
-                    setIncompleteSubtopics([]);
-                }
-                
-                if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
+                if (response3.message === 'Already Completed' || response3.message === "Updated") {
                     const nextSubTopicIndex = currentSubTopicIndex + 1;
                     if (nextSubTopicIndex < currentChapter.sub_topic_data.length) {
                         const nextSubTopic = currentChapter.sub_topic_data[nextSubTopicIndex];
@@ -1756,35 +1703,18 @@ const handleNext = useCallback(async () => {
             }
         } else {
             setDisablePreviousBtn(true);
-            const url = `${process.env.REACT_APP_BACKEND_URL}api/student/lessons/status/`
             try {
-                const response3 = await getApiClient().put(url, {
-                    "student_id": studentId,
-                    "subject": subject,
-                    "subject_id": subjectId,
-                    "day_number": dayNumber,
-                    "week_number": weekNumber,
-                    "sub_topic": sessionStorage.getItem('currentSubTopicId') || "",
-                    "status": true,
-                    "batch_id": decryptedBatchId
-                });
+                const response3 = await updateLessonStatus(true);
                 
-                // Update incomplete subtopics from the response
-                if (response3.data && response3.data.incomplete_sub_topics) {
-                    setIncompleteSubtopics(response3.data.incomplete_sub_topics);
-                } else {
-                    setIncompleteSubtopics([]);
-                }
-                
-                if (response3.data.message === 'Already Completed' || response3.data.message === "Updated") {
+                if (response3.message === 'Already Completed' || response3.message === "Updated") {
                     setDisablePreviousBtn(false);
-                } else if (response3.data.message === "Day Completed") {
+                } else if (response3.message === "Day Completed") {
                     navigate("/SubjectOverview", { replace: true });
                 } else {
                     // Only show modal if there are no incomplete subtopics
-                    if (!response3.data.incomplete_sub_topics || response3.data.incomplete_sub_topics.length === 0) {
+                    if (!response3.incomplete_sub_topics || response3.incomplete_sub_topics.length === 0) {
                         setShowUpdateModal(true);
-                        setModalMessage(response3.data.qns_status);
+                        setModalMessage(response3.qns_status);
                     }
                 }
             } catch (innerError: any) {
@@ -2403,7 +2333,7 @@ return (
             <Modal className='my-5' centered show={showUpdateModal} onHide={() => setShowUpdateModal(false)}>
                 <Modal.Header style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }} className='bg-warning' >
                     <Modal.Title className='ModalTitle' style={{ fontSize: '20px' }}>
-                        <FaExclamationTriangle size={20} className="mb-1 blink" /> Message
+                        <FaExclamationTriangle size={20} className="mb-1 blink" /> {modalMessage.includes('You have not completed') ? 'Incomplete Subtopics' : 'Message'}
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body className='pt-3 text-center'>
