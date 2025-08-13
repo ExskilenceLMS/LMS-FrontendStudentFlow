@@ -275,7 +275,7 @@ const SubjectOverview: React.FC = () => {
           });
         }
  
-        navigate("/subject-roadmap", { replace: true });
+        navigate("/Subject-Roadmap", { replace: true });
       }
     } catch (error) {
       console.error("Error in handleStartButtonClickVideo:", error);

@@ -811,7 +811,7 @@ const handleNext = () => {
     
     // Check if this is the last question
   if (currentQuestionIndex == questions.length - 1) {
-    navigate('/subject-roadmap', { replace: true });
+    navigate('/Subject-Roadmap', { replace: true });
   } else {
     const nextIndex = currentQuestionIndex + 1;
     setCurrentQuestionIndex(nextIndex);
