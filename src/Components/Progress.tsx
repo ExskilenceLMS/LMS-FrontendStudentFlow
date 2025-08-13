@@ -28,13 +28,15 @@ interface Delay {
 }
 
 interface ApiResponse {
-  All: { [key: string]: string };
+  All: { 
+    [key: string]: string;
+  };
   filters_subject: string[];
   filters_subject_week: { [key: string]: string[] };
   mcqScores: { [key: string]: { [key: string]: string } };
   codingScore: { [key: string]: { [key: string]: string } };
-  tests: { [key: string]: { [key: string]: string } };
-  delay: { All: number };
+  Weekly_Tests: { [key: string]: { [key: string]: string } };
+  delay: { [key: string]: number };
 }
 
 function Progress() {
@@ -56,7 +58,9 @@ function Progress() {
 
   useEffect(() => {
     if (apiData) {
-      setDelay({ delay: apiData.delay.All });
+      // Use delay for selected subject or fallback to "All"
+      const subjectDelay = selectedSubject === "All" ? apiData.delay.All : apiData.delay[selectedSubject];
+      setDelay({ delay: subjectDelay || 0 });
 
       const subjectsData = apiData.filters_subject.filter(subject => subject !== "All").map((subject) => ({
         id: subject,
@@ -78,25 +82,29 @@ function Progress() {
     let filteredData: { [key: string]: string } = {};
 
     if (subject === "All" && week === "All") {
-      const allData = data.All as { [key: string]: string };
-      filteredData = { ...allData };
+      // Use the direct All properties
+      filteredData = {
+        "Practice MCQs": data.All["Practice MCQs"] || "0/0",
+        "Practice Codings": data.All["Practice Codings"] || "0/0",
+        "Weekly Tests": data.All["Weekly Tests"] || "0/0",
+      };
     } else if (subject === "All" && week === "Practice MCQs") {
-      filteredData = { "Practice MCQs": data.All["Practice MCQs"] as string };
+      filteredData = { "Practice MCQs": data.All["Practice MCQs"] || "0/0" };
     } else if (subject === "All" && week === "Practice Codings") {
-      filteredData = { "Practice Codings": data.All["Practice Codings"] as string };
-    } else if (subject === "All" && week === "Weekly Test") {
-      filteredData = { "Weekly Test": data.All["Weekly Test"] as string };
+      filteredData = { "Practice Codings": data.All["Practice Codings"] || "0/0" };
+    } else if (subject === "All" && week === "Weekly Tests") {
+      filteredData = { "Weekly Tests": data.All["Weekly Tests"] || "0/0" };
     } else if (subject !== "All" && week === "All") {
       filteredData = {
         "Practice MCQs": data.mcqScores[subject]?.All || "0/0",
         "Practice Codings": data.codingScore[subject]?.All || "0/0",
-        "Tests": data.tests[subject]?.All || "0/0",
+        "Weekly Tests": data.Weekly_Tests[subject]?.All || "0/0",
       };
     } else if (subject !== "All" && week !== "All") {
       const weekData = {
         ...(data.mcqScores[subject]?.[week] && { "Practice MCQs": data.mcqScores[subject][week] }),
         ...(data.codingScore[subject]?.[week] && { "Practice Codings": data.codingScore[subject][week] }),
-        ...(data.tests[subject]?.[week] && { "Tests": data.tests[subject][week] }),
+        ...(data.Weekly_Tests[subject]?.[week] && { "Weekly Tests": data.Weekly_Tests[subject][week] }),
       };
       if (Object.keys(weekData).length > 0) {
         filteredData = weekData;
@@ -126,7 +134,11 @@ function Progress() {
     setSelectedSubject(subject);
     setSelectedWeek("All"); 
 
+    // Update delay for the selected subject
     if (apiData) {
+      const subjectDelay = subject === "All" ? apiData.delay.All : apiData.delay[subject];
+      setDelay({ delay: subjectDelay || 0 });
+
       if (subject === "All") {
         const weeksData = Object.keys(apiData.All).filter(week => week !== "All").map((week) => ({
           id: week,
