@@ -177,10 +177,13 @@ const PythonContentTester: React.FC = () => {
       }
     });
 
+    const currentQuestion = questions[currentQuestionIndex];
+    const functionCall = currentQuestion?.FunctionCall || "";
+
     const payload = {
       code: code,
       TestCases: transformedTestCases,
-      FunctionCall: "",
+      FunctionCall: functionCall,
       language: "python",
       timeout: timeout,
       memory_limit: timeout === 10 ? "100m" : "200m",
