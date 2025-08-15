@@ -445,7 +445,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   //  */
   // const checkBackendHealth = async () => {
   //   try {
-  //     const response = await fetch('https://pyexe.exskilence.com/health');
+  //     const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}health`);
   //     const data: FastAPIHealthResponse = await response.json();
   //     setBackendHealthy(data.status === 'healthy');
   //   } catch (error) {
@@ -510,7 +510,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       test_id: testId
     };
 
-    const response = await fetch('https://pyexe.exskilence.com/api/v1/submit', {
+    const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/submit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -535,7 +535,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
 
     while (Date.now() - startTime < maxWaitTime * 1000) {
       try {
-        const response = await fetch(`https://pyexe.exskilence.com/api/v1/status/${submissionId}`);
+        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/status/${submissionId}`);
         const data: FastAPIStatusResponse = await response.json();
         
         if (data.status === 'completed') {
