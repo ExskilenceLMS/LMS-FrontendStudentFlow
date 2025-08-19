@@ -3,7 +3,6 @@ import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { Spinner } from "react-bootstrap";
-import newQuestions from "./Pythontestingquestions.json";
 /**
  * Interface for Example data structure
  */
@@ -319,12 +318,12 @@ const PythonContentTester: React.FC = () => {
     const fetchQuestions = async () => {
       try {
         const response = await fetch(API_BASE_URL);
-        // const data = await response.json();
-        const data = newQuestions;
+        const data = await response.json();
+        // const data = newQuestions;
         // console.log(data);
         
         // Process the questions and handle mixed test case formats
-        const questionsWithProcessedTestCases = data.map((q: any) => {
+        const questionsWithProcessedTestCases = data.questions.map((q: any) => {
           const processedTestCases = processTestCases(q.TestCases);
           return { ...q, TestCases: processedTestCases };
         });
