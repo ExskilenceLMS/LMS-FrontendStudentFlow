@@ -3,7 +3,6 @@ import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { Spinner } from "react-bootstrap";
-
 /**
  * Interface for Example data structure
  */
@@ -217,7 +216,13 @@ const PythonContentTester: React.FC = () => {
 
     while (Date.now() - startTime < maxWaitTime * 1000) {
       try {
-        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/status/${submissionId}`);
+        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/execute/${submissionId}`,
+          {
+          method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }}
+        );
         const data: FastAPIStatusResponse = await response.json();
         
         if (data.status === 'completed') {
@@ -281,6 +286,7 @@ const PythonContentTester: React.FC = () => {
     const currentQuestion = questions[currentQuestionIndex];
     const template = currentQuestion?.Template || "";
     const functionCall = currentQuestion?.FunctionCall || "";
+    const Ans = currentQuestion?.Ans || "";
     
     // If user has entered code (and it's not empty), use that
     if (pythonCode && pythonCode.trim() !== "") {
@@ -293,11 +299,11 @@ const PythonContentTester: React.FC = () => {
     }
     
     // If template exists, append FunctionCall
-    if (template) {
+    if (Ans) {
       if (functionCall) {
-        return template + '\n\n\n\n\n' + functionCall;
+        return Ans + '\n\n\n\n\n' + functionCall;
       }
-      return template;
+      return Ans;
     }
     
     return "";
@@ -313,9 +319,11 @@ const PythonContentTester: React.FC = () => {
       try {
         const response = await fetch(API_BASE_URL);
         const data = await response.json();
+        // const data = newQuestions;
+        // console.log(data);
         
         // Process the questions and handle mixed test case formats
-        const questionsWithProcessedTestCases = data.questions.map((q: Question) => {
+        const questionsWithProcessedTestCases = data.questions.map((q: any) => {
           const processedTestCases = processTestCases(q.TestCases);
           return { ...q, TestCases: processedTestCases };
         });

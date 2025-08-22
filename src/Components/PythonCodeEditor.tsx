@@ -535,7 +535,14 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
 
     while (Date.now() - startTime < maxWaitTime * 1000) {
       try {
-        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/status/${submissionId}`);
+        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/execute/${submissionId}`,
+          {
+            method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }}
+          
+        );
         const data: FastAPIStatusResponse = await response.json();
         
         if (data.status === 'completed') {
