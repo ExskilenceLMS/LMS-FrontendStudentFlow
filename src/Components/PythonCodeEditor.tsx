@@ -101,12 +101,19 @@ interface FastAPIStatusResponse {
     actual_output: string;
     exit_code: number;
     execution_time: number;
+    error?: string;
+    results?: any[];
+    compilation_error?: boolean;
+    error_type?: string;
+    line_number?: number;
+    offset?: number;
   };
   error: string | null;
   execution_time: number;
   created_at: string;
   completed_at: string;
   queue_position: number;
+  
 }
 
 // Helper type for parsed results
@@ -370,21 +377,40 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   const generateResultArray = (fastApiResponse: any) => {
     const result = [];
     
-    // Extract parsed_results from FastAPI response
-    const parsedResults = fastApiResponse.result.parsed_results;
-    
-    // Generate TestCase entries
-    parsedResults.forEach((testCase: any, index: number) => {
-      result.push({
-        [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
+    // Check if we have runResponseTestCases (for error cases) or parsed_results (for success cases)
+    if (fastApiResponse.runResponseTestCases && fastApiResponse.runResponseTestCases.length > 0) {
+      // Use the runResponseTestCases that we created for error cases
+      fastApiResponse.runResponseTestCases.forEach((testCase: any, index: number) => {
+        if (testCase.Result) {
+          // Final result
+          result.push({
+            "Result": testCase.Result === "Failed" ? "False" : "True"
+          });
+        } else {
+          // Individual test cases
+          const testCaseKey = Object.keys(testCase)[0];
+          result.push({
+            [testCaseKey]: testCase[testCaseKey]
+          });
+        }
       });
-    });
-    
-    // Add final Result entry
-    const allPassed = parsedResults.every((testCase: any) => testCase.passed);
-    result.push({
-      "Result": allPassed ? "True" : "False"
-    });
+    } else if (fastApiResponse.result && fastApiResponse.result.parsed_results) {
+      // Extract parsed_results from FastAPI response (for success cases)
+      const parsedResults = fastApiResponse.result.parsed_results;
+      
+      // Generate TestCase entries
+      parsedResults.forEach((testCase: any, index: number) => {
+        result.push({
+          [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
+        });
+      });
+      
+      // Add final Result entry
+      const allPassed = parsedResults.every((testCase: any) => testCase.passed);
+      result.push({
+        "Result": allPassed ? "True" : "False"
+      });
+    }
     
     return result;
   };
@@ -535,7 +561,14 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
 
     while (Date.now() - startTime < maxWaitTime * 1000) {
       try {
-        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/status/${submissionId}`);
+        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/execute/${submissionId}`,
+          {
+            method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }}
+          
+        );
         const data: FastAPIStatusResponse = await response.json();
         
         if (data.status === 'completed') {
@@ -817,20 +850,101 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
           setAdditionalMessage(responseData.additionalMessage);
         }
       } else {
-        const parsedResults = result.result.parsed_results;
-        const errorMessage = Array.isArray(parsedResults) 
-          ? 'Unknown error' 
-          : parsedResults?.error || 'Unknown error';
+        // Get the actual error message from result.error field (updated interface)
+        const errorMessage = result.result.error || 'Unknown error';
         setOutput(`Error: ${errorMessage}`);
         setSuccessMessage('Execution failed');
+        
+        // Create failed test case results for errors so they can be submitted
+        const currentQuestion = questions[currentQuestionIndex];
+        let errorTestCases: any[] = [];
+        
+        if (currentQuestion && currentQuestion.TestCases && currentQuestion.TestCases.length > 0) {
+          // Create failed test cases for each test case in the question
+          errorTestCases = currentQuestion.TestCases.map((_, index) => ({
+            [`TestCase${index + 1}`]: "Failed"
+          }));
+          
+          // Add final result
+          errorTestCases.push({
+            "Result": "Failed"
+          });
+        }
+        
+        setRunResponseTestCases(errorTestCases);
+        
+        // Store error response for this question
+        const questionKey = `coding_${currentQuestion.Qn_name}`;
+        const errorResponseData = {
+          ...result,
+          runResponseTestCases: errorTestCases,
+          output: `Error: ${errorMessage}`,
+          successMessage: "Execution failed",
+          additionalMessage: "Code has syntax or runtime errors"
+        };
+        
+        storeFastApiResponse(questionKey, errorResponseData);
+        
+        // Store the code that was run (even for errors)
+        setLastRunCode(prev => ({
+          ...prev,
+          [questionKey]: Ans
+        }));
       }
       
       // setExecutionStatus('completed'); // Commented out
     } catch (error) {
       console.error('Code execution with tests failed:', error);
-      setOutput(`Error: ${error instanceof Error ? error.message : 'Execution failed'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Execution failed';
+      setOutput(`Error: ${errorMessage}`);
       setSuccessMessage('Execution failed');
       // setExecutionStatus('error'); // Commented out
+      
+      // Create failed test case results for network/API errors so they can be submitted
+      const currentQuestion = questions[currentQuestionIndex];
+      let errorTestCases: any[] = [];
+      
+      if (currentQuestion && currentQuestion.TestCases && currentQuestion.TestCases.length > 0) {
+        // Create failed test cases for each test case in the question
+        errorTestCases = currentQuestion.TestCases.map((_, index) => ({
+          [`TestCase${index + 1}`]: "Failed"
+        }));
+        
+        // Add final result
+        errorTestCases.push({
+          "Result": "Failed"
+        });
+      }
+      
+      setRunResponseTestCases(errorTestCases);
+      
+      // Store error response for this question
+      const questionKey = `coding_${currentQuestion.Qn_name}`;
+      const errorResponseData = {
+        submission_id: "error",
+        status: "error",
+        result: {
+          success: false,
+          error: errorMessage,
+          parsed_results: [],
+          raw_output: "",
+          actual_output: "",
+          exit_code: -1,
+          execution_time: 0
+        },
+        runResponseTestCases: errorTestCases,
+        output: `Error: ${errorMessage}`,
+        successMessage: "Execution failed",
+        additionalMessage: "Network or API error occurred"
+      };
+      
+      storeFastApiResponse(questionKey, errorResponseData);
+      
+      // Store the code that was run (even for errors)
+      setLastRunCode(prev => ({
+        ...prev,
+        [questionKey]: Ans
+      }));
     } finally {
       setProcessing(false);
     }
