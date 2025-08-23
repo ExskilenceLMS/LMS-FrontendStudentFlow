@@ -89,6 +89,12 @@ interface FastAPIStatusResponse {
     actual_output: string;
     exit_code: number;
     execution_time: number;
+    error?: string;
+    results?: any[];
+    compilation_error?: boolean;
+    error_type?: string;
+    line_number?: number;
+    offset?: number;
   };
   error: string | null;
   execution_time: number;
@@ -416,10 +422,7 @@ const PythonContentTester: React.FC = () => {
           }
         }
       } else {
-        const parsedResults = result.result.parsed_results;
-        const errorMessage = Array.isArray(parsedResults) 
-          ? 'Unknown error' 
-          : parsedResults?.error || 'Unknown error';
+        const errorMessage = result.result.error;
         setOutput(`Error: ${errorMessage}`);
         setSuccessMessage('❌ Execution Failed');
       }

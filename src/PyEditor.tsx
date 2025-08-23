@@ -110,6 +110,12 @@ interface FastAPIStatusResponse {
     actual_output: string;
     exit_code: number;
     execution_time: number;
+    error?: string;
+    results?: any[];
+    compilation_error?: boolean;
+    error_type?: string;
+    line_number?: number;
+    offset?: number;
   };
   error: string | null;
   execution_time: number;
@@ -717,21 +723,41 @@ const decryptData = (encryptedData: string) => {
           setAdditionalMessage(responseData.additionalMessage);
         }
       } else {
-        const parsedResults = result.result.parsed_results;
-        const errorMessage = Array.isArray(parsedResults) 
-          ? 'Unknown error' 
-          : parsedResults?.error || 'Unknown error';
+        // Get the actual error message from result.error field
+        const errorMessage = result.result.error;
         setOutput(`Error: ${errorMessage}`);
         setSuccessMessage('Execution failed');
+        
+        // Create failed test case results for errors so they can be submitted
+        const currentQuestion = questions[currentQuestionIndex];
+        let errorTestCases: any[] = [];
+        
+        if (currentQuestion && currentQuestion.TestCases && currentQuestion.TestCases.length > 0) {
+          // Create failed test cases for each test case in the question
+          errorTestCases = currentQuestion.TestCases.map((_, index) => ({
+            id: `TestCase${index + 1}`,
+            passed: false,
+            output: "Error occurred during execution"
+          }));
+          
+          // Add final result
+          errorTestCases.push({
+            id: "Result",
+            passed: false,
+            output: "Failed due to execution error"
+          });
+        }
+        
+        setRunResponseTestCases(errorTestCases);
         
         // Store error response for this question
         const questionKey = `coding_${currentQuestion.Qn_name}`;
         const errorResponseData = {
           ...result,
-          runResponseTestCases: [],
+          runResponseTestCases: errorTestCases,
           output: `Error: ${errorMessage}`,
           successMessage: "Execution failed",
-          additionalMessage: ""
+          additionalMessage: "Code has compilation or runtime errors"
         };
         
         storeFastApiResponse(questionKey, errorResponseData);
@@ -746,9 +772,60 @@ const decryptData = (encryptedData: string) => {
       setExecutionStatus('completed');
     } catch (error) {
       console.error('Code execution with tests failed:', error);
-      setOutput(`Error: ${error instanceof Error ? error.message : 'Execution failed'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Execution failed';
+      setOutput(`Error: ${errorMessage}`);
       setSuccessMessage('Execution failed');
       setExecutionStatus('error');
+      
+      // Create failed test case results for network/API errors so they can be submitted
+      const currentQuestion = questions[currentQuestionIndex];
+      let errorTestCases: any[] = [];
+      
+      if (currentQuestion && currentQuestion.TestCases && currentQuestion.TestCases.length > 0) {
+        // Create failed test cases for each test case in the question
+        errorTestCases = currentQuestion.TestCases.map((_, index) => ({
+          id: `TestCase${index + 1}`,
+          passed: false,
+          output: "Error occurred during execution"
+        }));
+        
+        // Add final result
+        errorTestCases.push({
+          id: "Result",
+          passed: false,
+          output: "Failed due to execution error"
+        });
+      }
+      
+      setRunResponseTestCases(errorTestCases);
+      
+      // Store error response for this question
+      const questionKey = `coding_${currentQuestion.Qn_name}`;
+      const errorResponseData = {
+        submission_id: "error",
+        status: "error",
+        result: {
+          success: false,
+          error: errorMessage,
+          parsed_results: [],
+          raw_output: "",
+          actual_output: "",
+          exit_code: -1,
+          execution_time: 0
+        },
+        runResponseTestCases: errorTestCases,
+        output: `Error: ${errorMessage}`,
+        successMessage: "Execution failed",
+        additionalMessage: "Network or API error occurred"
+      };
+      
+      storeFastApiResponse(questionKey, errorResponseData);
+      
+      // Store the code that was run (even for errors)
+      setLastRunCode(prev => ({
+        ...prev,
+        [questionKey]: Ans
+      }));
     } finally {
       setProcessing(false);
     }
@@ -854,7 +931,7 @@ const handleNext = () => {
   
   /**
    * Check if submit button should be enabled
-   * Only enables after successful code execution (not when errors occur)
+   * Enables after any code execution attempt (success or error)
    */
   const canSubmitCode = () => {
     const currentQuestion = questions[currentQuestionIndex];
@@ -869,10 +946,8 @@ const handleNext = () => {
       return false; // No run response for this question
     }
     
-    // Check if the last run was successful (not an error)
-    if (storedResponse.successMessage === "Execution failed" || storedResponse.successMessage === "Error") {
-      return false; // Don't enable if last run had an error
-    }
+    // Allow submission regardless of success/error - student attempted the question
+    // This enables learning from mistakes and proper assessment
     
     const lastRunCodeForQuestion = lastRunCode[questionKey];
     if (!lastRunCodeForQuestion) {
@@ -914,7 +989,8 @@ const handleSubmit = async () => {
         }
       });
     } else {
-      // If no test cases were run, create failed test cases based on the current question's test cases
+      // If no test cases were run (due to errors), create failed test cases based on the current question's test cases
+      // This ensures that even error cases get proper test case results for submission
       const currentQuestion = questions[currentQuestionIndex];
       if (currentQuestion && currentQuestion.TestCases && currentQuestion.TestCases.length > 0) {
         const failedTestCases = currentQuestion.TestCases.map((_, index) => ({
