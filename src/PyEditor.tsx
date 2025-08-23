@@ -757,7 +757,7 @@ const decryptData = (encryptedData: string) => {
           runResponseTestCases: errorTestCases,
           output: `Error: ${errorMessage}`,
           successMessage: "Execution failed",
-          additionalMessage: "Code has syntax or runtime errors"
+          additionalMessage: "Code has compilation or runtime errors"
         };
         
         storeFastApiResponse(questionKey, errorResponseData);

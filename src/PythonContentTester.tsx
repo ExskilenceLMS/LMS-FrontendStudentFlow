@@ -422,11 +422,6 @@ const PythonContentTester: React.FC = () => {
           }
         }
       } else {
-        // const parsedResults = result.result.parsed_results;
-        // const errorMessage = Array.isArray(parsedResults) 
-        //   ? 'Unknown error' 
-        //   : parsedResults?.error || 'Unknown error';
-        // Get the actual error message from result.error field
         const errorMessage = result.result.error;
         setOutput(`Error: ${errorMessage}`);
         setSuccessMessage('❌ Execution Failed');
