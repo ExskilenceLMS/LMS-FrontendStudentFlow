@@ -1,28 +1,40 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import { Detector } from "react-detect-offline";
 import apiClient from "./utils/apiAuth";
 import { getApiClient } from "./utils/apiAuth";
 
 import { Modal } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import 'react-loading-skeleton/dist/skeleton.css';
+import "react-loading-skeleton/dist/skeleton.css";
 import "./App.css";
-import { secretKey } from './constants';
-import CryptoJS from 'crypto-js';
+import { secretKey } from "./constants";
+import CryptoJS from "crypto-js";
 import AppRoutes from "./AppRoutes";
-import { performLogout } from './utils/apiAuth';
+import { performLogout } from "./utils/apiAuth";
 import Layout from "./Components/Layout";
 import InternetInfo from "./Components/InternetInfo";
+
+// Extend Window interface to include our custom property
+declare global {
+  interface Window {
+    backendCountdownInterval?: NodeJS.Timeout;
+  }
+}
 
 function App() {
   return (
     <Detector
       polling={{
-        url: '/internet_info',
+        url: "/internet_info",
         enabled: true,
         timeout: 2000,
-        interval: 10000
+        interval: 10000,
       }}
       render={({ online }) =>
         online ? (
@@ -32,8 +44,22 @@ function App() {
         ) : (
           <Router>
             <Routes>
-              <Route path="/InternetInfo" element={<Layout><InternetInfo /></Layout>} />
-              <Route path="*" element={<Layout><InternetInfo /></Layout>} />
+              <Route
+                path="/InternetInfo"
+                element={
+                  <Layout>
+                    <InternetInfo />
+                  </Layout>
+                }
+              />
+              <Route
+                path="*"
+                element={
+                  <Layout>
+                    <InternetInfo />
+                  </Layout>
+                }
+              />
             </Routes>
           </Router>
         )
@@ -46,41 +72,45 @@ function AppContent() {
   const location = useLocation();
   const [showLogoutWarning, setShowLogoutWarning] = useState(false);
   const [countdown, setCountdown] = useState(60);
-const sessionValidationFlagRef = useRef(false);
-const validationInProgressRef = useRef(false);
+  const sessionValidationFlagRef = useRef(false);
+  const validationInProgressRef = useRef(false);
 
-  
+  // Timer references
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const encryptedStudentId = sessionStorage.getItem('StudentId') || "";
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
+
+  // Backend API timer references - separate from frontend modal
+  const backendApiTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recheckModalTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const encryptedStudentId = sessionStorage.getItem("StudentId") || "";
+  const decryptedStudentId = CryptoJS.AES.decrypt(
+    encryptedStudentId!,
+    secretKey
+  ).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
 
   // Check if user is on login page
   const isOnLoginPage = () => {
     const currentPath = location.pathname;
-    const isLogin = currentPath === '/' 
+    const isLogin = currentPath === "/";
     return isLogin;
   };
 
-  const handleLogout = useCallback(async (isInactivityLogout: boolean = false) => {
-    try {
-      // Use the standardized performLogout function
-      await performLogout(studentId, isInactivityLogout, false);
-      window.location.href = '/'; 
-    }
-    catch (error){
-      // Still redirect even if API call fails
-      window.location.href = '/';
-    }
-  }, [studentId]);
-
-  // Global right-click disable
-  const disableRightClick = useCallback((e: MouseEvent) => {
-    e.preventDefault();
-    return false;
-  }, []);
+  const handleLogout = useCallback(
+    async (isInactivityLogout: boolean = false) => {
+      try {
+        // Use the standardized performLogout function
+        await performLogout(studentId, isInactivityLogout, false);
+        window.location.href = "/";
+      } catch (error) {
+        // Still redirect even if API call fails
+        window.location.href = "/";
+      }
+    },
+    [studentId]
+  );
 
   const startCountdown = useCallback(() => {
     // Don't start countdown if user is on login page
@@ -106,6 +136,117 @@ const validationInProgressRef = useRef(false);
     }, 1000);
   }, [handleLogout, location.pathname]);
 
+  // Backend API session validation - separate from frontend modal
+  const validateSessionWithBackend = useCallback(async () => {
+    if (validationInProgressRef.current) return;
+
+    validationInProgressRef.current = true;
+
+    try {
+      const response = await getApiClient().get(
+        `${process.env.REACT_APP_BACKEND_URL}api/validate-session/`
+      );
+    } catch (error) {
+      // If backend validation fails, logout the user
+      handleLogout(true);
+    } finally {
+      sessionValidationFlagRef.current = false;
+      validationInProgressRef.current = false;
+    }
+  }, [handleLogout]);
+
+  // Schedule backend API call based on frontend modal state
+  const scheduleBackendApiCall = useCallback(() => {
+    if (backendApiTimerRef.current) {
+      clearTimeout(backendApiTimerRef.current);
+    }
+
+    if (recheckModalTimerRef.current) {
+      clearTimeout(recheckModalTimerRef.current);
+    }
+
+    // If modal is open, wait 1 minute and recheck
+    if (showLogoutWarning) {
+      recheckModalTimerRef.current = setTimeout(() => {
+        // Recheck if modal is still open
+        if (!showLogoutWarning) {
+          // Modal is closed, trigger backend API
+          validateSessionWithBackend();
+        } else {
+          // Modal is still open, wait another minute and recheck
+          scheduleBackendApiCall();
+        }
+      }, 60000); // 1 minute
+    } else {
+      // Modal is not open, trigger backend API after session timeout
+      const sessionTimeoutMs =
+        parseInt(process.env.REACT_APP_SESSION_TIMEOUT_MINUTES || "2") *
+        60 *
+        1000;
+
+      // Clear any existing countdown interval first
+      if (window.backendCountdownInterval) {
+        clearInterval(window.backendCountdownInterval);
+      }
+
+      // Add countdown logging for backend API timer
+      let backendCountdown = Math.floor(sessionTimeoutMs / 1000);
+      window.backendCountdownInterval = setInterval(() => {
+        if (backendCountdown <= 0) {
+          clearInterval(window.backendCountdownInterval);
+          return;
+        }
+        backendCountdown--;
+      }, 1000);
+
+      backendApiTimerRef.current = setTimeout(() => {
+        if (window.backendCountdownInterval) {
+          clearInterval(window.backendCountdownInterval);
+        }
+        validateSessionWithBackend();
+      }, sessionTimeoutMs);
+    }
+  }, [showLogoutWarning, validateSessionWithBackend]);
+
+  // Reset backend API timer when any API is triggered from REACT_APP_BACKEND_URL
+  const resetBackendApiTimer = useCallback(() => {
+    if (backendApiTimerRef.current) {
+      clearTimeout(backendApiTimerRef.current);
+    }
+    if (recheckModalTimerRef.current) {
+      clearTimeout(recheckModalTimerRef.current);
+    }
+
+    scheduleBackendApiCall();
+  }, [scheduleBackendApiCall]);
+
+  // Initialize backend API timer separately from frontend modal
+  const initializeBackendApiTimer = useCallback(() => {
+    if (isOnLoginPage()) {
+      return;
+    }
+
+    try {
+      const accessToken = localStorage.getItem("LMS_access_token");
+      const hasSessionData = accessToken && studentId;
+
+      if (!hasSessionData) {
+        return;
+      }
+
+      // Schedule backend API call independently
+      scheduleBackendApiCall();
+    } catch (error) {
+      // Error handling without console logging
+    }
+  }, [scheduleBackendApiCall, location.pathname]);
+
+  // Global right-click disable
+  const disableRightClick = useCallback((e: MouseEvent) => {
+    e.preventDefault();
+    return false;
+  }, []);
+
   const resetTimer = useCallback(async () => {
     // Don't start timer if user is on login page
     if (isOnLoginPage()) {
@@ -114,9 +255,9 @@ const validationInProgressRef = useRef(false);
 
     // Check if user has valid session data from localStorage
     try {
-      const accessToken = localStorage.getItem('LMS_access_token');
+      const accessToken = localStorage.getItem("LMS_access_token");
       const hasSessionData = accessToken && studentId;
-    
+
       if (!hasSessionData) {
         return;
       }
@@ -131,7 +272,12 @@ const validationInProgressRef = useRef(false);
         clearInterval(countdownTimerRef.current);
       }
 
-      setShowLogoutWarning(false); 
+      setShowLogoutWarning(false);
+      const sessionTimeoutMs =
+        parseInt(process.env.REACT_APP_SESSION_TIMEOUT_MINUTES || "2") *
+        60 *
+        1000;
+
       timerRef.current = setTimeout(() => {
         // Final check before showing warning
         if (isOnLoginPage()) {
@@ -140,24 +286,22 @@ const validationInProgressRef = useRef(false);
         setShowLogoutWarning(true);
         setCountdown(60);
         startCountdown();
-      }, (parseInt(process.env.REACT_APP_SESSION_TIMEOUT_MINUTES || "2") * 60 * 1000)); // Use environment variable for session timeout
-    } catch (error) {
-    }
+      }, sessionTimeoutMs);
+    } catch (error) {}
   }, [startCountdown, location.pathname]);
 
   useEffect(() => {
     if (showLogoutWarning) {
       sessionValidationFlagRef.current = true;
+      // When modal opens, reschedule backend API call
+      scheduleBackendApiCall();
+    } else {
     }
-  }, [showLogoutWarning]);
-  
-
-  
-
+  }, [showLogoutWarning, scheduleBackendApiCall]);
 
   useEffect(() => {
     // Add global right-click disable for all pages including login
-    window.addEventListener('contextmenu', disableRightClick);
+    window.addEventListener("contextmenu", disableRightClick);
 
     // Don't set up timer events if user is on login page
     if (isOnLoginPage()) {
@@ -177,48 +321,48 @@ const validationInProgressRef = useRef(false);
 
     const validateSession = async () => {
       if (validationInProgressRef.current) return; // Prevent multiple calls
-    
+
       validationInProgressRef.current = true;
-    
+
       try {
-        getApiClient().get(`${process.env.REACT_APP_BACKEND_URL}api/validate-session/`);
+        getApiClient().get(
+          `${process.env.REACT_APP_BACKEND_URL}api/validate-session/`
+        );
       } catch (error) {
       } finally {
         sessionValidationFlagRef.current = false;
         validationInProgressRef.current = false;
       }
     };
-    
-    
 
     // Check if user has valid session data from localStorage
     const checkSessionAndSetupTimer = async () => {
       try {
-        const accessToken = localStorage.getItem('LMS_access_token');
+        const accessToken = localStorage.getItem("LMS_access_token");
         const hasSessionData = accessToken && studentId;
-        
+
         if (!hasSessionData) {
           return;
         }
 
-        const events = ['mousemove', 'keypress', 'scroll', 'click'];
+        const events = ["mousemove", "keypress", "scroll", "click"];
         const handleActivity = () => {
           if (isOnLoginPage()) return;
-        
+
           if (sessionValidationFlagRef.current) {
             validateSession(); // This will now trigger correctly
           }
-        
+
           resetTimer();
         };
-        
-        
 
         events.forEach((event) => {
           window.addEventListener(event, handleActivity);
         });
 
-        resetTimer();
+        // Initialize both timers separately
+        resetTimer(); // Frontend modal timer
+        initializeBackendApiTimer(); // Backend API timer
 
         return () => {
           events.forEach((event) => {
@@ -233,9 +377,19 @@ const validationInProgressRef = useRef(false);
           if (countdownTimerRef.current) {
             clearInterval(countdownTimerRef.current);
           }
+          // Clean up backend API timers
+          if (backendApiTimerRef.current) {
+            clearTimeout(backendApiTimerRef.current);
+          }
+          if (recheckModalTimerRef.current) {
+            clearTimeout(recheckModalTimerRef.current);
+          }
+          // Clean up countdown interval
+          if (window.backendCountdownInterval) {
+            clearInterval(window.backendCountdownInterval);
+          }
         };
-      } catch (error) {
-      }
+      } catch (error) {}
     };
 
     checkSessionAndSetupTimer();
@@ -243,7 +397,7 @@ const validationInProgressRef = useRef(false);
     // Cleanup function for the entire useEffect
     return () => {
       // Remove global right-click disable
-      window.removeEventListener('contextmenu', disableRightClick);
+      window.removeEventListener("contextmenu", disableRightClick);
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
@@ -253,22 +407,47 @@ const validationInProgressRef = useRef(false);
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
       }
+      // Clean up backend API timers
+      if (backendApiTimerRef.current) {
+        clearTimeout(backendApiTimerRef.current);
+      }
+      if (recheckModalTimerRef.current) {
+        clearTimeout(recheckModalTimerRef.current);
+      }
+      // Clean up countdown interval
+      if (window.backendCountdownInterval) {
+        clearInterval(window.backendCountdownInterval);
+      }
     };
   }, [resetTimer, location.pathname, disableRightClick]);
+
+  // Expose resetBackendApiTimer globally so it can be called from other components
+  useEffect(() => {
+    (window as any).resetBackendApiTimer = resetBackendApiTimer;
+
+    return () => {
+      delete (window as any).resetBackendApiTimer;
+    };
+  }, [resetBackendApiTimer]);
 
   return (
     <>
       <AppRoutes />
-   
-      <Modal show={showLogoutWarning} onHide={resetTimer} backdrop="static"
-      style={{backdropFilter: 'blur(10px)'}} centered>
+
+      <Modal
+        show={showLogoutWarning}
+        onHide={resetTimer}
+        backdrop="static"
+        style={{ backdropFilter: "blur(10px)" }}
+        centered
+      >
         <Modal.Header closeButton>
           <Modal.Title>Still there?</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-        You’ve been inactive. You’ll be logged out in {countdown} seconds.
-        <br />
-        Note : Please move your cursor or click any button.
+          You’ve been inactive. You’ll be logged out in {countdown} seconds.
+          <br />
+          Note : Please move your cursor or click any button.
         </Modal.Body>
       </Modal>
     </>
