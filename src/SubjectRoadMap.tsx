@@ -162,6 +162,30 @@ const SubjectRoadMap: React.FC = () => {
   const [videoData, setVideoData] = useState<{
     [key: number]: { otp: string; playback_info: string };
   }>({});
+  
+  // VdoCipher time tracking state
+  const [videoTimeTracking, setVideoTimeTracking] = useState<{
+    totalPlayed: number;
+    totalCovered: number;
+    isTracking: boolean;
+  }>({
+    totalPlayed: 0,
+    totalCovered: 0,
+    isTracking: false
+  });
+
+  // Store video time in localStorage for App.tsx to access
+  useEffect(() => {
+    if (videoTimeTracking.isTracking && currentVideoId) {
+      const videoTrackingData = {
+        videoId: currentVideoId,
+        totalPlayed: videoTimeTracking.totalPlayed,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('currentVideoTracking', JSON.stringify(videoTrackingData));
+    }
+  }, [videoTimeTracking.totalPlayed, videoTimeTracking.isTracking, currentVideoId]);
+  
   const navigate = useNavigate();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const decryptedCourseId = CryptoJS.AES.decrypt(
@@ -317,6 +341,121 @@ const SubjectRoadMap: React.FC = () => {
     return chapters[0].sub_topic_data[currentSubTopicIndex].sub_topic;
   };
 
+  // VdoCipher time tracking functions
+  const initializeVdoCipherTimeTracking = useCallback((iframe: HTMLIFrameElement) => {
+    if (!iframe || !(window as any).VdoPlayer) {
+      return null;
+    }
+
+    try {
+      const player = new (window as any).VdoPlayer(iframe);
+      
+      // Store player instance on iframe for global access (fullscreen control)
+      (iframe as any).vdocipherPlayer = player;
+      
+      // Start time tracking
+      setVideoTimeTracking(prev => ({ ...prev, isTracking: true }));
+      
+      // Set up interval to track time every second
+      const timeTrackingInterval = setInterval(() => {
+        if (player.api) {
+          player.api.getTotalPlayed().then((tp: number) => {
+            setVideoTimeTracking(prev => ({ ...prev, totalPlayed: tp }));
+          }).catch((error: any) => {
+            console.error('VdoCipher: Error getting total played time:', error);
+          });
+          
+          player.api.getTotalCovered().then((tc: number) => {
+            setVideoTimeTracking(prev => ({ ...prev, totalCovered: tc }));
+          }).catch((error: any) => {
+            console.error('VdoCipher: Error getting total covered time:', error);
+          });
+        }
+      }, 1000);
+      
+      // Return cleanup function
+      return () => {
+        clearInterval(timeTrackingInterval);
+        setVideoTimeTracking(prev => ({ ...prev, isTracking: false }));
+        // Clean up player reference
+        delete (iframe as any).vdocipherPlayer;
+      };
+    } catch (error) {
+      console.error('VdoCipher: Error initializing player:', error);
+      return null;
+    }
+  }, []);
+
+  // Manual trigger for testing time tracking (can be called from console)
+  const manualTriggerTimeTracking = useCallback(() => {
+    const iframe = document.querySelector(`iframe[src*="player.vdocipher.com"]`);
+    if (iframe) {
+      const cleanup = initializeVdoCipherTimeTracking(iframe as HTMLIFrameElement);
+      if (cleanup) {
+        // Store cleanup function for later use
+        (window as any).cleanupVdoCipherTracking = cleanup;
+      }
+    }
+  }, [initializeVdoCipherTimeTracking]);
+
+  // Expose function globally for testing
+  useEffect(() => {
+    (window as any).manualTriggerTimeTracking = manualTriggerTimeTracking;
+    (window as any).getVideoTimeTracking = () => videoTimeTracking;
+    
+    // Expose fullscreen exit function globally for App.tsx to call
+    (window as any).exitVideoFullscreen = () => {
+      // Find all VdoCipher iframes and exit fullscreen if any are in fullscreen mode
+      const iframes = document.querySelectorAll('iframe[src*="player.vdocipher.com"]');
+      let fullscreenExited = false;
+      
+      iframes.forEach((iframe) => {
+        try {
+          if ((iframe as any).vdocipherPlayer && (iframe as any).vdocipherPlayer.api) {
+            const player = (iframe as any).vdocipherPlayer;
+            
+            // Check if player API is ready
+            if (player.api && typeof player.api.isFullscreen === 'function') {
+              player.api.isFullscreen().then((isFullscreen: boolean) => {
+                if (isFullscreen) {
+                  player.api.exitFullscreen();
+                  fullscreenExited = true;
+                }
+              }).catch((error: any) => {
+                // Silently handle errors - fullscreen might not be supported
+              });
+            }
+          }
+        } catch (error) {
+          // Silently handle errors
+        }
+      });
+      
+      // Also try to exit browser fullscreen as a fallback
+      if (document.fullscreenElement || (document as any).webkitFullscreenElement || 
+          (document as any).mozFullScreenElement || (document as any).msFullscreenElement) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          (document as any).msExitFullscreen();
+        }
+        fullscreenExited = true;
+      }
+      
+      return fullscreenExited;
+    };
+    
+    return () => {
+      delete (window as any).manualTriggerTimeTracking;
+      delete (window as any).getVideoTimeTracking;
+      delete (window as any).exitVideoFullscreen;
+    };
+  }, [manualTriggerTimeTracking, videoTimeTracking]);
+
   // Helper function to get content type icon
   const getContentTypeIcon = (
     contentType: "lesson" | "notes" | "mcq" | "coding"
@@ -346,6 +485,16 @@ const SubjectRoadMap: React.FC = () => {
       if (idx !== -1) {
         setExpandedSection(idx.toString());
       }
+    }
+  }, []);
+
+  // Load VdoCipher API script
+  useEffect(() => {
+    if (!document.querySelector('script[src*="api.js"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://player.vdocipher.com/v2/api.js';
+      script.async = true;
+      document.head.appendChild(script);
     }
   }, []);
 
@@ -1393,6 +1542,18 @@ const SubjectRoadMap: React.FC = () => {
             </video>
           ) : (
             <iframe
+              ref={(iframe) => {
+                if (iframe && videoTimeTracking.isTracking === false) {
+                  // Initialize time tracking when iframe loads
+                  setTimeout(() => {
+                    const cleanup = initializeVdoCipherTimeTracking(iframe);
+                    if (cleanup) {
+                      // Store cleanup function for this video
+                      (window as any).cleanupVdoCipherTracking = cleanup;
+                    }
+                  }, 2000); // Wait 2 seconds for iframe to fully load
+                }
+              }}
               className="w-100 h-100"
               src={videoUrl}
               title="Video Player"
@@ -1453,6 +1614,18 @@ const SubjectRoadMap: React.FC = () => {
             </video>
           ) : (
             <iframe
+              ref={(iframe) => {
+                if (iframe && videoTimeTracking.isTracking === false) {
+                  // Initialize time tracking when iframe loads
+                  setTimeout(() => {
+                    const cleanup = initializeVdoCipherTimeTracking(iframe);
+                    if (cleanup) {
+                      // Store cleanup function for this video
+                      (window as any).cleanupVdoCipherTracking = cleanup;
+                    }
+                  }, 2000); // Wait 2 seconds for iframe to fully load
+                }
+              }}
               className="w-100 h-100"
               src={videoUrl}
               title="Video Player"
@@ -2874,6 +3047,31 @@ const SubjectRoadMap: React.FC = () => {
       setExpandedSection(currentSubTopicIndex.toString());
     }
   }, [chapters, currentSubTopicIndex]);
+  
+  // Cleanup VdoCipher time tracking when video changes
+  useEffect(() => {
+    return () => {
+      // Cleanup time tracking when component unmounts or video changes
+      if ((window as any).cleanupVdoCipherTracking) {
+        (window as any).cleanupVdoCipherTracking();
+        delete (window as any).cleanupVdoCipherTracking;
+      }
+      
+      // Clean up any stored player references on iframes
+      const iframes = document.querySelectorAll('iframe[src*="player.vdocipher.com"]');
+      iframes.forEach((iframe) => {
+        if ((iframe as any).vdocipherPlayer) {
+          delete (iframe as any).vdocipherPlayer;
+        }
+      });
+      
+      setVideoTimeTracking({
+        totalPlayed: 0,
+        totalCovered: 0,
+        isTracking: false
+      });
+    };
+  }, [currentVideoId, currentLessonIndex]);
 
   return (
     <div
@@ -2947,10 +3145,15 @@ const SubjectRoadMap: React.FC = () => {
                               {getCurrentSubTopicName()}
                             </h6>
                           </div>
-                          <div className="text-muted">
+                          <div className="text-muted d-flex align-items-center gap-2">
                             <small className="badge bg-light text-dark px-2 py-1 rounded-pill">
                               {getContentLabel("lesson", 1)}
                             </small>
+                            {videoTimeTracking.isTracking && (
+                              <small className="badge bg-info text-white px-2 py-1 rounded-pill">
+                                TP: {videoTimeTracking.totalPlayed}s | TC: {videoTimeTracking.totalCovered}s
+                              </small>
+                            )}
                           </div>
                         </div>
                         <div
