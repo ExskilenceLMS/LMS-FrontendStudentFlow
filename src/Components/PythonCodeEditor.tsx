@@ -396,20 +396,20 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       });
     } else if (fastApiResponse.result && fastApiResponse.result.parsed_results) {
       // Extract parsed_results from FastAPI response (for success cases)
-      const parsedResults = fastApiResponse.result.parsed_results;
-      
-      // Generate TestCase entries
-      parsedResults.forEach((testCase: any, index: number) => {
-        result.push({
-          [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
-        });
-      });
-      
-      // Add final Result entry
-      const allPassed = parsedResults.every((testCase: any) => testCase.passed);
+    const parsedResults = fastApiResponse.result.parsed_results;
+    
+    // Generate TestCase entries
+    parsedResults.forEach((testCase: any, index: number) => {
       result.push({
-        "Result": allPassed ? "True" : "False"
+        [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
       });
+    });
+    
+    // Add final Result entry
+    const allPassed = parsedResults.every((testCase: any) => testCase.passed);
+    result.push({
+      "Result": allPassed ? "True" : "False"
+    });
     }
     
     return result;

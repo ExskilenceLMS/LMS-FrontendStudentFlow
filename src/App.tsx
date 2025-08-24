@@ -75,6 +75,8 @@ function AppContent() {
   const sessionValidationFlagRef = useRef(false);
   const validationInProgressRef = useRef(false);
 
+
+
   // Timer references
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -83,6 +85,27 @@ function AppContent() {
   // Backend API timer references - separate from frontend modal
   const backendApiTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recheckModalTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Video time tracking state and interval
+  const [videoTimeTrackingNumber, setVideoTimeTrackingNumber] = useState<{
+    videoId: string | null;
+    totalPlayed: number;
+    timestamp: number;
+  } | null>(null);
+  const videoTimeCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Debouncing for video activity to prevent multiple rapid timer resets
+  const videoActivityDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Flag to prevent re-initializing video time check interval
+  const videoIntervalInitializedRef = useRef(false);
+  
+  // Backup ref for video tracking data in case state doesn't work
+  const videoTrackingDataRef = useRef<{
+    videoId: string | null;
+    totalPlayed: number;
+    timestamp: number;
+  } | null>(null);
 
   const encryptedStudentId = sessionStorage.getItem("StudentId") || "";
   const decryptedStudentId = CryptoJS.AES.decrypt(
@@ -278,17 +301,105 @@ function AppContent() {
         60 *
         1000;
 
+
+
       timerRef.current = setTimeout(() => {
         // Final check before showing warning
         if (isOnLoginPage()) {
           return;
         }
+        
+        // Exit fullscreen mode if user is watching video in fullscreen
+        // This ensures the timeout modal is always visible and accessible
+        if (typeof window !== 'undefined' && (window as any).exitVideoFullscreen && typeof (window as any).exitVideoFullscreen === 'function') {
+          try {
+            (window as any).exitVideoFullscreen();
+          } catch (error) {
+            // Silently handle any errors - fullscreen exit is not critical for session timeout
+          }
+        }
+        
         setShowLogoutWarning(true);
         setCountdown(60);
         startCountdown();
       }, sessionTimeoutMs);
     } catch (error) {}
   }, [startCountdown, location.pathname]);
+
+    // Video time checking function - checks if video time has increased and triggers activity
+  const checkVideoTimeActivity = useCallback(() => {
+    try {
+      const currentVideoData = localStorage.getItem('currentVideoTracking');
+      
+      if (!currentVideoData) {
+        return;
+      }
+
+      const parsedData = JSON.parse(currentVideoData);
+      const { videoId, totalPlayed, timestamp } = parsedData;
+
+      // Get current video tracking data from ref (more reliable than state in this context)
+      const storedTrackingData = videoTrackingDataRef.current;
+      
+      // Check if this is a video change (different videoId) even if totalPlayed is 0
+      const isVideoChange = storedTrackingData && storedTrackingData.videoId !== videoId;
+      
+      // Skip if video time is 0 AND it's the same video (player not ready yet)
+      if (totalPlayed === 0 && !isVideoChange) {
+        return;
+      }
+      
+      if (storedTrackingData && storedTrackingData.videoId === videoId) {
+        // Only reset timer if same video and totalPlayed increased
+        if (totalPlayed > storedTrackingData.totalPlayed) {
+          // Debounce video activity to prevent multiple rapid timer resets
+          if (videoActivityDebounceRef.current) {
+            clearTimeout(videoActivityDebounceRef.current);
+          }
+          
+          videoActivityDebounceRef.current = setTimeout(() => {
+            // Trigger activity by calling handleActivity (which will call resetTimer)
+            if (typeof window !== 'undefined' && window.dispatchEvent) {
+              // Create a custom event to trigger handleActivity
+              const activityEvent = new Event('videotimeactivity');
+              window.dispatchEvent(activityEvent);
+            }
+          }, 1000); // Wait 1 second before triggering activity
+        }
+      } else {
+        // Different video detected - this is user activity (switching videos)
+        if (storedTrackingData) {
+          // Reset timer when user switches to a different video
+          if (videoActivityDebounceRef.current) {
+            clearTimeout(videoActivityDebounceRef.current);
+          }
+          
+          videoActivityDebounceRef.current = setTimeout(() => {
+            // Trigger activity by calling handleActivity (which will call resetTimer)
+            if (typeof window !== 'undefined' && window.dispatchEvent) {
+              // Create a custom event to trigger handleActivity
+              const activityEvent = new Event('videotimeactivity');
+              window.dispatchEvent(activityEvent);
+            }
+          }, 1000); // Wait 1 second before triggering activity
+        }
+      }
+
+      // Always update stored video tracking data to keep it in sync
+      const newTrackingData = {
+        videoId,
+        totalPlayed,
+        timestamp
+      };
+      
+      setVideoTimeTrackingNumber(newTrackingData);
+      
+      // Also update the ref as backup
+      videoTrackingDataRef.current = newTrackingData;
+    } catch (error) {
+      console.error('Error checking video time activity:', error);
+    }
+  }, []); // Removed videoTimeTrackingNumber dependency to prevent function recreation
 
   useEffect(() => {
     if (showLogoutWarning) {
@@ -345,9 +456,11 @@ function AppContent() {
           return;
         }
 
-        const events = ["mousemove", "keypress", "scroll", "click"];
-        const handleActivity = () => {
+        const events = ["mousemove", "keypress", "scroll", "click", "videotimeactivity"];
+        const handleActivity = (event?: Event) => {
           if (isOnLoginPage()) return;
+
+
 
           if (sessionValidationFlagRef.current) {
             validateSession(); // This will now trigger correctly
@@ -363,6 +476,8 @@ function AppContent() {
         // Initialize both timers separately
         resetTimer(); // Frontend modal timer
         initializeBackendApiTimer(); // Backend API timer
+
+        // Video time check interval is now initialized in a separate useEffect
 
         return () => {
           events.forEach((event) => {
@@ -387,6 +502,14 @@ function AppContent() {
           // Clean up countdown interval
           if (window.backendCountdownInterval) {
             clearInterval(window.backendCountdownInterval);
+          }
+          // Clean up video time check interval
+          if (videoTimeCheckIntervalRef.current) {
+            clearInterval(videoTimeCheckIntervalRef.current);
+          }
+          // Clean up video activity debounce
+          if (videoActivityDebounceRef.current) {
+            clearTimeout(videoActivityDebounceRef.current);
           }
         };
       } catch (error) {}
@@ -418,6 +541,14 @@ function AppContent() {
       if (window.backendCountdownInterval) {
         clearInterval(window.backendCountdownInterval);
       }
+      // Clean up video time check interval
+      if (videoTimeCheckIntervalRef.current) {
+        clearInterval(videoTimeCheckIntervalRef.current);
+      }
+      // Clean up video activity debounce
+      if (videoActivityDebounceRef.current) {
+        clearTimeout(videoActivityDebounceRef.current);
+      }
     };
   }, [resetTimer, location.pathname, disableRightClick]);
 
@@ -429,6 +560,61 @@ function AppContent() {
       delete (window as any).resetBackendApiTimer;
     };
   }, [resetBackendApiTimer]);
+
+  // Initialize video time check interval independently
+  useEffect(() => {
+    // Don't set up video time check if user is on login page
+    if (isOnLoginPage()) {
+      return;
+    }
+
+    // Check if user has valid session data
+    const accessToken = localStorage.getItem("LMS_access_token");
+    const hasSessionData = accessToken && studentId;
+
+    if (!hasSessionData) {
+      return;
+    }
+
+    // Initialize video tracking state with existing localStorage data
+    const existingVideoData = localStorage.getItem('currentVideoTracking');
+    if (existingVideoData && !videoTimeTrackingNumber) {
+      try {
+        const parsedData = JSON.parse(existingVideoData);
+        setVideoTimeTrackingNumber(parsedData);
+      } catch (error) {
+        console.error('Error parsing existing video data:', error);
+      }
+    }
+
+    // Initialize video time check interval (only once)
+    if (!videoIntervalInitializedRef.current) {
+      const checkIntervalMinutes = parseInt(process.env.REACT_APP_VIDEO_ACTIVITY_CHECK_INTERVAL_MINUTES || "3");
+      const checkIntervalMs = checkIntervalMinutes * 60 * 1000;
+      
+      videoTimeCheckIntervalRef.current = setInterval(() => {
+        checkVideoTimeActivity();
+      }, checkIntervalMs);
+      
+      videoIntervalInitializedRef.current = true;
+    }
+
+    // Cleanup function
+    return () => {
+      if (videoTimeCheckIntervalRef.current) {
+        clearInterval(videoTimeCheckIntervalRef.current);
+        videoTimeCheckIntervalRef.current = null;
+      }
+      videoIntervalInitializedRef.current = false;
+    };
+  }, [studentId, location.pathname]); // Removed checkVideoTimeActivity dependency
+
+
+
+  // Function to get current video tracking data (for other parts of the component)
+  const getCurrentVideoTrackingData = useCallback(() => {
+    return videoTrackingDataRef.current;
+  }, []);
 
   return (
     <>
