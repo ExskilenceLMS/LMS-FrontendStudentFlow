@@ -3149,11 +3149,7 @@ const SubjectRoadMap: React.FC = () => {
                             <small className="badge bg-light text-dark px-2 py-1 rounded-pill">
                               {getContentLabel("lesson", 1)}
                             </small>
-                            {videoTimeTracking.isTracking && (
-                              <small className="badge bg-info text-white px-2 py-1 rounded-pill">
-                                TP: {videoTimeTracking.totalPlayed}s | TC: {videoTimeTracking.totalCovered}s
-                              </small>
-                            )}
+                            
                           </div>
                         </div>
                         <div
