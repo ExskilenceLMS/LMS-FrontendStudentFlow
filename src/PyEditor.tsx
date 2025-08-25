@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import SkeletonCode from './Components/EditorSkeletonCode'
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
+import { autoSaveCode, autoSaveAfterSubmission, getAutoSavedCode } from "./utils/autoSaveUtils";
 
 /**
  * Interface for Example data structure
@@ -542,9 +543,43 @@ const decryptData = (encryptedData: string) => {
         
         setCurrentQuestionIndex(initialIndex);
         setStatus(questionsWithSavedCode[initialIndex].status);
-        setEnteredAns(questionsWithSavedCode[initialIndex].entered_ans);
         setFunctionCall(questionsWithSavedCode[initialIndex].FunctionCall || '');
-        setAns(questionsWithSavedCode[initialIndex].entered_ans ||  ''); 
+        
+        // Check if we should retrieve auto-saved code for the initial question
+        const initialQuestion = questionsWithSavedCode[initialIndex];
+        const initialQuestionKey = getUserCodeKey(initialQuestion.Qn_name);
+        const savedCode = sessionStorage.getItem(initialQuestionKey);
+        
+        if (savedCode !== null) {
+          // Use locally saved code
+          setEnteredAns(savedCode);
+          setAns(savedCode);
+        } else if (!initialQuestion.status) {
+          // If no local saved code and question is not submitted, try to retrieve auto-saved code from backend
+          getAutoSavedCode(initialQuestion.Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!)
+            .then(autoSavedCode => {
+              if (autoSavedCode) {
+                setEnteredAns(autoSavedCode);
+                setAns(autoSavedCode);
+                // Also save to session storage for future use
+                sessionStorage.setItem(initialQuestionKey, autoSavedCode);
+              } else {
+                // Fallback to question's entered_ans
+                setEnteredAns(initialQuestion.entered_ans);
+                setAns(initialQuestion.entered_ans || '');
+              }
+            })
+            .catch(() => {
+              // Fallback to question's entered_ans on error
+              setEnteredAns(initialQuestion.entered_ans);
+              setAns(initialQuestion.entered_ans || '');
+            });
+        } else {
+          // Question is already submitted, use entered_ans
+          setEnteredAns(initialQuestion.entered_ans);
+          setAns(initialQuestion.entered_ans || '');
+        }
+        
         setLoading(false);
         // Initialize empty test case results
         setRunResponseTestCases([]);
@@ -647,13 +682,16 @@ const decryptData = (encryptedData: string) => {
       const currentQuestion = questions[currentQuestionIndex];
       const testCases = currentQuestion?.TestCases || [];
 
-      const submissionId = await submitCodeToBackend(Ans, testCases, 10, "q790", "practice");
+      const submissionId = await submitCodeToBackend(Ans, testCases, 10, currentQuestion.Qn_name, "practice");
       setCurrentSubmissionId(submissionId);
       setExecutionStatus('executing');
 
       // Poll for completion
       const result = await pollExecutionStatus(submissionId, 15);
-      
+      if(!status)
+        {        // Trigger auto-save when code runs and not submitted
+         autoSaveCode(Ans, currentQuestion.Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!);
+        }
       if (result.result.success) {
         setOutput(result.result.actual_output);
         
@@ -865,8 +903,32 @@ const handleQuestionChange = (index: number) => {
     setEnteredAns(savedCode);
     setAns(savedCode);
   } else {
-    setEnteredAns(questions[index].entered_ans);
-    setAns(questions[index].entered_ans || '');
+    // If no local saved code, try to retrieve auto-saved code from backend
+    // Only if the question status is false (not submitted)
+    if (!questions[index].status) {
+      getAutoSavedCode(questions[index].Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!)
+        .then(autoSavedCode => {
+          if (autoSavedCode) {
+            setEnteredAns(autoSavedCode);
+            setAns(autoSavedCode);
+            // Also save to session storage for future use
+            sessionStorage.setItem(nextQuestionKey, autoSavedCode);
+          } else {
+            // Fallback to question's entered_ans
+            setEnteredAns(questions[index].entered_ans);
+            setAns(questions[index].entered_ans || '');
+          }
+        })
+        .catch(() => {
+          // Fallback to question's entered_ans on error
+          setEnteredAns(questions[index].entered_ans);
+          setAns(questions[index].entered_ans || '');
+        });
+    } else {
+      // Question is already submitted, use entered_ans
+      setEnteredAns(questions[index].entered_ans);
+      setAns(questions[index].entered_ans || '');
+    }
   }
 
   const question = questions[index];
@@ -1033,6 +1095,9 @@ const handleSubmit = async () => {
       // Save submission status
     const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questions[currentQuestionIndex].Qn_name}`;
     sessionStorage.setItem(submitStatusKey, encryptData("true"));
+
+    // Trigger auto-save after successful submission
+    autoSaveAfterSubmission(Ans, questions[currentQuestionIndex].Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!);
 
     setIsNextBtn(true);
   } catch (innerError: any) {
@@ -1358,46 +1423,60 @@ Write your Code here.`}
                         
                         {/* ===== TEST CASE RESULTS ===== */}
                         {runResponseTestCases && runResponseTestCases.length > 0 && (
-                          <div className="mt-3">
-                            <h6 style={{ 
-                              color: "#333", 
-                              fontWeight: "bold", 
-                              marginBottom: "10px", 
-                              fontSize: "14px",
-                              position: "sticky",
-                              top: "0",
-                              zIndex: 1,
-                              backgroundColor: "#fff",
-                              padding: "5px 0"
-                            }}>Test Cases:</h6>
-                            <div className="d-flex flex-wrap" style={{ gap: "20px" }}>
-                              {runResponseTestCases.map((testCase, index) => (
-                                <div
-                                  key={index}
-                                  className="d-flex align-items-center border border-light shadow bg-white p-2 rounded-2"
-                                  style={{ 
-                                    fontSize: "12px",
-                                    minWidth: "fit-content",
-                                    flex: "0 0 auto"
-                                  }}
-                                >
-                                  <div className="d-flex align-items-center me-2">
-                                    <span className="me-1">{testCase.id}:</span>
-                                    {testCase.passed ? (
-                                      <span className="text-success">✓</span>
-                                    ) : (
-                                      <span className="text-danger">✗</span>
-                                    )}
-                                  </div>
-                                  <div className="text-muted" style={{ fontSize: "11px" }}>
-                                    {testCase.input && `Input: ${testCase.input}`}
-                                    {/* {testCase.expected && ` Expected: ${testCase.expected}`} */}
-                                    {testCase.actual && ` Got: ${testCase.actual}`}
+                          (() => {
+                            // Get the current question key to check the stored API response
+                            const currentQuestion = questions[currentQuestionIndex];
+                            const questionKey = `coding_${currentQuestion.Qn_name}`;
+                            const fastApiResponse = getStoredFastApiResponse(questionKey);
+                            
+                            // Only show test cases if the API response was successful
+                            // Check multiple conditions to ensure we only show on success
+                            if (fastApiResponse?.result?.success === true) {
+                              return (
+                                <div className="mt-3">
+                                  <h6 style={{ 
+                                    color: "#333", 
+                                    fontWeight: "bold", 
+                                    marginBottom: "10px", 
+                                    fontSize: "14px",
+                                    position: "sticky",
+                                    top: "0",
+                                    zIndex: 1,
+                                    backgroundColor: "#fff",
+                                    padding: "5px 0"
+                                  }}>Test Cases:</h6>
+                                  <div className="d-flex flex-wrap" style={{ gap: "20px" }}>
+                                    {runResponseTestCases.map((testCase, index) => (
+                                      <div
+                                        key={index}
+                                        className="d-flex align-items-center border border-light shadow bg-white p-2 rounded-2"
+                                        style={{ 
+                                          fontSize: "12px",
+                                          minWidth: "fit-content",
+                                          flex: "0 0 auto"
+                                        }}
+                                      >
+                                        <div className="d-flex align-items-center me-2">
+                                          <span className="me-1">{testCase.id}:</span>
+                                          {testCase.passed ? (
+                                            <span className="text-success">✓</span>
+                                          ) : (
+                                            <span className="text-danger">✗</span>
+                                          )}
+                                        </div>
+                                        <div className="text-muted" style={{ fontSize: "11px" }}>
+                                          {testCase.input && `Input: ${testCase.input}`}
+                                          {/* {testCase.expected && ` Expected: ${testCase.expected}`} */}
+                                          {testCase.actual && ` Got: ${testCase.actual}`}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          </div>
+                              );
+                            }
+                            return null;
+                          })()
                         )}
                       </div>
                     </div>

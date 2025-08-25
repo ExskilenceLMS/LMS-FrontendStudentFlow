@@ -396,20 +396,20 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       });
     } else if (fastApiResponse.result && fastApiResponse.result.parsed_results) {
       // Extract parsed_results from FastAPI response (for success cases)
-      const parsedResults = fastApiResponse.result.parsed_results;
-      
-      // Generate TestCase entries
-      parsedResults.forEach((testCase: any, index: number) => {
-        result.push({
-          [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
-        });
-      });
-      
-      // Add final Result entry
-      const allPassed = parsedResults.every((testCase: any) => testCase.passed);
+    const parsedResults = fastApiResponse.result.parsed_results;
+    
+    // Generate TestCase entries
+    parsedResults.forEach((testCase: any, index: number) => {
       result.push({
-        "Result": allPassed ? "True" : "False"
+        [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
       });
+    });
+    
+    // Add final Result entry
+    const allPassed = parsedResults.every((testCase: any) => testCase.passed);
+    result.push({
+      "Result": allPassed ? "True" : "False"
+    });
     }
     
     return result;
@@ -791,7 +791,7 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       const currentQuestion = questions[currentQuestionIndex];
       const testCases = currentQuestion?.TestCases || [];
 
-      const submissionId = await submitCodeToBackend(Ans, testCases, 10, "q790", "practice");
+      const submissionId = await submitCodeToBackend(Ans, testCases, 10, currentQuestion.Qn_name, "practice");
       // setCurrentSubmissionId(submissionId); // Commented out
       // setExecutionStatus('executing'); // Commented out
 
@@ -1354,6 +1354,16 @@ Instructions :
             
             {/* ===== TEST CASE RESULTS ===== */}
             {runResponseTestCases && runResponseTestCases.length > 0 && (
+              (() => {
+                // Get the current question key to check the stored API response
+                const currentQuestion = questions[currentQuestionIndex];
+                const questionKey = `coding_${currentQuestion.Qn_name}`;
+                const fastApiResponse = getStoredFastApiResponse(questionKey);
+                
+                // Only show test cases if the API response was successful
+                // Check multiple conditions to ensure we only show on success
+                if (fastApiResponse?.result?.success === true) {
+                  return (
               <div className="mt-3">
                 <h6 style={{ 
                   color: "#333", 
@@ -1387,6 +1397,10 @@ Instructions :
                   ))}
                 </div>
               </div>
+                );
+              }
+              return null;
+            })()
             )}
           </div>
         </div>

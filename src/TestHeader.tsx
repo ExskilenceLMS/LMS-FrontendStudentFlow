@@ -292,6 +292,8 @@ useEffect(() => {
       // Call logout function (session will be cleared immediately)
       performLogout(studentId, isInactivityLogout, false);
       // Navigate immediately without waiting for API call
+      localStorage.clear()
+      sessionStorage.clear()
       navigate('/', { replace: true });
       setShowUserMenu(false);
     } catch (error) {
