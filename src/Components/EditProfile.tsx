@@ -406,7 +406,7 @@ const EditProfile: React.FC = () => {
                   type="text"
                   className="form-control"
                   name="college_batch"
-                  value={profileDetails.college_batch}
+                  value={profileDetails.college_batch || ''}
                   onChange={handleProfileChange}
                 />
               </div>
