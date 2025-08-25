@@ -184,15 +184,16 @@ finally {
                       }}
                     >
                       <ListItemText
-                        primary={<pre>{comment.comment}</pre>}
+                        primary={<pre className='text-wrap'>{comment.comment}</pre>}
                         secondary={format(comment.timestamp, 'MMM dd, yyyy HH:mm')}
                         primaryTypographyProps={{
                           variant: 'caption',
                           color: 'textPrimary',
+                          fontSize: '14px',
                         }}
                         secondaryTypographyProps={{
-                          variant: 'caption',
                           color: 'textSecondary',
+                          fontSize: '10px',
                         }}
                       />
                     </Paper>
