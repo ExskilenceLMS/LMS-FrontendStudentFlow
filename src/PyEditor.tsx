@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import SkeletonCode from './Components/EditorSkeletonCode'
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
+import { autoSaveCode, autoSaveAfterSubmission, getAutoSavedCode } from "./utils/autoSaveUtils";
 
 /**
  * Interface for Example data structure
@@ -542,9 +543,43 @@ const decryptData = (encryptedData: string) => {
         
         setCurrentQuestionIndex(initialIndex);
         setStatus(questionsWithSavedCode[initialIndex].status);
-        setEnteredAns(questionsWithSavedCode[initialIndex].entered_ans);
         setFunctionCall(questionsWithSavedCode[initialIndex].FunctionCall || '');
-        setAns(questionsWithSavedCode[initialIndex].entered_ans ||  ''); 
+        
+        // Check if we should retrieve auto-saved code for the initial question
+        const initialQuestion = questionsWithSavedCode[initialIndex];
+        const initialQuestionKey = getUserCodeKey(initialQuestion.Qn_name);
+        const savedCode = sessionStorage.getItem(initialQuestionKey);
+        
+        if (savedCode !== null) {
+          // Use locally saved code
+          setEnteredAns(savedCode);
+          setAns(savedCode);
+        } else if (!initialQuestion.status) {
+          // If no local saved code and question is not submitted, try to retrieve auto-saved code from backend
+          getAutoSavedCode(initialQuestion.Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!)
+            .then(autoSavedCode => {
+              if (autoSavedCode) {
+                setEnteredAns(autoSavedCode);
+                setAns(autoSavedCode);
+                // Also save to session storage for future use
+                sessionStorage.setItem(initialQuestionKey, autoSavedCode);
+              } else {
+                // Fallback to question's entered_ans
+                setEnteredAns(initialQuestion.entered_ans);
+                setAns(initialQuestion.entered_ans || '');
+              }
+            })
+            .catch(() => {
+              // Fallback to question's entered_ans on error
+              setEnteredAns(initialQuestion.entered_ans);
+              setAns(initialQuestion.entered_ans || '');
+            });
+        } else {
+          // Question is already submitted, use entered_ans
+          setEnteredAns(initialQuestion.entered_ans);
+          setAns(initialQuestion.entered_ans || '');
+        }
+        
         setLoading(false);
         // Initialize empty test case results
         setRunResponseTestCases([]);
@@ -653,7 +688,10 @@ const decryptData = (encryptedData: string) => {
 
       // Poll for completion
       const result = await pollExecutionStatus(submissionId, 15);
-      
+      if(!status)
+        {        // Trigger auto-save when code runs and not submitted
+         autoSaveCode(Ans, currentQuestion.Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!);
+        }
       if (result.result.success) {
         setOutput(result.result.actual_output);
         
@@ -865,8 +903,32 @@ const handleQuestionChange = (index: number) => {
     setEnteredAns(savedCode);
     setAns(savedCode);
   } else {
-    setEnteredAns(questions[index].entered_ans);
-    setAns(questions[index].entered_ans || '');
+    // If no local saved code, try to retrieve auto-saved code from backend
+    // Only if the question status is false (not submitted)
+    if (!questions[index].status) {
+      getAutoSavedCode(questions[index].Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!)
+        .then(autoSavedCode => {
+          if (autoSavedCode) {
+            setEnteredAns(autoSavedCode);
+            setAns(autoSavedCode);
+            // Also save to session storage for future use
+            sessionStorage.setItem(nextQuestionKey, autoSavedCode);
+          } else {
+            // Fallback to question's entered_ans
+            setEnteredAns(questions[index].entered_ans);
+            setAns(questions[index].entered_ans || '');
+          }
+        })
+        .catch(() => {
+          // Fallback to question's entered_ans on error
+          setEnteredAns(questions[index].entered_ans);
+          setAns(questions[index].entered_ans || '');
+        });
+    } else {
+      // Question is already submitted, use entered_ans
+      setEnteredAns(questions[index].entered_ans);
+      setAns(questions[index].entered_ans || '');
+    }
   }
 
   const question = questions[index];
@@ -1033,6 +1095,9 @@ const handleSubmit = async () => {
       // Save submission status
     const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questions[currentQuestionIndex].Qn_name}`;
     sessionStorage.setItem(submitStatusKey, encryptData("true"));
+
+    // Trigger auto-save after successful submission
+    autoSaveAfterSubmission(Ans, questions[currentQuestionIndex].Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!);
 
     setIsNextBtn(true);
   } catch (innerError: any) {
