@@ -307,8 +307,11 @@ const PythonContentTester: React.FC = () => {
     // If template exists, append FunctionCall
     if (Ans) {
       if (functionCall) {
+        setPythonCode(Ans + '\n\n\n\n\n' + functionCall);
         return Ans + '\n\n\n\n\n' + functionCall;
+
       }
+      setPythonCode(Ans);
       return Ans;
     }
     
