@@ -234,7 +234,7 @@ const TestReport: React.FC = () => {
 
                   <div className={testType === "Final Test" ? "col-3 mb-3" : "col-4 mb-3"}>
                     <div className="h-100 text-center p-3 rounded-3" style={{ backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                      <div className="h4 mb-2" style={{ color: '#e74c3c', fontWeight: 'normal' }}>
+                      <div className="h4 mb-2" style={{ color: data.result.status === 'Passed' ? '#27ae60' : '#e74c3c', fontWeight: 'normal' }}>
                         {data.score.user !== undefined ? data.score.user : "0"}
                       </div>
                       <p className="mb-0 fw-bold" style={{ color: '#2c3e50', fontSize: '0.9rem' }}>
