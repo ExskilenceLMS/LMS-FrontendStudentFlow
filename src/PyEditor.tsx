@@ -8,6 +8,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import SkeletonCode from './Components/EditorSkeletonCode'
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
+import { autoSaveCode, autoSaveAfterSubmission, getAutoSavedCode } from "./utils/autoSaveUtils";
 
 /**
  * Interface for Example data structure
@@ -544,9 +545,43 @@ const decryptData = (encryptedData: string) => {
         
         setCurrentQuestionIndex(initialIndex);
         setStatus(questionsWithSavedCode[initialIndex].status);
-        setEnteredAns(questionsWithSavedCode[initialIndex].entered_ans);
         setFunctionCall(questionsWithSavedCode[initialIndex].FunctionCall || '');
-        setAns(questionsWithSavedCode[initialIndex].entered_ans ||  ''); 
+        
+        // Check if we should retrieve auto-saved code for the initial question
+        const initialQuestion = questionsWithSavedCode[initialIndex];
+        const initialQuestionKey = getUserCodeKey(initialQuestion.Qn_name);
+        const savedCode = sessionStorage.getItem(initialQuestionKey);
+        
+        if (savedCode !== null) {
+          // Use locally saved code
+          setEnteredAns(savedCode);
+          setAns(savedCode);
+        } else if (!initialQuestion.status) {
+          // If no local saved code and question is not submitted, try to retrieve auto-saved code from backend
+          getAutoSavedCode(initialQuestion.Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!)
+            .then(autoSavedCode => {
+              if (autoSavedCode) {
+                setEnteredAns(autoSavedCode);
+                setAns(autoSavedCode);
+                // Also save to session storage for future use
+                sessionStorage.setItem(initialQuestionKey, autoSavedCode);
+              } else {
+                // Fallback to question's entered_ans
+                setEnteredAns(initialQuestion.entered_ans);
+                setAns(initialQuestion.entered_ans || '');
+              }
+            })
+            .catch(() => {
+              // Fallback to question's entered_ans on error
+              setEnteredAns(initialQuestion.entered_ans);
+              setAns(initialQuestion.entered_ans || '');
+            });
+        } else {
+          // Question is already submitted, use entered_ans
+          setEnteredAns(initialQuestion.entered_ans);
+          setAns(initialQuestion.entered_ans || '');
+        }
+        
         setLoading(false);
         // Initialize empty test case results
         setRunResponseTestCases([]);
@@ -651,12 +686,17 @@ const decryptData = (encryptedData: string) => {
       const currentQuestion = questions[currentQuestionIndex];
       const testCases = currentQuestion?.TestCases || [];
 
-      const submissionId = await submitCodeToBackend(Ans, testCases, 10, "q790", "practice");
+      const submissionId = await submitCodeToBackend(Ans, testCases, 10, currentQuestion.Qn_name, "practice");
       setCurrentSubmissionId(submissionId);
       setExecutionStatus('executing');
 
       // Poll for completion
       const result = await pollExecutionStatus(submissionId, 15);
+      
+      // Trigger auto-save when code runs and not submitted
+      if (!status) {
+        autoSaveCode(Ans, currentQuestion.Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!);
+      }
       
       if (result.result.success) {
         setOutput(result.result.actual_output);
@@ -869,8 +909,32 @@ const handleQuestionChange = (index: number) => {
     setEnteredAns(savedCode);
     setAns(savedCode);
   } else {
+    // If no local saved code, try to retrieve auto-saved code from backend
+    // Only if the question status is false (not submitted)
+    if (!questions[index].status) {
+      getAutoSavedCode(questions[index].Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!)
+        .then(autoSavedCode => {
+          if (autoSavedCode) {
+            setEnteredAns(autoSavedCode);
+            setAns(autoSavedCode);
+            // Also save to session storage for future use
+            sessionStorage.setItem(nextQuestionKey, autoSavedCode);
+          } else {
+            // Fallback to question's entered_ans
     setEnteredAns(questions[index].entered_ans);
     setAns(questions[index].entered_ans || '');
+          }
+        })
+        .catch(() => {
+          // Fallback to question's entered_ans on error
+          setEnteredAns(questions[index].entered_ans);
+          setAns(questions[index].entered_ans || '');
+        });
+    } else {
+      // Question is already submitted, use entered_ans
+      setEnteredAns(questions[index].entered_ans);
+      setAns(questions[index].entered_ans || '');
+    }
   }
 
   const question = questions[index];
@@ -1041,6 +1105,9 @@ const handleSubmit = async () => {
       // Save submission status
     const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questions[currentQuestionIndex].Qn_name}`;
     sessionStorage.setItem(submitStatusKey, encryptData("true"));
+
+    // Trigger auto-save after successful submission
+    autoSaveAfterSubmission(Ans, questions[currentQuestionIndex].Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!);
 
     setIsNextBtn(true);
   } catch (innerError: any) {
@@ -1385,7 +1452,17 @@ Write your Code here.`}
                         
                         {/* ===== TEST CASE RESULTS ===== */}
                         {activeSection === 'testcases' && runResponseTestCases && runResponseTestCases.length > 0 && (
-                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
+                          (() => {
+                            // Get the current question key to check the stored API response
+                            const currentQuestion = questions[currentQuestionIndex];
+                            const questionKey = `coding_${currentQuestion.Qn_name}`;
+                            const fastApiResponse = getStoredFastApiResponse(questionKey);
+
+                            // Only show test cases if the API response was successful
+                            // Check multiple conditions to ensure we only show on success
+                            if (fastApiResponse?.result?.success === true) {
+                              return (
+                              <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
                             {/* <h6 style={{ 
                               color: "#333", 
                               fontWeight: "bold", 
@@ -1466,8 +1543,8 @@ Write your Code here.`}
                                           <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
                                             {(() => {
                                               const response = getStoredFastApiResponse(`coding_${questions[currentQuestionIndex]?.Qn_name}`);
-                                              if (response?.result?.parsed_results?.[selectedTestCaseIndex]) {
-                                                const value = response.result.parsed_results[selectedTestCaseIndex].result || "No output";
+                                              if (response?.result?.parsed_results?.[selectedTestCaseIndex] && response.result.parsed_results[selectedTestCaseIndex].result !== undefined && response.result.parsed_results[selectedTestCaseIndex].result !== null) {
+                                                const value = response.result.parsed_results[selectedTestCaseIndex].result;
                                                 if (Array.isArray(value)) {
                                                   // Handle array of values (each on new line)
                                                   return value.map((item: any, index: number) => {
@@ -1531,7 +1608,7 @@ Write your Code here.`}
                                             {(() => {
                                               const currentQuestion = questions[currentQuestionIndex];
                                               const testCaseData = currentQuestion?.TestCases?.[selectedTestCaseIndex];
-                                              if (testCaseData?.Testcase && typeof testCaseData.Testcase === 'object' && 'Value' in testCaseData.Testcase) {
+                                              if (testCaseData?.Testcase && typeof testCaseData.Testcase === 'object' && 'Value' in testCaseData.Testcase && testCaseData.Testcase.Value !== undefined && testCaseData.Testcase.Value !== null) {
                                                 const value = testCaseData.Testcase.Value;
                                                 if (Array.isArray(value)) {
                                                   // Handle array of values (each on new line)
@@ -1594,7 +1671,7 @@ Write your Code here.`}
                                             {(() => {
                                               const currentQuestion = questions[currentQuestionIndex];
                                               const testCaseData = currentQuestion?.TestCases?.[selectedTestCaseIndex];
-                                              if (testCaseData?.Testcase && typeof testCaseData.Testcase === 'object' && 'Output' in testCaseData.Testcase) {
+                                              if (testCaseData?.Testcase && typeof testCaseData.Testcase === 'object' && 'Output' in testCaseData.Testcase && testCaseData.Testcase.Output !== undefined && testCaseData.Testcase.Output !== null) {
                                                 const value = testCaseData.Testcase.Output;
                                                 if (Array.isArray(value)) {
                                                   // Handle array of values (each on new line)
@@ -1656,8 +1733,8 @@ Write your Code here.`}
                                           <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
                                             {(() => {
                                               const response = getStoredFastApiResponse(`coding_${questions[currentQuestionIndex]?.Qn_name}`);
-                                              if (response?.result?.parsed_results?.[selectedTestCaseIndex]) {
-                                                const value = response.result.parsed_results[selectedTestCaseIndex].result || "No output";
+                                              if (response?.result?.parsed_results?.[selectedTestCaseIndex] && response.result.parsed_results[selectedTestCaseIndex].result !== undefined && response.result.parsed_results[selectedTestCaseIndex].result !== null) {
+                                                const value = response.result.parsed_results[selectedTestCaseIndex].result;
                                                 if (Array.isArray(value)) {
                                                   // Handle array of values (each on new line)
                                                   return value.map((item: any, index: number) => {
@@ -1742,6 +1819,9 @@ Write your Code here.`}
                             </div>
                           </div>
                         )}
+                        return null;
+                      })()
+                    )}
                       </div>
                     </div>
                   </div>

@@ -122,6 +122,8 @@ const PythonContentTester: React.FC = () => {
   const [backendHealthy, setBackendHealthy] = useState<boolean>(false);
   const [executionStatus, setExecutionStatus] = useState<'idle' | 'submitting' | 'executing' | 'completed' | 'error'>('idle');
   const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false);  // Track user interaction
+  const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<'output' | 'testcases'>('output');
 
   // ===== API CONFIGURATION =====
   
@@ -286,6 +288,22 @@ const PythonContentTester: React.FC = () => {
   };
 
   /**
+   * Store FastAPI response per question
+   */
+  const storeFastApiResponse = (questionKey: string, response: any) => {
+    // This function is not needed for this component but keeping for consistency
+    console.log('Storing response for:', questionKey, response);
+  };
+
+  /**
+   * Get stored FastAPI response for a question
+   */
+  const getStoredFastApiResponse = (questionKey: string) => {
+    // This function is not needed for this component but keeping for consistency
+    return null;
+  };
+
+  /**
    * Generate editor value with FunctionCall appended to template
    */
   const generateEditorValue = () => {
@@ -375,6 +393,8 @@ const PythonContentTester: React.FC = () => {
     setSuccessMessage('');
     setAdditionalMessage('');
     setHasUserInteracted(false); // Reset interaction state for new question
+    setSelectedTestCaseIndex(null);
+    setActiveSection('output');
   };
 
   // ===== FASTAPI CODE EXECUTION =====
@@ -393,6 +413,8 @@ const PythonContentTester: React.FC = () => {
     setSuccessMessage('');
     setAdditionalMessage('');
     setRunResponseTestCases([]);
+    setSelectedTestCaseIndex(null);
+    setActiveSection('output');
 
     try {
       const currentQuestion = questions[currentQuestionIndex];
@@ -406,22 +428,41 @@ const PythonContentTester: React.FC = () => {
       if (result.result.success) {
         setOutput(result.result.actual_output);
         
+        // Debug: Log the parsed results to see the structure
+        console.log('Parsed results:', result.result.parsed_results);
+        
         if (Array.isArray(result.result.parsed_results)) {
-          const testCaseResults = result.result.parsed_results.map((testCase, index) => ({
-            [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
-          }));
+          const testCaseResults = result.result.parsed_results.map((testCase, index) => {
+            console.log(`Test case ${index}:`, testCase); // Debug each test case
+            
+            return {
+              id: `TestCase${index + 1}`,
+              passed: testCase.passed,
+              input: testCase.input || testCase.test_case || '',
+              expected: testCase.expected || testCase.expected_output || '',
+              actual: testCase.result, // Use result field directly since that's what the API provides
+              execution_time: testCase.execution_time || 0
+            };
+          });
           
           const allPassed = result.result.parsed_results.every((testCase: any) => testCase.passed);
-          const finalResult = { Result: allPassed ? "Passed" : "Failed" };
+          const finalResult = { 
+            id: "Result",
+            passed: allPassed,
+            message: allPassed ? "Passed" : "Failed"
+          };
           
-          setRunResponseTestCases([...testCaseResults, finalResult]);
+          const finalTestCases = [...testCaseResults, finalResult];
+          console.log('Final test cases array:', finalTestCases); // Debug the final array
+          
+          setRunResponseTestCases(finalTestCases);
           
           if (allPassed) {
-            setSuccessMessage("✅ All Test Cases Passed!");
-            setAdditionalMessage("The code is working correctly for this question.");
+            setSuccessMessage("Congratulations!");
+            setAdditionalMessage("You have passed all the test cases.");
           } else {
-            setSuccessMessage("❌ Some Test Cases Failed");
-            setAdditionalMessage("The code needs to be fixed to pass all test cases.");
+            setSuccessMessage("Wrong Answer");
+            setAdditionalMessage("You have not passed all the test cases.");
           }
         }
       } else {
@@ -651,79 +692,377 @@ Instructions :
                       </div>
                     </div>
 
-                    {/* ===== OUTPUT AND TEST RESULTS PANEL ===== */}
+                                        {/* ===== OUTPUT AND TEST RESULTS PANEL ===== */}
                     <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533", position: "relative" }}>
-                      <div className="p-3 overflow-auto" style={{ height: "calc(100% - 10px)" }}>
-                        {/* ===== CODE EXECUTION OUTPUT ===== */}
-                        <div style={{ maxHeight: "70%", overflow: "auto" }}>
-                          {output && (
-                            <>
-                              <h6 style={{ 
-                                color: "#333", 
-                                fontWeight: "bold", 
-                                marginBottom: "10px", 
-                                fontSize: "14px",
-                                position: "sticky",
-                                top: "0",
-                                zIndex: 1,
-                                backgroundColor: "#fff",
-                                padding: "5px 0"
-                              }}>Output:</h6>
-                              <pre
-                                className="m-0"
-                                style={{
-                                  fontSize: "12px",
-                                  fontFamily: "monospace",
-                                  whiteSpace: "pre-wrap",
-                                  wordBreak: "break-word",
-                                  backgroundColor: "#f8f9fa",
-                                  padding: "10px",
-                                  borderRadius: "4px",
-                                  border: "1px solid #e9ecef",
-                                  margin: "0",
-                                  maxHeight: "calc(70% - 40px)",
-                                  overflow: "auto"
-                                }}
-                              >
-                                {output}
-                              </pre>
-                            </>
-                          )}
+                      <div className="p-3" style={{ height: "calc(100% - 10px)", display: "flex", flexDirection: "column" }}>
+                        {/* ===== SECTION TABS ===== */}
+                        <div className="d-flex mb-3" style={{ flexShrink: 0 }}>
+                          <button
+                            className={`btn ${activeSection === 'output' ? 'btn-primary' : 'btn-outline-primary'} me-2`}
+                            onClick={() => setActiveSection('output')}
+                            style={{ fontSize: "12px", padding: "6px 12px" }}
+                          >
+                            Output
+                          </button>
+                          <button
+                            className={`btn ${activeSection === 'testcases' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            onClick={() => setActiveSection('testcases')}
+                            style={{ fontSize: "12px", padding: "6px 12px" }}
+                          >
+                            Test Cases
+                          </button>
                         </div>
-                        
-                        {/* ===== TEST CASE RESULTS ===== */}
-                        {runResponseTestCases && runResponseTestCases.length > 0 && (
-                          <div className="mt-3">
-                            <h6 style={{ 
-                              color: "#333", 
-                              fontWeight: "bold", 
-                              marginBottom: "10px", 
-                              fontSize: "14px",
-                              position: "sticky",
-                              top: "0",
-                              zIndex: 1,
-                              backgroundColor: "#fff",
-                              padding: "5px 0"
-                            }}>Test Cases:</h6>
-                            <div className="d-flex flex-wrap" style={{ gap: "20px" }}>
-                              {runResponseTestCases.map((testCase, index) => (
-                                <div
-                                  key={index}
-                                  className="d-flex align-items-center border border-light shadow bg-white p-2 rounded-2"
-                                  style={{ 
+
+                        {/* ===== CODE EXECUTION OUTPUT ===== */}
+                        {activeSection === 'output' && (
+                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
+                            {output && (
+                              <>
+                                <pre
+                                  className="m-0"
+                                  style={{
                                     fontSize: "12px",
-                                    minWidth: "fit-content",
-                                    flex: "0 0 auto"
+                                    fontFamily: "monospace",
+                                    whiteSpace: "pre-wrap",
+                                    wordBreak: "break-word",
+                                    backgroundColor: "#f8f9fa",
+                                    padding: "10px",
+                                    borderRadius: "4px",
+                                    border: "1px solid #e9ecef",
+                                    margin: "0",
+                                    overflow: "auto"
                                   }}
                                 >
-                                  <div className="d-flex align-items-center me-2">
-                                    <span className="me-1">{Object.keys(testCase)[0]}:</span>
-                                    <span style={{ color: Object.values(testCase)[0] === "Passed" ? "blue" : Object.values(testCase)[0] === "True" ? "blue" : "red" }}>
-                                      {Object.values(testCase)[0] === "Passed" ? "✓" : "✗"}
-                                    </span>
+                                  {output}
+                                </pre>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* ===== TEST CASE RESULTS ===== */}
+                        {activeSection === 'testcases' && runResponseTestCases && runResponseTestCases.length > 0 && (
+                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
+                            {/* Two-column layout for test cases */}
+                            <div className="d-flex" style={{ height: "calc(100%)" }}>
+                              {/* Left Column - Test Case List (20%) */}
+                              <div className="border-end" style={{ 
+                                width: "20%", 
+                                overflowY: "auto", 
+                                padding: "1px 10px 1px 10px",
+                                scrollbarWidth: "thin",
+                                scrollbarColor: "#c1c1c1 #f1f1f1"
+                              }}>
+                                {runResponseTestCases.map((testCase, index) => (
+                                  <div
+                                    key={index}
+                                    className={`p-2 border-bottom cursor-pointer ${
+                                      selectedTestCaseIndex === index ? 'text-primary' : ''
+                                    }`}
+                                    style={{ 
+                                      fontSize: "12px",
+                                      cursor: "pointer",
+                                      minHeight: "40px",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      margin: "6px 0px",
+                                      borderRadius: "8px",
+                                      padding: "8px 12px",
+                                      backgroundColor: selectedTestCaseIndex === index ? '#f2f2f0' : '#f8f9fa',
+                                      border: '1px solid #dee2e6',
+                                      color: selectedTestCaseIndex === index ? '#007bff' : '#212529'
+                                    }}
+                                    onClick={() => setSelectedTestCaseIndex(index)}
+                                  >
+                                    <span>{testCase.id}</span>
+                                    {testCase.passed ? (
+                                      <span className="text-success">✓</span>
+                                    ) : (
+                                      <span className="text-danger">✗</span>
+                                    )}
                                   </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
+                              
+                              {/* Right Column - Test Case Details (80%) */}
+                              <div className="px-5 pt-1 pb-3" style={{ width: "80%", overflowY: "auto" }}>
+                                {selectedTestCaseIndex !== null && runResponseTestCases[selectedTestCaseIndex] && (
+                                  <div>
+                                    {/* Test Case Status */}
+                                    <div className="mb-3">
+                                      <strong>Status: </strong>
+                                      <span className={runResponseTestCases[selectedTestCaseIndex].passed ? "text-success" : "text-danger"}>
+                                        {runResponseTestCases[selectedTestCaseIndex].passed ? "Passed" : "Failed"}
+                                      </span>
+                                    </div>
+                                    
+                                    {/* For first test case (keyword validation) - show only status and actual output */}
+                                    {selectedTestCaseIndex === 0 ? (
+                                      <>
+                                        <div className="mb-3">
+                                          <strong>Type: </strong>
+                                          <span className="text-info">Keyword Validation</span>
+                                        </div>
+                                        
+                                        {/* Actual Output for keyword validation */}
+                                        <div className="mb-3">
+                                          <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
+                                            {(() => {
+                                              const currentQuestion = questions[currentQuestionIndex];
+                                              if (currentQuestion?.TestCases?.[selectedTestCaseIndex]) {
+                                                const testCaseData = currentQuestion.TestCases[selectedTestCaseIndex];
+                                                let value;
+                                                
+                                                if (Array.isArray(testCaseData.Testcase)) {
+                                                  value = testCaseData.Testcase;
+                                                } else if (testCaseData.Testcase && testCaseData.Testcase.Value) {
+                                                  value = testCaseData.Testcase.Value;
+                                                }
+                                                
+                                                if (value && Array.isArray(value)) {
+                                                  return value.map((item: any, index: number) => {
+                                                    const itemString = String(item);
+                                                    if (itemString.includes('\\n')) {
+                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    } else if (itemString.includes('\n')) {
+                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    }
+                                                    return (
+                                                      <React.Fragment key={index}>
+                                                        {itemString}
+                                                        {index < value.length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    );
+                                                  });
+                                                }
+                                              }
+                                              return "No output";
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : selectedTestCaseIndex > 0 && runResponseTestCases[selectedTestCaseIndex]?.id !== "Result" ? (
+                                      <>
+                                        {/* Input */}
+                                        <div className="mb-3">
+                                          <strong>Input:</strong>
+                                          <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
+                                            {(() => {
+                                              const currentQuestion = questions[currentQuestionIndex];
+                                              const testCaseData = currentQuestion?.TestCases?.[selectedTestCaseIndex];
+                                              if (testCaseData?.Testcase && typeof testCaseData.Testcase === 'object' && 'Value' in testCaseData.Testcase && testCaseData.Testcase.Value !== undefined && testCaseData.Testcase.Value !== null) {
+                                                const value = testCaseData.Testcase.Value;
+                                                if (Array.isArray(value)) {
+                                                  return value.map((item: any, index: number) => {
+                                                    const itemString = String(item);
+                                                    if (itemString.includes('\\n')) {
+                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    } else if (itemString.includes('\n')) {
+                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    }
+                                                    return (
+                                                      <React.Fragment key={index}>
+                                                        {itemString}
+                                                        {index < value.length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    );
+                                                  });
+                                                } else {
+                                                  const stringValue = String(value);
+                                                  if (stringValue.includes('\\n')) {
+                                                    return stringValue.split('\\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  } else if (stringValue.includes('\n')) {
+                                                    return stringValue.split('\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  }
+                                                  return stringValue;
+                                                }
+                                              }
+                                              return "No input data";
+                                            })()}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Expected Output */}
+                                        <div className="mb-3">
+                                          <strong>Expected Output:</strong>
+                                          <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
+                                            {(() => {
+                                              const currentQuestion = questions[currentQuestionIndex];
+                                              const testCaseData = currentQuestion?.TestCases?.[selectedTestCaseIndex];
+                                              if (testCaseData?.Testcase && typeof testCaseData.Testcase === 'object' && 'Output' in testCaseData.Testcase && testCaseData.Testcase.Output !== undefined && testCaseData.Testcase.Output !== null) {
+                                                const value = testCaseData.Testcase.Output;
+                                                if (Array.isArray(value)) {
+                                                  return value.map((item: any, index: number) => {
+                                                    const itemString = String(item);
+                                                    if (itemString.includes('\\n')) {
+                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    } else if (itemString.includes('\n')) {
+                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    }
+                                                    return (
+                                                      <React.Fragment key={index}>
+                                                        {itemString}
+                                                        {index < value.length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    );
+                                                  });
+                                                } else {
+                                                  const stringValue = String(value);
+                                                  if (stringValue.includes('\\n')) {
+                                                    return stringValue.split('\\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  } else if (stringValue.includes('\n')) {
+                                                    return stringValue.split('\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  }
+                                                  return stringValue;
+                                                }
+                                              }
+                                              return "No expected output";
+                                            })()}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Actual Output */}
+                                        <div className="mb-3">
+                                          <strong>Actual Output:</strong>
+                                          <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
+                                            {(() => {
+                                              // Debug: Log the selected test case data
+                                              console.log('Selected test case:', runResponseTestCases[selectedTestCaseIndex]);
+                                              console.log('Actual output value:', runResponseTestCases[selectedTestCaseIndex]?.actual);
+                                              console.log('Actual output type:', typeof runResponseTestCases[selectedTestCaseIndex]?.actual);
+                                              console.log('Actual output === 0:', runResponseTestCases[selectedTestCaseIndex]?.actual === 0);
+                                              
+                                              // For this component, we'll show the actual output from the API response
+                                              if (runResponseTestCases[selectedTestCaseIndex]?.actual !== undefined && runResponseTestCases[selectedTestCaseIndex]?.actual !== null) {
+                                                const value = runResponseTestCases[selectedTestCaseIndex].actual;
+                                                if (Array.isArray(value)) {
+                                                  return value.map((item: any, index: number) => {
+                                                    const itemString = String(item);
+                                                    if (itemString.includes('\\n')) {
+                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    } else if (itemString.includes('\n')) {
+                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    }
+                                                    return (
+                                                      <React.Fragment key={index}>
+                                                        {itemString}
+                                                        {index < value.length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    );
+                                                  });
+                                                } else {
+                                                  const stringValue = String(value);
+                                                  if (stringValue.includes('\\n')) {
+                                                    return stringValue.split('\\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  } else if (stringValue.includes('\n')) {
+                                                    return stringValue.split('\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  }
+                                                  return stringValue;
+                                                }
+                                              }
+                                              return "No output";
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : null}
+                                    
+                                    {/* Execution Time - only show for non-Result and non-first test cases */}
+                                    {runResponseTestCases[selectedTestCaseIndex]?.id !== "Result" && selectedTestCaseIndex !== 0 && (
+                                      <div className="mt-3">
+                                        <strong>Execution Time: </strong>
+                                        <span className="text-muted">
+                                          {(() => {
+                                            const testCase = runResponseTestCases[selectedTestCaseIndex];
+                                            if (testCase?.execution_time) {
+                                              return `${(testCase.execution_time * 1000).toFixed(3)}ms`;
+                                            }
+                                            return "N/A";
+                                          })()}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                
+                                {/* Default message when no test case is selected */}
+                                {selectedTestCaseIndex === null && (
+                                  <div className="text-center text-muted" style={{ marginTop: "50px" }}>
+                                    Click on a test case to view details
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         )}
