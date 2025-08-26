@@ -115,7 +115,7 @@ const TestIntroduction: React.FC = () => {
   };
 
   return (
-    <div style={{ backgroundColor: "#F2EEEE", height: `calc(100vh - 60px)`, overflow: "hidden" }}>
+    <div style={{ backgroundColor: "#F2EEEE", height: `calc(100vh - 60px)` }}>
       <div
         className="p-0 my-0 me-2"
         style={{ backgroundColor: "#F2EEEE" }}

@@ -22,6 +22,7 @@ interface ProfileDetails {
   address: string;
   email: string;
   phone: string;
+  college_batch: string;
 }
 
 interface SocialMedia {
@@ -142,6 +143,10 @@ const orderedEducation = educationOrder.map((degreeTitle) => {
                         </tr>
                         <tr>
                           <th style={{ fontSize: "14px"}}>Subjects</th>
+                          <td> <Skeleton width={100} /> </td>
+                        </tr>
+                        <tr>
+                          <th style={{ fontSize: "14px"}}>College Batch</th>
                           <td> <Skeleton width={100} /> </td>
                         </tr>
                     </tbody>
@@ -366,6 +371,12 @@ const orderedEducation = educationOrder.map((degreeTitle) => {
                         <tr>
                           <th style={{ fontSize: "14px"}}>Subjects</th>
                           <td style={{ fontSize: "12px"}}>{profile.subjects.join(", ")}</td>
+                        </tr>
+                      )}
+                      {profile?.subjects && (
+                        <tr>
+                          <th style={{ fontSize: "14px"}}>College Batch</th>
+                          <td style={{ fontSize: "12px"}}>{profile?.profile_details?.college_batch}</td>
                         </tr>
                       )}
                     </tbody>
