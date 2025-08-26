@@ -207,6 +207,7 @@ const originalGet = apiClient.get;
 const originalPost = apiClient.post;
 const originalPut = apiClient.put;
 const originalPatch = apiClient.patch;
+const originalDelete = apiClient.delete;
 
 // Intercept all HTTP methods to reset backend API timer
 const createInterceptor = (originalMethod: any) => {
@@ -229,5 +230,6 @@ apiClient.get = createInterceptor(originalGet);
 apiClient.post = createInterceptor(originalPost);
 apiClient.put = createInterceptor(originalPut);
 apiClient.patch = createInterceptor(originalPatch);
+apiClient.delete = createInterceptor(originalDelete);
 
 export default apiClient;
