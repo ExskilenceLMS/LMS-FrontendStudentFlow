@@ -1413,17 +1413,6 @@ Write your Code here.`}
                           <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
                           {output && (
                             <>
-                                {/* <h6 style={{ 
-                                color: "#333", 
-                                fontWeight: "bold", 
-                                marginBottom: "10px", 
-                                fontSize: "14px",
-                                position: "sticky",
-                                top: "0",
-                                zIndex: 1,
-                                backgroundColor: "#fff",
-                                padding: "5px 0"
-                                }}>Output:</h6> */}
                               <pre
                                 className="m-0 "
                                 id="output"
@@ -1463,17 +1452,6 @@ Write your Code here.`}
                             if (fastApiResponse?.result?.success === true) {
                               return (
                               <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
-                            {/* <h6 style={{ 
-                              color: "#333", 
-                              fontWeight: "bold", 
-                              marginBottom: "10px", 
-                              fontSize: "14px",
-                              position: "sticky",
-                              top: "0",
-                              zIndex: 1,
-                              backgroundColor: "#fff",
-                              padding: "5px 0"
-                            }}>Test Cases:</h6> */}
                             
                             {/* Two-column layout for test cases */}
                             <div className="d-flex" style={{ height: "calc(100%)" }}>

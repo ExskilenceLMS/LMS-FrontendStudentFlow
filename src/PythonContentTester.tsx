@@ -292,7 +292,6 @@ const PythonContentTester: React.FC = () => {
    */
   const storeFastApiResponse = (questionKey: string, response: any) => {
     // This function is not needed for this component but keeping for consistency
-    console.log('Storing response for:', questionKey, response);
   };
 
   /**
