@@ -194,6 +194,8 @@ const PyEditor: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string>("");   // Success/error messages
   const [additionalMessage, setAdditionalMessage] = useState<string>("");  // Additional info messages
   const [processing, setProcessing] = useState<boolean>(false);       // Processing state during execution
+  const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<'output' | 'testcases'>('output');  // Currently selected test case
   
   // Question navigation and progress state
   const [functionCall, setFunctionCall] = useState<string>("");       // Function call pattern
@@ -677,6 +679,8 @@ const decryptData = (encryptedData: string) => {
     setSuccessMessage('');
     setAdditionalMessage('');
     setRunResponseTestCases([]);
+    setSelectedTestCaseIndex(null);
+    setActiveSection('output');
 
     try {
       // Use actual test cases from current question
@@ -916,8 +920,8 @@ const handleQuestionChange = (index: number) => {
             sessionStorage.setItem(nextQuestionKey, autoSavedCode);
           } else {
             // Fallback to question's entered_ans
-            setEnteredAns(questions[index].entered_ans);
-            setAns(questions[index].entered_ans || '');
+    setEnteredAns(questions[index].entered_ans);
+    setAns(questions[index].entered_ans || '');
           }
         })
         .catch(() => {
@@ -941,6 +945,8 @@ const handleQuestionChange = (index: number) => {
   setRunResponseTestCases([]);
   setSuccessMessage("");
   setAdditionalMessage("");
+    setSelectedTestCaseIndex(null);
+    setActiveSection('output');
 };
 
   /**
@@ -987,6 +993,8 @@ const handleNext = () => {
     setAdditionalMessage("");
     setOutput('');
     setIsSubmitted(false);
+    setSelectedTestCaseIndex(null);
+    setActiveSection('output');
   }
 };
 
@@ -1380,22 +1388,30 @@ Write your Code here.`}
 
                     {/* ===== OUTPUT AND TEST RESULTS PANEL ===== */}
                     <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533", position: "relative" }}>
-                      <div className="p-3 overflow-auto" style={{ height: "calc(100% - 10px)" }}>
+                                            <div className="p-3" style={{ height: "calc(100% - 10px)", display: "flex", flexDirection: "column" }}>
+                        {/* ===== SECTION TABS ===== */}
+                        <div className="d-flex mb-3" style={{ flexShrink: 0 }}>
+                          <button
+                            className={`btn ${activeSection === 'output' ? 'btn-primary' : 'btn-outline-primary'} me-2`}
+                            onClick={() => setActiveSection('output')}
+                            style={{ fontSize: "12px", padding: "6px 12px" }}
+                          >
+                            Output
+                          </button>
+                          <button
+                            className={`btn ${activeSection === 'testcases' ? 'btn-primary' : 'btn-outline-primary'}`}
+                            onClick={() => setActiveSection('testcases')}
+                            style={{ fontSize: "12px", padding: "6px 12px" }}
+                          >
+                            Test Cases
+                          </button>
+                        </div>
+
                         {/* ===== CODE EXECUTION OUTPUT ===== */}
-                        <div style={{ maxHeight: "70%", overflow: "auto" }}>
+                        {activeSection === 'output' && (
+                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
                           {output && (
                             <>
-                              <h6 style={{ 
-                                color: "#333", 
-                                fontWeight: "bold", 
-                                marginBottom: "10px", 
-                                fontSize: "14px",
-                                position: "sticky",
-                                top: "0",
-                                zIndex: 1,
-                                backgroundColor: "#fff",
-                                padding: "5px 0"
-                              }}>Output:</h6>
                               <pre
                                 className="m-0 "
                                 id="output"
@@ -1412,7 +1428,6 @@ Write your Code here.`}
                                   borderRadius: "4px",
                                   border: "1px solid #e9ecef",
                                   margin: "0",
-                                  maxHeight: "calc(70% - 40px)",
                                   overflow: "auto"
                                 }}
                               >
@@ -1421,64 +1436,369 @@ Write your Code here.`}
                             </>
                           )}
                         </div>
+                        )}
                         
                         {/* ===== TEST CASE RESULTS ===== */}
-                        {runResponseTestCases && runResponseTestCases.length > 0 && (
+                        {activeSection === 'testcases' && runResponseTestCases && runResponseTestCases.length > 0 && (
                           (() => {
                             // Get the current question key to check the stored API response
                             const currentQuestion = questions[currentQuestionIndex];
                             const questionKey = `coding_${currentQuestion.Qn_name}`;
                             const fastApiResponse = getStoredFastApiResponse(questionKey);
-                            
+
                             // Only show test cases if the API response was successful
                             // Check multiple conditions to ensure we only show on success
                             if (fastApiResponse?.result?.success === true) {
                               return (
-                                <div className="mt-3">
-                                  <h6 style={{ 
-                                    color: "#333", 
-                                    fontWeight: "bold", 
-                                    marginBottom: "10px", 
-                                    fontSize: "14px",
-                                    position: "sticky",
-                                    top: "0",
-                                    zIndex: 1,
-                                    backgroundColor: "#fff",
-                                    padding: "5px 0"
-                                  }}>Test Cases:</h6>
-                                  <div className="d-flex flex-wrap" style={{ gap: "20px" }}>
-                                    {runResponseTestCases.map((testCase, index) => (
-                                      <div
-                                        key={index}
-                                        className="d-flex align-items-center border border-light shadow bg-white p-2 rounded-2"
-                                        style={{ 
-                                          fontSize: "12px",
-                                          minWidth: "fit-content",
-                                          flex: "0 0 auto"
-                                        }}
-                                      >
-                                        <div className="d-flex align-items-center me-2">
-                                          <span className="me-1">{testCase.id}:</span>
-                                          {testCase.passed ? (
-                                            <span className="text-success">✓</span>
-                                          ) : (
-                                            <span className="text-danger">✗</span>
-                                          )}
-                                        </div>
-                                        <div className="text-muted" style={{ fontSize: "11px" }}>
-                                          {testCase.input && `Input: ${testCase.input}`}
-                                          {/* {testCase.expected && ` Expected: ${testCase.expected}`} */}
-                                          {testCase.actual && ` Got: ${testCase.actual}`}
-                                        </div>
-                                      </div>
-                                    ))}
+                              <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
+                            
+                            {/* Two-column layout for test cases */}
+                            <div className="d-flex" style={{ height: "calc(100%)" }}>
+                                                             {/* Left Column - Test Case List (20%) */}
+                               <div className="border-end" style={{ 
+                                 width: "20%", 
+                                 overflowY: "auto", 
+                                 padding: "1px 10px 1px 10px",
+                                 scrollbarWidth: "thin",
+                                 scrollbarColor: "#c1c1c1 #f1f1f1"
+                               }}>
+                              {runResponseTestCases.map((testCase, index) => (
+                                <div
+                                  key={index}
+                                      className={`p-2 border-bottom cursor-pointer ${
+                                        selectedTestCaseIndex === index ? 'text-primary' : ''
+                                      }`}
+                                  style={{ 
+                                    fontSize: "12px",
+                                        cursor: "pointer",
+                                        minHeight: "40px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "space-between",
+                                        margin: "6px 0px",
+                                        borderRadius: "8px",
+                                        padding: "8px 12px",
+                                        backgroundColor: selectedTestCaseIndex === index ? '#f2f2f0' : '#f8f9fa'  ,
+                                        border: '1px solid #dee2e6',
+                                        color: selectedTestCaseIndex === index ? '#007bff' : '#212529'
+                                      }}
+                                     onClick={() => setSelectedTestCaseIndex(index)}
+                                   >
+                                     <span>{testCase.id}</span>
+                                    {testCase.passed ? (
+                                      <span className="text-success">✓</span>
+                                    ) : (
+                                      <span className="text-danger">✗</span>
+                                    )}
                                   </div>
+                                 ))}
+                                  </div>
+                              
+                              {/* Right Column - Test Case Details (70%) */}
+                              <div className="px-5 pt-1 pb-3" style={{ width: "80%", overflowY: "auto" }}>
+                                                                 {selectedTestCaseIndex !== null && runResponseTestCases[selectedTestCaseIndex] && (
+                                   <div>
+                                     {/* Test Case Status */}
+                                    <div className="mb-3">
+                                      <strong>Status: </strong>
+                                      <span className={runResponseTestCases[selectedTestCaseIndex].passed ? "text-success" : "text-danger"}>
+                                        {runResponseTestCases[selectedTestCaseIndex].passed ? "Passed" : "Failed"}
+                                      </span>
                                 </div>
-                              );
-                            }
-                            return null;
-                          })()
+                                    
+                                    {/* For first test case (keyword validation) - show only status and actual output */}
+                                    {selectedTestCaseIndex === 0 ? (
+                                      <>
+                                        <div className="mb-3">
+                                          <strong>Type: </strong>
+                                          <span className="text-info">Keyword Validation</span>
+                            </div>
+                                        
+                                        {/* Actual Output for keyword validation */}
+                                        <div className="mb-3">
+                                          {/* <strong>Actual Output:</strong> */}
+                                          <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
+                                            {(() => {
+                                              const response = getStoredFastApiResponse(`coding_${questions[currentQuestionIndex]?.Qn_name}`);
+                                              if (response?.result?.parsed_results?.[selectedTestCaseIndex] && response.result.parsed_results[selectedTestCaseIndex].result !== undefined && response.result.parsed_results[selectedTestCaseIndex].result !== null) {
+                                                const value = response.result.parsed_results[selectedTestCaseIndex].result;
+                                                if (Array.isArray(value)) {
+                                                  // Handle array of values (each on new line)
+                                                  return value.map((item: any, index: number) => {
+                                                    const itemString = String(item);
+                                                    // Replace literal '\n' strings with actual line breaks
+                                                    if (itemString.includes('\\n')) {
+                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    } else if (itemString.includes('\n')) {
+                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    }
+                                                    return (
+                                                      <React.Fragment key={index}>
+                                                        {itemString}
+                                                        {index < value.length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    );
+                                                  });
+                                                } else {
+                                                  // Handle single value with potential newlines
+                                                  const stringValue = String(value);
+                                                  // Replace literal '\n' strings with actual line breaks
+                                                  if (stringValue.includes('\\n')) {
+                                                    return stringValue.split('\\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  } else if (stringValue.includes('\n')) {
+                                                    return stringValue.split('\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  }
+                                                  return stringValue;
+                                                }
+                                              }
+                                              return "No output";
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : selectedTestCaseIndex > 0 && runResponseTestCases[selectedTestCaseIndex]?.id !== "Result" ? (
+                                      <>
+                                                                                                                        {/* Input */}
+                                        <div className="mb-3">
+                                          <strong>Input:</strong>
+                                          <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
+                                            {(() => {
+                                              const currentQuestion = questions[currentQuestionIndex];
+                                              const testCaseData = currentQuestion?.TestCases?.[selectedTestCaseIndex];
+                                              if (testCaseData?.Testcase && typeof testCaseData.Testcase === 'object' && 'Value' in testCaseData.Testcase && testCaseData.Testcase.Value !== undefined && testCaseData.Testcase.Value !== null) {
+                                                const value = testCaseData.Testcase.Value;
+                                                if (Array.isArray(value)) {
+                                                  // Handle array of values (each on new line)
+                                                  return value.map((item: any, index: number) => {
+                                                    const itemString = String(item);
+                                                    // Replace literal '\n' strings with actual line breaks
+                                                    if (itemString.includes('\\n')) {
+                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    } else if (itemString.includes('\n')) {
+                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    }
+                                                    return (
+                                                      <React.Fragment key={index}>
+                                                        {itemString}
+                                                        {index < value.length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    );
+                                                  });
+                                                } else {
+                                                  // Handle single value with potential newlines
+                                                  const stringValue = String(value);
+                                                  // Replace literal '\n' strings with actual line breaks
+                                                  if (stringValue.includes('\\n')) {
+                                                    return stringValue.split('\\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  } else if (stringValue.includes('\n')) {
+                                                    return stringValue.split('\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  }
+                                                  return stringValue;
+                                                }
+                                              }
+                                              return "No input data";
+                                            })()}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Expected Output */}
+                                        <div className="mb-3">
+                                          <strong>Expected Output:</strong>
+                                          <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
+                                            {(() => {
+                                              const currentQuestion = questions[currentQuestionIndex];
+                                              const testCaseData = currentQuestion?.TestCases?.[selectedTestCaseIndex];
+                                              if (testCaseData?.Testcase && typeof testCaseData.Testcase === 'object' && 'Output' in testCaseData.Testcase && testCaseData.Testcase.Output !== undefined && testCaseData.Testcase.Output !== null) {
+                                                const value = testCaseData.Testcase.Output;
+                                                if (Array.isArray(value)) {
+                                                  // Handle array of values (each on new line)
+                                                  return value.map((item: any, index: number) => {
+                                                    const itemString = String(item);
+                                                    // Replace literal '\n' strings with actual line breaks
+                                                    if (itemString.includes('\\n')) {
+                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    } else if (itemString.includes('\n')) {
+                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    }
+                                                    return (
+                                                      <React.Fragment key={index}>
+                                                        {itemString}
+                                                        {index < value.length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    );
+                                                  });
+                                                } else {
+                                                  // Handle single value with potential newlines
+                                                  const stringValue = String(value);
+                                                  // Replace literal '\n' strings with actual line breaks
+                                                  if (stringValue.includes('\\n')) {
+                                                    return stringValue.split('\\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  } else if (stringValue.includes('\n')) {
+                                                    return stringValue.split('\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  }
+                                                  return stringValue;
+                                                }
+                                              }
+                                              return "No expected output";
+                                            })()}
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Actual Output */}
+                                        <div className="mb-3">
+                                          <strong>Actual Output:</strong>
+                                          <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
+                                            {(() => {
+                                              const response = getStoredFastApiResponse(`coding_${questions[currentQuestionIndex]?.Qn_name}`);
+                                              if (response?.result?.parsed_results?.[selectedTestCaseIndex] && response.result.parsed_results[selectedTestCaseIndex].result !== undefined && response.result.parsed_results[selectedTestCaseIndex].result !== null) {
+                                                const value = response.result.parsed_results[selectedTestCaseIndex].result;
+                                                if (Array.isArray(value)) {
+                                                  // Handle array of values (each on new line)
+                                                  return value.map((item: any, index: number) => {
+                                                    const itemString = String(item);
+                                                    // Replace literal '\n' strings with actual line breaks
+                                                    if (itemString.includes('\\n')) {
+                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    } else if (itemString.includes('\n')) {
+                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
+                                                        <React.Fragment key={`${index}-${lineIndex}`}>
+                                                          {line}
+                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
+                                                        </React.Fragment>
+                                                      ));
+                                                    }
+                                                    return (
+                                                      <React.Fragment key={index}>
+                                                        {itemString}
+                                                        {index < value.length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    );
+                                                  });
+                                                } else {
+                                                  // Handle single value with potential newlines
+                                                  const stringValue = String(value);
+                                                  // Replace literal '\n' strings with actual line breaks
+                                                  if (stringValue.includes('\\n')) {
+                                                    return stringValue.split('\\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  } else if (stringValue.includes('\n')) {
+                                                    return stringValue.split('\n').map((line: string, index: number) => (
+                                                      <React.Fragment key={index}>
+                                                        {line}
+                                                        {index < stringValue.split('\n').length - 1 && <br />}
+                                                      </React.Fragment>
+                                                    ));
+                                                  }
+                                                  return stringValue;
+                                                }
+                                              }
+                                              return "No output";
+                                            })()}
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : null}
+                                    
+                                    {/* Execution Time - only show for non-Result and non-first test cases */}
+                                    {runResponseTestCases[selectedTestCaseIndex]?.id !== "Result" && selectedTestCaseIndex !== 0 && (
+                                      <div className="mt-3">
+                                        <strong>Execution Time: </strong>
+                                        <span className="text-muted">
+                                          {(() => {
+                                            const response = getStoredFastApiResponse(`coding_${questions[currentQuestionIndex]?.Qn_name}`);
+                                            if (response?.result?.parsed_results?.[selectedTestCaseIndex]) {
+                                              return `${(response.result.parsed_results[selectedTestCaseIndex].execution_time * 1000).toFixed(3)}ms`;
+                                            }
+                                            return "N/A";
+                                          })()}
+                                        </span>
+                          </div>
                         )}
+                      </div>
+                                )}
+                                
+                                {/* Default message when no test case is selected */}
+                                {selectedTestCaseIndex === null && (
+                                  <div className="text-center text-muted" style={{ marginTop: "50px" }}>
+                                    Click on a test case to view details
+                    </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        return null;
+                      })()
+                    )}
                       </div>
                     </div>
                   </div>
