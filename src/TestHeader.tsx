@@ -84,7 +84,9 @@ const TestHeader: React.FC = () => {
         sessionStorage.setItem("timer", time_left.toString());
         const encryptedDuration = CryptoJS.AES.encrypt(time_left.toString(), secretKey).toString();
         sessionStorage.setItem("testDuration", encryptedDuration);
-
+        
+        // Track when duration was last updated
+        sessionStorage.setItem('lastDurationUpdate', Date.now().toString());
       }
     } catch (error: any) {
       if (error.response?.status === 500) {
@@ -113,7 +115,9 @@ const TestHeader: React.FC = () => {
         sessionStorage.setItem("timer", time_left.toString());
         const encryptedDuration = CryptoJS.AES.encrypt(time_left.toString(), secretKey).toString();
         sessionStorage.setItem("testDuration", encryptedDuration);
-
+        
+        // Track when duration was last updated
+        sessionStorage.setItem('lastDurationUpdate', Date.now().toString());
       }
     } catch (error: any) {
       if (error.response?.status === 500) {
@@ -136,6 +140,23 @@ const TestHeader: React.FC = () => {
       delete (window as any).updateTimerSync;
     };
   }, [updateTimerAsync, updateTimerSync]);
+
+  // Fallback mechanism: Ensure duration API is called exactly every 60 seconds
+  useEffect(() => {
+    if (studentId && testId && !testCompleted) {
+      // Set up interval to call duration API every 60 seconds exactly
+      const fallbackInterval = setInterval(() => {
+        updateTimerAsync();
+        sessionStorage.setItem('lastDurationUpdate', Date.now().toString());
+      }, 60000); // Exactly every 60 seconds
+
+      return () => {
+        clearInterval(fallbackInterval);
+      };
+    }
+  }, [studentId, testId, testCompleted, updateTimerAsync]);
+
+
  
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
