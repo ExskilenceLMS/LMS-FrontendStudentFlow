@@ -7,6 +7,7 @@ import Sk from "skulpt";
 import { useLocation, useNavigate } from "react-router-dom";
 import SkeletonCode from './Components/EditorSkeletonCode'
 import { secretKey } from "./constants";
+import { SUBJECT_ROADMAP } from "./constants/constants";
 import CryptoJS from "crypto-js";
 import { autoSaveCode, autoSaveAfterSubmission, getAutoSavedCode } from "./utils/autoSaveUtils";
 
@@ -558,7 +559,7 @@ const decryptData = (encryptedData: string) => {
           setAns(savedCode);
         } else if (!initialQuestion.status) {
           // If no local saved code and question is not submitted, try to retrieve auto-saved code from backend
-          getAutoSavedCode(initialQuestion.Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!)
+          getAutoSavedCode(initialQuestion.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
             .then(autoSavedCode => {
               if (autoSavedCode) {
                 setEnteredAns(autoSavedCode);
@@ -692,12 +693,10 @@ const decryptData = (encryptedData: string) => {
 
       // Poll for completion
       const result = await pollExecutionStatus(submissionId, 15);
-      
-      // Trigger auto-save when code runs and not submitted
-      if (!status) {
-        autoSaveCode(Ans, currentQuestion.Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!);
-      }
-      
+              if(!status)
+        {        // Trigger auto-save when code runs and not submitted
+         autoSaveCode(Ans, currentQuestion.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+        }
       if (result.result.success) {
         setOutput(result.result.actual_output);
         
@@ -912,7 +911,7 @@ const handleQuestionChange = (index: number) => {
     // If no local saved code, try to retrieve auto-saved code from backend
     // Only if the question status is false (not submitted)
     if (!questions[index].status) {
-      getAutoSavedCode(questions[index].Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!)
+      getAutoSavedCode(questions[index].Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
         .then(autoSavedCode => {
           if (autoSavedCode) {
             setEnteredAns(autoSavedCode);
@@ -1107,7 +1106,7 @@ const handleSubmit = async () => {
     sessionStorage.setItem(submitStatusKey, encryptData("true"));
 
     // Trigger auto-save after successful submission
-    autoSaveAfterSubmission(Ans, questions[currentQuestionIndex].Qn_name, studentId, process.env.REACT_APP_BACKEND_URL!);
+    autoSaveAfterSubmission(Ans, questions[currentQuestionIndex].Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
 
     setIsNextBtn(true);
   } catch (innerError: any) {
