@@ -7,6 +7,7 @@ import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 import { updateIndexParameter } from '../utils/urlUtils';
+import { autoSaveCode, autoSaveAfterSubmission, getAutoSavedCode } from "../utils/autoSaveUtils";
 import '../SQLEditor.css';
 
 /**
@@ -623,9 +624,41 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         const savedData = loadQuestionData(initialQuestion.Qn_name);
         const savedCode = savedData.code || initialQuestion.entered_ans || '';
         
-        setEnteredAns(savedCode);
+        if (savedCode) {
+          // Use locally saved code
+          setEnteredAns(savedCode);
+          setAns(savedCode);
+        } else if (!initialQuestion.status) {
+          // If no local saved code and question is not submitted, try to retrieve auto-saved code from backend
+          getAutoSavedCode(initialQuestion.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!)
+            .then(autoSavedCode => {
+              if (autoSavedCode) {
+                setEnteredAns(autoSavedCode);
+                setAns(autoSavedCode);
+                // Also save to session storage for future use
+                const questionData = {
+                  status: initialQuestion.status,
+                  score: initialQuestion.score
+                };
+                storeQuestionData(initialQuestion.Qn_name, autoSavedCode, questionData);
+              } else {
+                // Fallback to question's entered_ans
+                setEnteredAns(initialQuestion.entered_ans || '');
+                setAns(initialQuestion.entered_ans || '');
+              }
+            })
+            .catch(() => {
+              // Fallback to question's entered_ans on error
+              setEnteredAns(initialQuestion.entered_ans || '');
+              setAns(initialQuestion.entered_ans || '');
+            });
+        } else {
+          // Question is already submitted, use entered_ans
+          setEnteredAns(initialQuestion.entered_ans || '');
+          setAns(initialQuestion.entered_ans || '');
+        }
+        
         setFunctionCall(initialQuestion.FunctionCall || '');
-        setAns(savedCode);
         
         // Process test cases
         const processedTestCases = processTestCases(initialQuestion.TestCases || []);
@@ -640,7 +673,6 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       }
     }
   }, [questionData]);
-
   // ===== HANDLE QUESTION INDEX CHANGES =====
   
   useEffect(() => {
@@ -654,8 +686,40 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         const savedData = loadQuestionData(currentQuestion.Qn_name);
         const savedCode = savedData.code || currentQuestion.entered_ans || '';
         
-        setEnteredAns(savedCode);
-        setAns(savedCode);
+        if (savedCode) {
+          // Use locally saved code
+          setEnteredAns(savedCode);
+          setAns(savedCode);
+        } else if (!currentQuestion.status) {
+          // If no local saved code and question is not submitted, try to retrieve auto-saved code from backend
+          getAutoSavedCode(currentQuestion.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!)
+            .then(autoSavedCode => {
+              if (autoSavedCode) {
+                setEnteredAns(autoSavedCode);
+                setAns(autoSavedCode);
+                // Also save to session storage for future use
+                const questionData = {
+                  status: currentQuestion.status,
+                  score: currentQuestion.score
+                };
+                storeQuestionData(currentQuestion.Qn_name, autoSavedCode, questionData);
+              } else {
+                // Fallback to question's entered_ans
+                setEnteredAns(currentQuestion.entered_ans || '');
+                setAns(currentQuestion.entered_ans || '');
+              }
+            })
+            .catch(() => {
+              // Fallback to question's entered_ans on error
+              setEnteredAns(currentQuestion.entered_ans || '');
+              setAns(currentQuestion.entered_ans || '');
+            });
+        } else {
+          // Question is already submitted, use entered_ans
+          setEnteredAns(currentQuestion.entered_ans || '');
+          setAns(currentQuestion.entered_ans || '');
+        }
+        
         setFunctionCall(currentQuestion.FunctionCall || '');
         
         
@@ -837,6 +901,11 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
           [questionKey]: Ans
         }));
         
+        // Trigger auto-save when code runs and not submitted
+        if (!currentQuestion.status) {
+          autoSaveCode(Ans, currentQuestion.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
+        }
+        
         if (Array.isArray(result.result.parsed_results)) {
           const testCaseResults = result.result.parsed_results.map((testCase, index) => ({
             [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
@@ -890,6 +959,11 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
           ...prev,
           [questionKey]: Ans
         }));
+        
+        // Auto-save code even when there are errors (if not submitted)
+        if (!currentQuestion.status) {
+          autoSaveCode(Ans, currentQuestion.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
+        }
       }
       
       // setExecutionStatus('completed'); // Commented out
@@ -945,6 +1019,12 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         ...prev,
         [questionKey]: Ans
       }));
+      
+      // Auto-save code even when there are network/API errors (if not submitted)
+      const questionForAutoSave = questions[currentQuestionIndex];
+      if (questionForAutoSave && !questionForAutoSave.status) {
+        autoSaveCode(Ans, questionForAutoSave.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
+      }
     } finally {
       setProcessing(false);
     }
@@ -1079,6 +1159,9 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         score: "0/0"
       };
       storeQuestionData(currentQuestion.Qn_name, Ans, questionData);
+      
+      // Trigger auto-save after successful submission
+      autoSaveAfterSubmission(Ans, currentQuestion.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
       
       // Update local question status
       const updatedQuestions = [...questions];
