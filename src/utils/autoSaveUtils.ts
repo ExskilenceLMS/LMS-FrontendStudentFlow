@@ -8,10 +8,11 @@ import { getApiClient } from './apiAuth';
 export const getAutoSavedCode = async (
   questionId: string,
   studentId: string,
+  doneAt: string,
   baseUrl: string
 ): Promise<string | null> => {
   try {
-    const url = `${baseUrl}api/student/autosave-questions/${studentId}/${questionId}`;
+    const url = `${baseUrl}api/student/autosave-questions/${studentId}/${questionId}/${doneAt}`;
     
     const apiClient = getApiClient();
     const response = await apiClient.get(url);
@@ -41,6 +42,7 @@ export const autoSaveCode = async (
   code: string, 
   questionId: string, 
   studentId: string, 
+  doneAt: string,
   baseUrl: string
 ): Promise<void> => {
   try {
@@ -48,7 +50,8 @@ export const autoSaveCode = async (
     const payload = {
       student_id: studentId,
       code: code,
-      question_id: questionId
+      question_id: questionId, 
+      question_done_at: doneAt
     };
 
     // Make the auto-save call asynchronously without waiting for response
@@ -68,10 +71,11 @@ export const autoSaveAfterSubmission = async (
   code: string, 
   questionId: string, 
   studentId: string, 
+  doneAt: string,
   baseUrl: string
 ): Promise<void> => {
   try {
-    const url = `${baseUrl}api/student/autosave-questions/${studentId}/${questionId}`;
+    const url = `${baseUrl}api/student/autosave-questions/${studentId}/${questionId}/${doneAt}`;
 
     // Make the auto-save call asynchronously without waiting for response
     // Using DELETE method as specified by the API endpoint

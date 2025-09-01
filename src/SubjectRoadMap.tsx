@@ -1330,6 +1330,8 @@ const SubjectRoadMap: React.FC = () => {
                 : question
             )
           );
+          // Trigger MCQ status API in loop after successful submission
+          await triggerMCQStatusAPI(submissionData);
         } catch (innerError: any) {
           console.error("Error fetching submitting answer data:", innerError);
         } finally {
@@ -1347,6 +1349,38 @@ const SubjectRoadMap: React.FC = () => {
       dayNumber,
     ]
   );
+
+  // New function to trigger MCQ status API in loop
+  const triggerMCQStatusAPI = async (submissionData: any) => {
+    const statusUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/practice/mcq/status/`;
+    let maxAttempts = 3;
+    let attempt = 0;
+  
+    while (attempt < maxAttempts) {
+      try {
+        const response = await getApiClient().put(statusUrl, submissionData);
+        // Check for different response formats
+        if (response.data?.message === true) {
+          break; // Stop immediately when we get true
+        } else {
+          attempt++;
+          
+          // Add a small delay between attempts to avoid overwhelming the server
+          if (attempt < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+        
+      } catch (error: any) {
+        attempt++;
+        
+        // Add delay before retry on error
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+  };
 
   const [pdfUrl, setPdfUrl] = useState("");
   const [pdfError, setPdfError] = useState(false);
