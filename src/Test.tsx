@@ -87,7 +87,7 @@ const Test: React.FC = () => {
         return {
           testType: parsedFilters.testType || "",
           subject: parsedFilters.subject || "",
-          testStatus: parsedFilters.testStatus || "Ongoing",
+          testStatus: parsedFilters.testStatus || "",
           topic: parsedFilters.topic || "",
           startDate: parsedFilters.startDate || "",
           endDate: parsedFilters.endDate || "",
