@@ -4,7 +4,7 @@ import { getApiClient } from "./utils/apiAuth";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import Sk from "skulpt";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import SkeletonCode from './Components/EditorSkeletonCode'
 import { secretKey } from "./constants";
 import { SUBJECT_ROADMAP } from "./constants/constants";
@@ -221,10 +221,6 @@ const PyEditor: React.FC = () => {
   const [lastRunCode, setLastRunCode] = useState<{[key: string]: string}>({});
   
   // ===== SESSION STORAGE DATA EXTRACTION =====
-  
-  const location = useLocation();
-  const urlParams = new URLSearchParams(location.search);
-  const queryQuestionIndex = urlParams.get('questionIndex');
   
   // Decrypt student data from session storage
   const encryptedStudentId = sessionStorage.getItem('StudentId');
@@ -541,8 +537,9 @@ const decryptData = (encryptedData: string) => {
         setQuestions(questionsWithSavedCode);
 
         // Set initial question index from session storage or default to 0
-        const initialIndex = parseInt(sessionStorage.getItem("currentQuestionIndex")!) ? 
-          parseInt(sessionStorage.getItem("currentQuestionIndex")!) : 0;
+        const storedIndex = sessionStorage.getItem("currentQuestionIndex");
+        const initialIndex = storedIndex ? 
+          Math.max(0, Math.min(parseInt(storedIndex) || 0, questionsWithSavedCode.length - 1)) : 0;
         
         setCurrentQuestionIndex(initialIndex);
         setStatus(questionsWithSavedCode[initialIndex].status);
@@ -888,6 +885,9 @@ const handleQuestionChange = (index: number) => {
     sessionStorage.setItem(currentCodeKey, Ans);
   }
 
+  // Save current question index to session storage
+  sessionStorage.setItem("currentQuestionIndex", index.toString());
+
   setOutput('');
   setCurrentQuestionIndex(index);
   setHasUserInteracted(false); // Reset interaction state for new question
@@ -967,6 +967,10 @@ const handleNext = () => {
     navigate('/Subject-Roadmap', { replace: true });
   } else {
     const nextIndex = currentQuestionIndex + 1;
+    
+    // Save current question index to session storage
+    sessionStorage.setItem("currentQuestionIndex", nextIndex.toString());
+    
     setCurrentQuestionIndex(nextIndex);
     setHasUserInteracted(false); // Reset interaction state for next question
 
