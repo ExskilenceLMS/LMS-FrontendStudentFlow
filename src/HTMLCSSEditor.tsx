@@ -10,35 +10,55 @@ import { useNavigate } from "react-router-dom";
 import SkeletonCode from "./Components/EditorSkeletonCode"
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
-interface QuestionData {
-  Qn: string;
-  Sample_img: string;
-  Code_Validation: {
-    HTML: any[];
-    CSS: any[];
-    HTML_Messages: string[];
-    CSS_Messages: string[];
+import HTMLCSSQuestionData from "./HTMLCSSQuestion.json";
+
+interface Tab {
+  name: string;
+  type: string;
+}
+
+interface CodeValidation {
+  [key: string]: {
+    Ans: string;
+    messages: string[];
+    template: string;
+    structure: any[];
   };
-  Tabs: string[];
+}
+
+interface QuestionData {
   Qn_name: string;
-  Qn_No: string;
-  UserAnsHTML: string;
-  UserAnsCSS: string;
-  UserSubmitedHTML: string;
-  UserSubmitedCSS: string;
+  Page_Name: string;
+  level: string;
+  subtopic_id: string;
+  type: string;
+  Tabs: Tab[];
+  Qn: string;
+  Code_Validation: CodeValidation;
+  defaulttemplate: string;
+  image_path: string;
+  video_path: string;
+  CreatedBy: string;
+  CreatedOn: string;
+  LastUpdated: string;
+}
+
+interface QuestionDataWrapper {
+  questions: QuestionData[];
 }
 
 const HTMLCSSEditor: React.FC = () => {
   const navigate = useNavigate();
+  const [questions, setQuestions] = useState<QuestionData[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [questionData, setQuestionData] = useState<QuestionData | null>(null);
-  const [htmlEdit, setHtmlEdit] = useState('');
-  const [cssEdit, setCssEdit] = useState('');
-  const [activeTab, setActiveTab] = useState('html');
+  const [fileContents, setFileContents] = useState<{[key: string]: string}>({});
+  const [activeTab, setActiveTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAlert, setShowAlert] = useState(false);
   const [displ, setdispl] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [validationStatus, setValidationStatus] = useState({ html: [] as number[], css: [] as number[] });
+  const [validationStatus, setValidationStatus] = useState<{[key: string]: number[]}>({});
   const [splitOffset, setSplitOffset] = useState(window.innerWidth / 2);
   const [isDragging, setIsDragging] = useState(false);
   const [initialX, setInitialX] = useState<number | null>(null);
@@ -48,12 +68,33 @@ const HTMLCSSEditor: React.FC = () => {
   const [initialY, setInitialY] = useState<number | null>(null);
   const [DOMSTR, setDOMSTR] = useState('HTML DOM structure');
   const [DOMTRUE, setDOMTRUE] = useState(false);
-  const [isHtmlSubmitted, setIsHTMLSubmitted] = useState<boolean>(false);
-  const [isCSSSubmitted, setIsCSSSubmitted] = useState<boolean>(false);
+  const [submittedFiles, setSubmittedFiles] = useState<{[key: string]: boolean}>({});
   const [processing, setProcessing] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [additionalMessage, setAdditionalMessage] = useState<string>('');
+  const [editorInstances, setEditorInstances] = useState<{[key: string]: any}>({});
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [showRequirement, setShowRequirement] = useState(false);
 const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
+  
+  const encryptedSubjectId = sessionStorage.getItem('SubjectId');
+  const decryptedSubjectId = CryptoJS.AES.decrypt(encryptedSubjectId!, secretKey).toString(CryptoJS.enc.Utf8);
+  const subjectId = decryptedSubjectId;
+  
+  const encryptedSubject = sessionStorage.getItem('Subject');
+  const decryptedSubject = CryptoJS.AES.decrypt(encryptedSubject!, secretKey).toString(CryptoJS.enc.Utf8);
+  const subject = decryptedSubject;
+  
+  const encryptedWeekNumber = sessionStorage.getItem('WeekNumber');
+  const decryptedWeekNumber = CryptoJS.AES.decrypt(encryptedWeekNumber!, secretKey).toString(CryptoJS.enc.Utf8);
+  const weekNumber = decryptedWeekNumber;
+  
+  const encryptedDayNumber = sessionStorage.getItem('DayNumber');
+  const decryptedDayNumber = CryptoJS.AES.decrypt(encryptedDayNumber!, secretKey).toString(CryptoJS.enc.Utf8);
+  const dayNumber = decryptedDayNumber;
+  
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
@@ -61,29 +102,184 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
  
 
   useEffect(() => {
-    const fetchQuestion = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}frontend/qns/data/`
+    const fetchQuestions = async () => {
       try {
-        const response = await getApiClient().post(
-          url,
-          {
-            StudentId: "24TEST0108",
-            Course: "HTMLCSS",
-            Qn_name: "QHC2408010000AAXXEM10"
-          }
-        );
-        setQuestionData(response.data.Question);
-        setHtmlEdit(response.data.Question.UserAnsHTML || '');
-        setCssEdit(response.data.Question.UserAnsCSS || '');
+        setLoading(true);
+        
+        // Check if SubjectHtml is in session storage - if so, use hardcoded JSON data
+        const encryptedSubjectHtml = sessionStorage.getItem("SubjectHtml");
+        let useHardcodedData = false;
+        
+        if (encryptedSubjectHtml) {
+          try {
+            const decryptedSubjectHtml = CryptoJS.AES.decrypt(encryptedSubjectHtml, secretKey).toString(CryptoJS.enc.Utf8);
+            if (decryptedSubjectHtml.toLowerCase().includes("html")) {
+              useHardcodedData = true;
+            }
       } catch (error) {
-        console.error("Error fetching question data:", error);
+            console.error("Error decrypting SubjectHtml:", error);
+          }
+        }
+        
+        if (useHardcodedData) {
+          // Use hardcoded JSON data
+          const data: QuestionDataWrapper = HTMLCSSQuestionData;
+          setQuestions(data.questions);
+          
+          if (data.questions.length > 0) {
+            const firstQuestion = data.questions[0];
+            setQuestionData(firstQuestion);
+            setCurrentQuestionIndex(0);
+            
+            const fileContents: {[key: string]: string} = {};
+            const validationStatus: {[key: string]: number[]} = {};
+            
+            Object.keys(firstQuestion.Code_Validation).forEach(fileName => {
+              const fileData = firstQuestion.Code_Validation[fileName];
+               fileContents[fileName] = fileData.template || '';
+              validationStatus[fileName] = [];
+            });
+            
+            setFileContents(fileContents);
+            setValidationStatus(validationStatus);
+            
+            if (firstQuestion.Tabs.length > 0) {
+              setActiveTab(firstQuestion.Tabs[0].name);
+            }
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Construct API URL with all necessary parameters
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/` +
+          `${studentId}/` +
+          `${subject}/` +
+          `${subjectId}/` +
+          `${dayNumber}/` +
+          `${weekNumber}/` +
+          `${sessionStorage.getItem("currentSubTopicId")}/`;
+        
+        const response = await getApiClient().get(url);
+        const apiQuestions = response.data.questions;
+        
+        // Transform API questions to match our expected format
+        const transformedQuestions = apiQuestions.map((q: any) => {
+          // Check for saved code in session storage
+          const savedCodeKey = `htmlcss_${q.Qn_name}`;
+          const savedCode = sessionStorage.getItem(savedCodeKey);
+          let savedFileContents: {[key: string]: string} = {};
+          
+          if (savedCode) {
+            try {
+              const decryptedCode = CryptoJS.AES.decrypt(savedCode, secretKey).toString(CryptoJS.enc.Utf8);
+              savedFileContents = JSON.parse(decryptedCode);
+            } catch (error) {
+              console.error('Error decrypting saved code:', error);
+            }
+          }
+          
+          // Determine tabs dynamically from API or use default
+          const tabs = q.Tabs || [
+            { name: "index.html", type: "HTML" },
+            { name: "styles.css", type: "CSS" }
+          ];
+          
+          // Build Code_Validation dynamically
+          const codeValidation: {[key: string]: any} = {};
+          tabs.forEach((tab: any) => {
+            const fileName = tab.name;
+            codeValidation[fileName] = {
+              structure: [],
+              messages: [],
+              template: "",
+               Ans: "" // Don't load answer - let students write from scratch
+            };
+          });
+          
+          return {
+            Qn_name: q.Qn_name,
+            Page_Name: q.Page_Name || "HTML/CSS Question",
+            level: q.level || "level1",
+            subtopic_id: q.subtopic_id || "",
+            type: q.type || "coding",
+            Tabs: tabs,
+            Qn: q.Qn || q.question || "",
+            Code_Validation: q.Code_Validation || codeValidation,
+            defaulttemplate: q.defaulttemplate || "<html>\n  \n</html>",
+            image_path: q.image_path || "",
+            video_path: q.video_path || "",
+            CreatedBy: q.CreatedBy || "",
+            CreatedOn: q.CreatedOn || "",
+            LastUpdated: q.LastUpdated || ""
+          };
+        });
+        
+        setQuestions(transformedQuestions);
+        
+        // Set current question to first one
+        if (transformedQuestions.length > 0) {
+          const firstQuestion = transformedQuestions[0];
+          setQuestionData(firstQuestion);
+          setCurrentQuestionIndex(0);
+          
+          // Initialize file contents from Code_Validation
+          const fileContents: {[key: string]: string} = {};
+          const validationStatus: {[key: string]: number[]} = {};
+          
+          // Process each file in Code_Validation
+          Object.keys(firstQuestion.Code_Validation).forEach(fileName => {
+            const fileData = firstQuestion.Code_Validation[fileName];
+               fileContents[fileName] = fileData.template || '';
+            validationStatus[fileName] = [];
+          });
+          
+          setFileContents(fileContents);
+          setValidationStatus(validationStatus);
+          
+          // Set active tab to the first file
+          if (firstQuestion.Tabs.length > 0) {
+            setActiveTab(firstQuestion.Tabs[0].name);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching questions:", error);
+        // Fallback to local JSON data if API fails
+        try {
+          const data: QuestionDataWrapper = HTMLCSSQuestionData;
+          setQuestions(data.questions);
+          
+          if (data.questions.length > 0) {
+            const firstQuestion = data.questions[0];
+            setQuestionData(firstQuestion);
+            setCurrentQuestionIndex(0);
+            
+            const fileContents: {[key: string]: string} = {};
+            const validationStatus: {[key: string]: number[]} = {};
+            
+            Object.keys(firstQuestion.Code_Validation).forEach(fileName => {
+              const fileData = firstQuestion.Code_Validation[fileName];
+               fileContents[fileName] = fileData.template || '';
+              validationStatus[fileName] = [];
+            });
+            
+            setFileContents(fileContents);
+            setValidationStatus(validationStatus);
+            
+            if (firstQuestion.Tabs.length > 0) {
+              setActiveTab(firstQuestion.Tabs[0].name);
+            }
+          }
+        } catch (fallbackError) {
+          console.error("Error loading fallback data:", fallbackError);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchQuestion();
-  }, []);
+    fetchQuestions();
+  }, [studentId, subject, subjectId, dayNumber, weekNumber]);
 
   const handleMouseDown = (e: ReactMouseEvent<HTMLDivElement>) => {
     setIsDragging(true);
@@ -147,8 +343,66 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
     };
   }, [isDraggingVertically, initialY]);
 
-  const handleTabClick = (tabKey: string) => {
-    setActiveTab(tabKey);
+  const handleTabClick = (fileName: string) => {
+    setActiveTab(fileName);
+    // Force re-render of editor by clearing the instance for this file
+    setEditorInstances(prev => {
+      const newInstances = { ...prev };
+      delete newInstances[fileName];
+      return newInstances;
+    });
+  };
+
+  const handleQuestionChange = (index: number) => {
+    if (index >= 0 && index < questions.length) {
+      const question = questions[index];
+      setQuestionData(question);
+      setCurrentQuestionIndex(index);
+      
+      // Initialize file contents from Code_Validation
+      const fileContents: {[key: string]: string} = {};
+      const validationStatus: {[key: string]: number[]} = {};
+      
+      // Process each file in Code_Validation
+      Object.keys(question.Code_Validation).forEach(fileName => {
+        const fileData = question.Code_Validation[fileName];
+               fileContents[fileName] = fileData.template || '';
+        validationStatus[fileName] = [];
+      });
+      
+      setFileContents(fileContents);
+      setValidationStatus(validationStatus);
+      
+      // Set active tab to the first file
+      if (question.Tabs.length > 0) {
+        setActiveTab(question.Tabs[0].name);
+      }
+      
+       // Reset submission status
+       setSubmittedFiles({});
+       
+       // Clear editor instances to ensure fresh state
+       setEditorInstances({});
+     }
+   };
+
+  // Helper function to get file type based on extension
+  const getFileType = (fileName: string): string => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    return extension || 'text';
+  };
+
+  // Helper function to get current file content
+  const getCurrentFileContent = (): string => {
+    return fileContents[activeTab] || '';
+  };
+
+  // Helper function to update file content
+  const updateFileContent = (fileName: string, content: string) => {
+    setFileContents(prev => ({
+      ...prev,
+      [fileName]: content
+    }));
   };
 
   const handleSearch = (event: ChangeEvent<HTMLInputElement>) => {
@@ -171,393 +425,133 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
   };
 
   
-  const onChangeHtml = useCallback((value: string, viewUpdate: any) => {
-    setHtmlEdit(value);
-    handleCheckCode();
-  }, [htmlEdit]);
-
-  const onChangeCss = useCallback((value: string, viewUpdate: any) => {
-    setCssEdit(value);
-    handleCheckCode();
-  }, [cssEdit]);
+  const onChangeFileContent = useCallback((value: string, viewUpdate: any) => {
+    updateFileContent(activeTab, value);
+    
+    // Auto-save code to session storage
+    if (questionData) {
+      // Create a dynamic object with all current file contents
+      const codeToSave: {[key: string]: string} = {};
+      
+      // Add all current file contents
+      Object.keys(fileContents).forEach(fileName => {
+        codeToSave[fileName] = fileContents[fileName] || '';
+      });
+      
+      // Update the current file content before saving
+      codeToSave[activeTab] = value;
+      
+      const encryptedCode = CryptoJS.AES.encrypt(JSON.stringify(codeToSave), secretKey).toString();
+      sessionStorage.setItem(`htmlcss_${questionData.Qn_name}`, encryptedCode);
+    }
+    
+    // Remove automatic validation - only validate on RUN button click
+  }, [activeTab, fileContents, questionData]);
 
   const handleCheckCode = () => {
-    let codeToTest: string;
-    switch (activeTab) {
-      case 'html':
-        codeToTest = htmlEdit;
-        break;
-      case 'css':
-        codeToTest = cssEdit;
-        break;
-      default:
-        codeToTest = '';
-        break;
+    const codeToTest = getCurrentFileContent();
+    const fileType = getFileType(activeTab);
+    setSuccessMessage('');
+    setAdditionalMessage('');
+    sendDataToCheck(fileType, codeToTest);
+    
+    // If maximized, return to normal view when RUN is clicked
+    if (isMaximized) {
+      setIsMaximized(false);
     }
-
-    sendDataToCheck(activeTab, codeToTest);
   };
 
   const sendDataToCheck = (type: string, code: string) => {
-    if (!questionData) {
-      return;
-    }
-  
-    const htmlValidationData = questionData.Code_Validation.HTML;
-    const cssValidationData = questionData.Code_Validation.CSS;
-    let presentIndices: number[];
-  
-    if (type === 'html') {
-      const extractAttributes = (html: string) => {
-        const tagMatches = [...html.matchAll(/<(\w+)([^>]*)>/g)].map(match => {
-          const attributes: { [key: string]: string[] } = {};
-          const selfClosingTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
-          const attributeMatches = [...match[2].matchAll(/(\w+)\s*=\s*["']([^"']*)["']/g)];
-  
-          attributeMatches.forEach(attrMatch => {
-            const attrName = attrMatch[1];
-            let attrValue = attrMatch[2];
-  
-            if (['href', 'src', 'data-url', 'url'].includes(attrName)) {
-              const fullMatch = match[2].match(new RegExp(`${attrName}\\s*=\\s*["']([^"']*\\{\\{\\s*url_for\\s*\\([^\\)]+\\)\\s*[^"']*)["']`));
-              if (fullMatch) {
-                attrValue = fullMatch[1];
-              }
-            }
-  
-            if (!attributes[attrName]) {
-              attributes[attrName] = [];
-            }
-            attributes[attrName].push(attrValue);
-          });
-  
-          return {
-            tag: match[1],
-            attributes,
-            isSelfClosing: selfClosingTags.includes(match[1].toLowerCase()),
-            hasClosingTag: !selfClosingTags.includes(match[1].toLowerCase()) && new RegExp(`</${match[1]}>`).test(html)
-          };
-        });
-        return tagMatches;
-      };
-  
-      const normalizedAttributes = extractAttributes(code);
-  
-      const relevantAttributes = ['type', 'id', 'name', 'required', 'class', 'url'];
-  
-      const missingHTMLValues = htmlValidationData.filter(expectedTag => {
-        const foundTags = normalizedAttributes.filter(actualTag => actualTag.tag === expectedTag.tag);
-        let isTagMissing = false;
-  
-        const hasMatchingTag = foundTags.some(foundTag => {
-          const expectedAttributes = expectedTag.attributes;
-          const actualAttributes = foundTag.attributes;
-  
-          if (!foundTag.isSelfClosing && !foundTag.hasClosingTag) {
-            return false;
-          }
-  
-          return Object.keys(expectedAttributes).every(attr => {
-            const expectedValues = Array.isArray(expectedAttributes[attr]) ? expectedAttributes[attr] : [expectedAttributes[attr]];
-            const actualValues = Array.isArray(actualAttributes[attr]) ? actualAttributes[attr] : [actualAttributes[attr]];
-  
-            if (!actualValues || actualValues.length === 0) {
-              expectedTag.missingAttributes = expectedTag.missingAttributes || {};
-              expectedTag.missingAttributes[attr] = expectedValues;
-              return false;
-            }
-  
-            const allValuesMatch = expectedValues.every((val: string) => (actualValues as string[]).includes(val));
-            if (!allValuesMatch) {
-              expectedTag.missingAttributes = expectedTag.missingAttributes || {};
-              expectedTag.missingAttributes[attr] = expectedValues.filter((val: string) => !(actualValues as string[]).includes(val));
-              return false;
-            }
-  
-            return true;
-          });
-        });
-  
-        if (!hasMatchingTag) {
-          isTagMissing = true;
-        }
-  
-        return isTagMissing;
-      }).map(tag => {
-        if (tag.missingAttributes) {
-        }
-        return tag;
-      });
-  
-      const isHTMLValid = missingHTMLValues.length === 0;
-  
-      presentIndices = htmlValidationData.map((item, index) => missingHTMLValues.includes(item) ? null : index).filter(index => index !== null) as number[];
-      setValidationStatus(prevState => ({ ...prevState, html: presentIndices }));
-  
-      const validHTMLTags = [
-        'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio',
-        'b', 'base', 'bdi', 'bdo', 'blockquote', 'body', 'br', 'button',
-        'canvas', 'caption', 'cite', 'code', 'col', 'colgroup',
-        'data', 'datalist', 'dd', 'del', 'details', 'dialog', 'div',
-        'dl', 'dt', 'em', 'embed', 'fieldset', 'figcaption', 'figure',
-        'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head',
-        'header', 'hr', 'html', 'i', 'iframe', 'img', 'input', 'ins',
-        'kbd', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark',
-        'meta', 'meta', 'nav', 'noscript', 'object', 'ol', 'optgroup', 'option',
-        'output', 'p', 'param', 'picture', 'pre', 'progress', 'q',
-        'rp', 'rt', 'ruby', 's', 'samp', 'script', 'section', 'select',
-        'small', 'source', 'span', 'strong', 'style', 'sub', 'summary',
-        'sup', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot',
-        'th', 'thead', 'title', 'tr', 'track', 'u', 'ul', 'var', 'video',
-        'wbr'
-      ];
-  
-      const validateHTML = (html: string) => {
-        const tagPattern = /<\/?([a-z][a-z0-9]*)\b[^>]*>/gi;
-        const headTags = ['title', 'meta', 'link', 'style', 'script'];
-        const bodyTags = ['head', 'html', ...headTags];
-        const selfClosingTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
-        const nonSelfClosingTags = [
-          'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base', 'bdi', 'bdo',
-          'blockquote', 'body', 'br', 'button', 'canvas', 'caption', 'cite', 'code', 'col',
-          'colgroup', 'data', 'datalist', 'dd', 'del', 'details', 'dialog', 'div', 'dl', 'dt',
-          'em', 'embed', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2',
-          'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hr', 'html', 'i', 'iframe', 'img',
-          'input', 'ins', 'kbd', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark',
-          'menu', 'menuitem', 'meta', 'meter', 'nav', 'noscript', 'object', 'ol', 'optgroup',
-          'option', 'output', 'p', 'param', 'picture', 'pre', 'progress', 'q', 'rp', 'rt',
-          'ruby', 's', 'samp', 'script', 'section', 'select', 'small', 'source', 'span',
-          'strong', 'style', 'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'template',
-          'textarea', 'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul',
-          'var', 'video', 'wbr'
-        ];
-  
-        const HtmlTags = ['html', 'head', 'body'];
-  
-        const doctypeContent = html.match(/<!DOCTYPE html[^>]*>([\s\S]*?)<\/html>/);
-        const htmlContent = html.match(/<html[^>]*>([\s\S]*?)<\/html>/);
-        const headContent = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-        const bodyContent = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  
-        const isValidTag = (tagName: string) => validHTMLTags.includes(tagName);
-  
-        if (htmlContent == null) {
-          setDOMSTR('Invalid DOM structure');
-          setDOMTRUE(true);
-          return false;
-        } else {
-          if (doctypeContent) {
-            const docMatches = doctypeContent[1].match(tagPattern);
-            for (let tag of docMatches || []) {
-              const tagName = tag.replace(/<\/?|\/?>/g, '').split(' ')[0].toLowerCase();
-              if (HtmlTags.includes(tagName) || !isValidTag(tagName)) {
-              }
-            }
-            setDOMSTR('HTML DOM structure');
-            setDOMTRUE(false);
-          }
-  
-          if (htmlContent) {
-            const htmlMatches = htmlContent[1].match(tagPattern);
-            for (let tag of htmlMatches || []) {
-              const tagName = tag.replace(/<\/?|\/?>/g, '').split(' ')[0].toLowerCase();
-              if (!isValidTag(tagName)) {
-                setDOMSTR(`Invalid ${tagName} tag inside html tag due to possible spelling error`);
-                setDOMTRUE(true);
-                return false;
-              }
-            }
-            setDOMSTR('HTML DOM structure');
-            setDOMTRUE(false);
-          }
-  
-          if (headContent) {
-            const headMatches = headContent[1].match(tagPattern);
-            for (let tag of headMatches || []) {
-              const tagName = tag.replace(/<\/?|\/?>/g, '').split(' ')[0].toLowerCase();
-              if (!headTags.includes(tagName) || !isValidTag(tagName)) {
-                setDOMSTR(`Invalid ${tagName} tag inside head tag`);
-                setDOMTRUE(true);
-                return false;
-              }
-            }
-            setDOMSTR('HTML DOM structure');
-            setDOMTRUE(false);
-          }
-  
-          if (!bodyContent || bodyContent[1].trim() === '') {
-            return false;
-          }
-  
-          const bodyMatches = bodyContent[1].match(tagPattern);
-          for (let tag of bodyMatches || []) {
-            const tagName = tag.replace(/<\/?|\/?>/g, '').split(' ')[0].toLowerCase();
-            if (bodyTags.includes(tagName) || !isValidTag(tagName)) {
-              setDOMSTR(`Invalid ${tagName} tag inside body tag`);
-              setDOMTRUE(true);
-              return false;
-            }
-            setDOMSTR('HTML DOM structure');
-            setDOMTRUE(false);
-          }
-  
-          const selfClosingMatches = bodyContent[1].match(/<([a-z][a-z0-9]*)\s*\/?>/gi);
-          for (let tag of selfClosingMatches || []) {
-            const tagName = tag.replace(/<\/?|\/?>/g, '').toLowerCase();
-            if (selfClosingTags.includes(tagName)) {
-              setDOMSTR(`Invalid self-closing tag: ${tagName}`);
-              setDOMTRUE(true);
-              return false;
-            } else {
-              if (!nonSelfClosingTags.includes(tagName)) {
-                setDOMSTR(`Invalid non-self-closing tag: ${tagName}`);
-                setDOMTRUE(true);
-                return false;
-              }
-            }
-          }
-  
-          setDOMSTR('HTML DOM structure');
-          setDOMTRUE(false);
-          return true;
-        }
-      };
-  
-      const isHeadAndBodyValid = validateHTML(code);
-  
-      if (!isHTMLValid) {
-      } else {
-        if (isHeadAndBodyValid) {
-        } else {
-        }
-      }
-  
-      presentIndices = htmlValidationData.map((item, index) => missingHTMLValues.includes(item) ? null : index).filter(index => index !== null) as number[];
-      setValidationStatus(prevState => ({ ...prevState, html: presentIndices }));
-    } else if (type === 'css') {
-      if (typeof code !== 'string') {
-        return;
-      }
-  
-      const validateRules = (rules: any[], blocks: string[]) => {
-        return rules.filter(expectedRule => {
-          const foundRule = blocks.find(block => {
-            const selector = block.split('{')[0].trim();
-            const properties = block.split('{')[1].split(';').map(prop => prop.trim()).filter(prop => prop !== '');
-  
-            if (selector !== expectedRule.selector) {
-              return false;
-            }
-  
-            return expectedRule.properties.every((expectedProp: any) => {
-              const foundProp = properties.find(prop => {
-                const property = prop.split(':')[0].trim();
-                let value = prop.split(':')[1].trim();
-  
-                const finalvalue = value.toString().split('\n').map(line => line.replace(/\s*,\s*/g, ', ')).join('\n');
-                return expectedProp.property === property && expectedProp.value === finalvalue;
-              });
-              return foundProp !== undefined;
-            });
-          });
-          return !foundRule;
-        });
-      };
-  
-      const mediaQueryRegex = /@media[^{]+\{([\s\S]+?})\s*}/g;
-      let match;
-      const mediaQueryBlocks: string[] = [];
-      while ((match = mediaQueryRegex.exec(code)) !== null) {
-        mediaQueryBlocks.push(match[0]);
-      }
-  
-      const normalCSS = code.replace(mediaQueryRegex, '');
-      const normalBlocks = normalCSS.split('}').map(block => block.trim()).filter(block => block !== '');
-  
-      const missingCSSRules = validateRules(cssValidationData.filter(rule => !rule.media_query), normalBlocks);
-  
-      const missingMediaQueryRules: { [key: string]: any[] } = {};
-      cssValidationData.filter(rule => rule.media_query).forEach(mediaQuery => {
-        const mediaQueryBlock = mediaQueryBlocks.find(block => block.includes(mediaQuery.media_query));
-        if (mediaQueryBlock) {
-          const startIndex = mediaQueryBlock.indexOf('{') + 1;
-          const endIndex = mediaQueryBlock.lastIndexOf('}');
-          const mediaQueryContent = mediaQueryBlock.substring(startIndex, endIndex).trim();
-  
-          const blocks = mediaQueryContent.split('}').map(block => block.trim()).filter(block => block !== '');
-  
-          const missingRules = validateRules(mediaQuery.rules, blocks);
-          if (missingRules.length > 0) {
-            missingMediaQueryRules[mediaQuery.media_query] = missingRules;
-          }
-        } else {
-          missingMediaQueryRules[mediaQuery.media_query] = mediaQuery.rules;
-        }
-      });
-  
-      const isCSSValid = missingCSSRules.length === 0 && Object.keys(missingMediaQueryRules).length === 0;
-  
-      presentIndices = cssValidationData.map((item, index) => {
-        if (item.media_query) {
-          return missingMediaQueryRules[item.media_query] ? null : index;
-        }
-        return missingCSSRules.includes(item) ? null : index;
-      }).filter(index => index !== null) as number[];
-  
-      setValidationStatus(prevState => ({ ...prevState, css: presentIndices }));
-    }
+    // Validation logic will be implemented here
+    console.log(`Validating ${type} code:`, code);
+    
+    // Set success message for now (placeholder)
+    setSuccessMessage('Code validated successfully');
+    setAdditionalMessage('Your code has been checked. Click Submit to save your work.');
   };
   
 
   const renderEditor = () => {
-    switch (activeTab) {
-      case 'html':
-        return (
-          <CodeMirror
-            className="text-xl text-start custom-codemirror"
-            value={htmlEdit || questionData?.UserAnsHTML}
-            height="100%"
-            extensions={[html()]}
-            onChange={onChangeHtml}
-            style={{ backgroundColor: 'white', overflow: 'auto' }}
-          />
-        );
-      case 'css':
-        return (
-          <CodeMirror
-            className="text-xl text-start custom-codemirror"
-            value={cssEdit || questionData?.UserAnsCSS}
-            height="95%"
-            theme="light"
-            extensions={[css()]}
-            onChange={onChangeCss}
-            style={{ backgroundColor: 'white', overflow: 'auto' }}
-          />
-        );
-      default:
-        return null;
+    const fileType = getFileType(activeTab);
+    const currentContent = getCurrentFileContent();
+    
+    let extensions: any[] = [];
+    if (fileType === 'html') {
+      extensions = [html()];
+    } else if (fileType === 'css') {
+      extensions = [css()];
     }
+    
+        return (
+          <CodeMirror
+        key={activeTab} // This ensures a new instance for each file
+            className="text-xl text-start custom-codemirror"
+        value={currentContent}
+            height="100%"
+        extensions={extensions}
+        onChange={onChangeFileContent}
+            style={{ backgroundColor: 'white', overflow: 'auto' }}
+        basicSetup={{
+          history: true, // Enable undo/redo for each instance
+          lineNumbers: true,
+          foldGutter: true,
+          dropCursor: false,
+          allowMultipleSelections: false,
+          indentOnInput: true,
+          bracketMatching: true,
+          closeBrackets: true,
+          autocompletion: true,
+          highlightSelectionMatches: true
+        }}
+      />
+    );
   };
 
-  const srcCode = `
-    ${htmlEdit.replace('</body>', '').replace('</html>', '')}
-    <style>${cssEdit}</style>
+  // Generate output code - always use index.html as the main file
+  const generateOutputCode = () => {
+    const htmlContent = fileContents['index.html'] || '';
+    
+    // Get all CSS files dynamically
+    const cssFiles = Object.keys(fileContents).filter(fileName => 
+      fileName.endsWith('.css')
+    );
+    
+    // Combine all CSS content
+    const allCssContent = cssFiles.map(fileName => fileContents[fileName] || '').join('\n');
+    
+    return `
+      ${htmlContent.replace('</body>', '').replace('</html>', '')}
+      <style>${allCssContent}</style>
     </body>
     </html>
   `;
+  };
+
+  const srcCode = generateOutputCode();
 
       const handleSubmit = async () => {
+        setProcessing(true);
     const url=`${process.env.REACT_APP_BACKEND_URL}api/student/coding/`
         try {
+          // Get HTML content (always from index.html)
+          const htmlContent = fileContents['index.html'] || '';
+          
+          // Get all CSS files dynamically
+          const cssFiles = Object.keys(fileContents).filter(fileName => 
+            fileName.endsWith('.css')
+          );
+          const cssContent = cssFiles.map(fileName => fileContents[fileName] || '').join('\n');
+          
           const postData = {
             student_id: studentId,
-            week_number: "1",
-            day_number: "9",
-            subject: "HTML",
-            subject_id: "HTML",
-            Qn: "qds250117182102cem02",
+            week_number: weekNumber,
+            day_number: dayNumber,
+            subject: subject,
+            subject_id: subjectId,
+            Qn: questionData?.Qn_name || "htmlcss_question",
             final_score: "14/19",
-            Ans: htmlEdit,
+            Ans: htmlContent,
+            CSS_Ans: cssContent,
             Result: "",
             Attempt: 0
           };
@@ -568,11 +562,18 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
           );
     
           const responseData = response.data;
-          setIsHTMLSubmitted(true);
-          setIsCSSSubmitted(true);
+          
+          // Mark all files as submitted
+          const newSubmittedFiles: {[key: string]: boolean} = {};
+          Object.keys(fileContents).forEach(fileName => {
+            newSubmittedFiles[fileName] = true;
+          });
+          setSubmittedFiles(newSubmittedFiles);
 
      
-        }finally {
+        } catch (error) {
+          console.error("Error submitting code:", error);
+        } finally {
           setProcessing(false);
         }
       };
@@ -591,123 +592,172 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
       
 
   return (
-    <div className="container-fluid p-0" style={{ height: "calc(100vh - 90px)", maxWidth: "100%", overflow: "hidden", backgroundColor: "#f2eeee" }}>
-      <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
-        <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", backgroundColor: "#f2eeee" }}>
+    <div className="container-fluid p-0" style={{ height: 'calc(100vh)', overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
+      <div className="p-0 my-0" style={{ backgroundColor: "#F2EEEE", marginRight: '10px' }}>
+        <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
           <div className="row g-2">
             <div className="col-12">
-              <div className="bg-white border rounded-2 py-3 ps-3" style={{ height: "calc(100vh - 100px)", overflowY: "auto" }}>
-                <div className="d-flex h-100">
-                  <div className="d-flex flex-column align-items-center" style={{ width: "80px", marginLeft: "-20px" }}>
+              <div className="" style={{ height: "100vh", overflow: "hidden", padding: '0px 0px 65px 0px' }}>
+                <div className="d-flex" style={{ height: '100%', width: '100%' }}>
+                  {/* ===== QUESTION NAVIGATION PANEL ===== */}
+                  <div className="col-1 lg-8 pb-3" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px",overflow:"auto" }}>
+                    {questions.map((_, index) => (
                     <button
-                      className="btn border border-dark rounded-2 my-1 px-3 mx-auto"
-                      style={{ width: "50px", height: "55px", backgroundColor: "#42FF58", color: "#000", cursor: "pointer" }}
-                    >
-                      Q1
+                        key={index}
+                        className="btn rounded-2 mb-2 px-1 mx-auto"
+                        style={{
+                          width: "50px",
+                          height: "50px",
+                          backgroundColor: currentQuestionIndex === index ? "#42FF58" : "#FFFFFF",
+                          color: "#000",
+                          cursor: "pointer",
+                          boxShadow: "#888 1px 2px 5px 0px"
+                        }}
+                        onClick={() => handleQuestionChange(index)}
+                      >
+                        Q{index + 1}
                     </button>
+                    ))}
                   </div>
-                  {/* Question Section */}
-                  <div className="col-5 lg-8" style={{ height: "100%" }}>
-                    <div className="border border-dark rounded-2 d-flex flex-column" style={{ height: "calc(100% - 5px)", backgroundColor: "#E5E5E533" }}>
-                        <div className="border-bottom border-dark p-3 d-flex justify-content-between align-items-center">
-                        <h5 className="m-0">Problem Statement</h5>
+                  {/* ===== PROBLEM STATEMENT PANEL ===== */}
+                  <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
+                    <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533", display: "flex", flexDirection: "column" }}>
+                      
+                      {/* ===== FIRST ROW - PROBLEM STATEMENT ===== */}
+                      <div style={{ height: "50%", display: "flex", flexDirection: "column", borderBottom: "2px solid #dee2e6" }}>
+                        {/* Page Name */}
+                        <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                          <h6 className="m-0 text-muted text-center fs-5">
+                            {questionData?.Page_Name || "HTML/CSS Question"}
+                          </h6>
                         </div>
-                        <div className="p-3 flex-grow-1 overflow-auto me-1">
-                        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{questionData?.Qn}</pre>
-                        <div className='d-flex justify-content-start mt-3'>
-                            <div className="btn btn-sm" style={{ backgroundColor: '#B8B7B7', color: '#000000' }}>
-                            Expected output
+                        
+                        {/* Problem Statement Header */}
+                        <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                          <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
+                            Problem Statement
+                          </h5>
                             </div>
-                            <FontAwesomeIcon icon={faExpand} className='px-1 mt-2 text-dark' onClick={handleImgView} style={{ cursor: 'pointer' }} />
+                        
+                        {/* Question Content with Scrollbar */}
+                        <div 
+                          className="flex-fill overflow-auto p-3"
+                          style={{ 
+                            scrollbarWidth: "thin",
+                            scrollbarColor: "#c1c1c1 #f1f1f1"
+                          }}
+                        >
+                          <div 
+                            style={{ 
+                              whiteSpace: "pre-wrap", 
+                              wordBreak: "break-word",
+                              fontFamily: "inherit",
+                              lineHeight: "1.5",
+                              fontSize: "14px"
+                            }} 
+                            dangerouslySetInnerHTML={{ __html: questionData?.Qn || '' }}
+                          />
                         </div>
-                        <img src={questionData?.Sample_img} className="img-fluid mt-3" alt="image" style={{ pointerEvents: 'none' }} />
-                        <div className='d-flex justify-content-start mt-3'>
-                            <div className="btn btn-sm" style={{ backgroundColor: '#B8B7B7', color: '#000000' }}>
-                            Requirements
                             </div>
+                      
+                      {/* ===== SECOND ROW - EXPECTED OUTPUT ===== */}
+                      <div style={{ height: "50%", display: "flex", flexDirection: "column" }}>
+                        {/* Expected Output Header */}
+                        <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                          <div className='d-flex justify-content-between align-items-center'>
+                            <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
+                              Expected Output
+                            </h5>
                         </div>
-                        <div className='mt-2' style={{ fontSize: '14px', maxHeight: '70vh'}}>
-                            {(() => {
-                            switch (activeTab) {
-                                case 'html':
-                                return (
-                                    <>
-                                    <span className='p-2 ' style={{ fontFamily: '"Segoe UI", Arial, sans-serif' }}>
-                                        {DOMTRUE ? (
-                                        <>
-                                            <FontAwesomeIcon icon={faCircleXmark} className="mx-1 text-danger" />
-                                            {DOMSTR}
-                                        </>
-                                        ) : (
-                                        <>
-                                            <FontAwesomeIcon icon={faCheckCircle} className="mx-1 text-success" />
-                                            {`HTML DOM structure`}
-                                        </>
-                                        )}
-                                    </span>
-                                    {questionData?.Code_Validation.HTML_Messages.map((message, index) => (
-                                        <div key={index} className='p-2'>
-                                        {validationStatus.html && validationStatus.html.includes(index) ? (
-                                            <FontAwesomeIcon icon={faCheckCircle} className='mx-1 text-success' />
-                                        ) : (
-                                            <FontAwesomeIcon icon={faCircleXmark} className='mx-1 text-danger' />
-                                        )}
-                                        {message}
                                         </div>
-                                    ))}
-                                    </>
-                                );
-                                case 'css':
-                                return (
-                                    <>
-                                    {questionData?.Code_Validation.CSS_Messages.map((message, index) => (
-                                        <div key={index} className='p-2'>
-                                        {validationStatus.css && validationStatus.css.includes(index) ? (
-                                            <FontAwesomeIcon icon={faCheckCircle} className='mx-1 text-success' />
-                                        ) : (
-                                            <FontAwesomeIcon icon={faCircleXmark} className='mx-1 text-danger' />
-                                        )}
-                                        {message}
-                                        </div>
-                                    ))}
-                                    </>
-                                );
-                                default:
-                                return null;
-                            }
-                            })()}
+                        
+                        {/* Image Content with Scrollbar */}
+                        <div 
+                          className="flex-fill overflow-auto p-3 d-flex justify-content-center align-items-start"
+                          style={{ 
+                            scrollbarWidth: "thin",
+                            scrollbarColor: "#c1c1c1 #f1f1f1"
+                          }}
+                        >
+                          {questionData?.image_path ? (
+                            <img 
+                              src={questionData.image_path} 
+                              className="img-fluid" 
+                              alt="Expected Output" 
+                              style={{ 
+                                pointerEvents: 'none', 
+                                maxWidth: '100%',
+                                height: 'auto',
+                                borderRadius: '4px',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                              }} 
+                            />
+                          ) : (
+                            <div className="text-center text-muted" style={{ padding: "20px" }}>
+                              <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
+                              <p className="mt-2">No expected output image available</p>
+                            </div>
+                          )}
                         </div>
                         </div>
                     </div>
                   </div>
 
 
-                  <div className="d-flex flex-column" style={{ flex: "1", height: "100%", marginLeft: "20px" }}>
-                    <div className="border border-dark rounded-2 me-3" style={{ height: "45%",  overflow: 'hidden' }}>
+                  {/* ===== CODE EDITOR AND CONTROLS PANEL ===== */}
+                  <div className="col-6 lg-8" style={{ height: "100%", display: "flex", flexDirection: "column", width: '55.1%' }}>
+                    
+                    {/* ===== CODE EDITOR ===== */}
+                    <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
                     <div className="border-bottom border-dark p-3 d-flex justify-content-between align-items-center">
-                        <div>
+                         <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0 }}>
+                           <div 
+                             className="d-flex"
+                             style={{ 
+                               flexWrap: 'nowrap',
+                               overflowX: 'auto',
+                               overflowY: 'hidden',
+                               scrollbarWidth: "thin",
+                               scrollbarColor: "#c1c1c1 #f1f1f1",
+                               flex: 1,
+                               minWidth: 0,
+                               maxWidth: 'calc(100% - 40px)'
+                             }}
+                           >
                             {questionData?.Tabs.map((tab, index) => (
                                 <div
                                     key={index}
                                     style={{
-                                        width: '70px',
+                                     minWidth: 'fit-content',
+                                     width: 'auto',
                                         height: '30px',
                                         borderRadius: '10px',
-                                        backgroundColor: activeTab === tab.toLowerCase() ? "black" : "transparent",
-                                        color: activeTab === tab.toLowerCase() ? "white" : "black",
-                                        border: activeTab === tab.toLowerCase() ? "none" : "1px solid black",
+                                     backgroundColor: activeTab === tab.name ? "black" : "transparent",
+                                     color: activeTab === tab.name ? "white" : "black",
+                                     border: activeTab === tab.name ? "none" : "1px solid black",
                                         display: 'inline-block',
                                         textAlign: 'center',
                                         lineHeight: '30px',
                                         marginRight: '8px',
-                                        cursor: 'pointer'
+                                     cursor: 'pointer',
+                                     padding: '0 12px',
+                                     whiteSpace: 'nowrap',
+                                     flexShrink: 0
                                     }}
-                                    className={`tab-button me-1 ${activeTab === tab.toLowerCase() ? 'selected-tab' : ''}`}
-                                    onClick={() => handleTabClick(tab.toLowerCase())}
+                                   className={`tab-button me-1 ${activeTab === tab.name ? 'selected-tab' : ''}`}
+                                   onClick={() => handleTabClick(tab.name)}
+                                   title={tab.name} // Show full filename on hover
                                 >
-                                    {tab}
+                                   {tab.name}
                                 </div>
                             ))}
+                           </div>
+                           <FontAwesomeIcon 
+                             icon={faExpand} 
+                             className='text-dark ms-2 me-1' 
+                             onClick={() => setIsMaximized(true)} 
+                             style={{ cursor: 'pointer', fontSize: "16px", flexShrink: 0 }} 
+                           />
                         </div>
                     </div>
                     <div className="col top" style={{ height: `calc(100% - 60px)`, overflowY: 'auto', marginBottom: '10px' }}>
@@ -715,51 +765,96 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                     </div>
                     </div>
 
-                   <div style={{ height: "9%", padding: "10px 0" }} className="d-flex flex-column justify-content-center me-3">
+                    {/* ===== PROCESSING STATUS AND ACTION BUTTONS ===== */}
+                    <div style={{ height: "6%", marginRight: '37px', backgroundColor: "#E5E5E533" }} className="d-flex flex-column justify-content-center processingDiv">
                       <div className="d-flex justify-content-between align-items-center h-100">
                         <div className="d-flex flex-column justify-content-center">
-
+                          {processing ? (
+                            <h5 className="m-0 processingDivHeadingTag">Processing...</h5>
+                          ) : (
+                            <>
+                              {successMessage && <h5 className="m-0 ps-1" style={{ fontSize: '14px' }}>{successMessage}</h5>}
+                              {additionalMessage && <p className="processingDivParaTag m-0 ps-1" style={{ fontSize: "10px" }}>{additionalMessage}</p>}
+                            </>
+                          )}
                         </div>
                         <div className="d-flex justify-content-end align-items-center">
-                          <Button
-                            variant="light"
-                            className="me-2 border border-dark"
-
+                          {/* Run Code Button */}
+                          <button
+                            className="btn btn-sm btn-light me-2 processingDivButton"
                             style={{
-                              minWidth: "100px",
-                              boxShadow: "1px 2px 1px #888"
+                              whiteSpace: "nowrap",
+                              fontSize: "12px",
+                              minWidth: "70px",
+                              boxShadow: "#888 1px 2px 5px 0px",
+                              height: "30px",
+                              position: "relative",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "4px"
                             }}
-                            onClick={handleSubmit}
+                            onClick={handleCheckCode}
+                            disabled={processing}
                           >
-                            SUBMIT
-                          </Button>
-                          <Button
-                            variant="warning"
-                            className="border border-dark"
-
+                            RUN
+                          </button>
+                          
+                          {/* Submit Code Button */}
+                          <button
+                            className="btn btn-sm btn-light me-2 processingDivButton"
                             style={{
                               backgroundColor: "#FBEFA5DB",
-                              minWidth: "100px",
-                              boxShadow: "1px 2px 1px #888"
+                              whiteSpace: "nowrap",
+                              fontSize: "12px",
+                              minWidth: "70px",
+                              boxShadow: "#888 1px 2px 5px 0px",
+                              height: "30px"
                             }}
-                            disabled={true}
+                            onClick={handleSubmit}
+                            disabled={processing || Object.values(submittedFiles).every(submitted => submitted)}
                           >
-                            NEXT
-                          </Button>
+                            {processing ? "PROCESSING..." : Object.values(submittedFiles).every(submitted => submitted) ? "SUBMITTED" : "SUBMIT"}
+                          </button>
+                          
+                          {/* Next Button (only shown when question is completed) */}
+                          {Object.values(submittedFiles).every(submitted => submitted) &&
+                            <button
+                              className="btn btn-sm btn-light processingDivButton"
+                            style={{
+                                whiteSpace: "nowrap",
+                                fontSize: "12px",
+                                minWidth: "70px",
+                                boxShadow: "#888 1px 2px 5px 0px",
+                                height: "30px"
+                              }}
+                              disabled={processing}
+                              onClick={() => {
+                                if (currentQuestionIndex < questions.length - 1) {
+                                  handleQuestionChange(currentQuestionIndex + 1);
+                                } else {
+                                  navigate('/Subject-Roadmap', { replace: true });
+                                }
+                              }}
+                            >
+                              {currentQuestionIndex < questions.length - 1 ? "NEXT" : "FINISH"}
+                            </button>
+                          }
                         </div>
                       </div>
                     </div>
 
-                    <div className="border border-dark rounded-2 me-3" style={{ height: "45%", backgroundColor: "#E5E5E533", overflowY: 'auto' }}>
-                <div className="border-bottom border-dark p-3 d-flex justify-content-between align-items-center">
+                    {/* ===== OUTPUT AND TEST RESULTS PANEL ===== */}
+                    <div className="bg-white me-3" style={{ height: "48%", backgroundColor: "#E5E5E533", position: "relative" }}>
+                      <div className="p-3" style={{ height: "calc(100% - 10px)", display: "flex", flexDirection: "column" }}>
+                        {/* ===== OUTPUT SECTION ===== */}
+                        <div className="d-flex mb-3 justify-content-between" style={{ flexShrink: 0 }}>
                     <h5 className="m-0">Output</h5>
                 </div>
-                <div className="p-3" style={{ height: "calc(100% - 58px)", overflow: 'auto' }}>
+
+                        {/* ===== HTML/CSS OUTPUT ===== */}
+                        <div className="flex-fill" style={{ maxHeight: "90%", overflow: "auto" }}>
                     <div className='d-flex justify-content-start mt-2'>
-                    <div className="btn btn-sm" style={{ backgroundColor: '#B8B7B7', color: '#000000' }}>
-                        Your Output
-                    </div>
-                    <FontAwesomeIcon icon={faExpand} className='px-1 mt-2' onClick={Handlepreview} style={{ cursor: 'pointer' }} />
                     </div>
                     <iframe
                     style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
@@ -779,11 +874,196 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
           </div>
         </div>
       </div>
+      </div>
+      {/* ===== MAXIMIZED EDITOR VIEW ===== */}
+      {isMaximized && (
+        <div 
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            width: '100vw', 
+            height: '100vh', 
+            backgroundColor: '#f2eeee', 
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {/* Header with file tabs */}
+          <div className="bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+            <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0 }}>
+              <div 
+                className="d-flex"
+                style={{ 
+                  flexWrap: 'nowrap',
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#c1c1c1 #f1f1f1",
+                  flex: 1,
+                  minWidth: 0,
+                  maxWidth: 'calc(100% - 200px)'
+                }}
+              >
+                {questionData?.Tabs.map((tab, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      minWidth: 'fit-content',
+                      width: 'auto',
+                      height: '30px',
+                      borderRadius: '10px',
+                      backgroundColor: activeTab === tab.name ? "black" : "transparent",
+                      color: activeTab === tab.name ? "white" : "black",
+                      border: activeTab === tab.name ? "none" : "1px solid black",
+                      display: 'inline-block',
+                      textAlign: 'center',
+                      lineHeight: '30px',
+                      marginRight: '8px',
+                      cursor: 'pointer',
+                      padding: '0 12px',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0
+                    }}
+                    className={`tab-button me-1 ${activeTab === tab.name ? 'selected-tab' : ''}`}
+                    onClick={() => handleTabClick(tab.name)}
+                    title={tab.name}
+                  >
+                    {tab.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="d-flex align-items-center">
+              <button
+                className="btn btn-sm btn-light me-2"
+                style={{
+                  whiteSpace: "nowrap",
+                  fontSize: "12px",
+                  minWidth: "70px",
+                  boxShadow: "#888 1px 2px 5px 0px",
+                  height: "30px"
+                }}
+                onClick={() => setShowRequirement(!showRequirement)}
+                disabled={processing}
+              >
+                {showRequirement ? 'HIDE REQUIREMENT' : 'REQUIREMENT'}
+              </button>
+              <button
+                className="btn btn-sm btn-light me-2"
+                style={{
+                  whiteSpace: "nowrap",
+                  fontSize: "12px",
+                  minWidth: "70px",
+                  boxShadow: "#888 1px 2px 5px 0px",
+                  height: "30px"
+                }}
+                onClick={handleCheckCode}
+                disabled={processing}
+              >
+                RUN
+              </button>
+            </div>
+          </div>
+          
+          {/* Main content area */}
+          <div style={{ flex: 1, display: 'flex', margin: '10px', gap: '10px' }}>
+            {/* Editor area */}
+            <div style={{ 
+              width: showRequirement ? '60%' : '100%', 
+              backgroundColor: 'white', 
+              borderRadius: '4px',
+              transition: 'width 0.3s ease'
+            }}>
+              {renderEditor()}
+            </div>
+            
+            {/* Requirement panel - only shown when showRequirement is true */}
+            {showRequirement && (
+              <div style={{ 
+                width: '40%',
+                backgroundColor: 'white', 
+                borderRadius: '4px', 
+                padding: '15px', 
+                height: 'calc(100vh - 70px)',
+                overflowY: 'auto',
+                scrollbarWidth: "thin",
+                scrollbarColor: "#c1c1c1 #f1f1f1",
+                flexShrink: 0
+              }}>
+                {/* Problem Statement Section */}
+                <div style={{ marginBottom: '20px' }}>
+                  <h5 className="mb-3" style={{ fontSize: "16px", fontWeight: "600" }}>
+                    Problem Statement
+                  </h5>
+                  <div 
+                    style={{ 
+                      whiteSpace: "pre-wrap", 
+                      wordBreak: "break-word",
+                      fontFamily: "inherit",
+                      lineHeight: "1.5",
+                      fontSize: "14px",
+                      padding: "10px",
+                      border: "1px solid #e9ecef",
+                      borderRadius: "4px",
+                      backgroundColor: "#f8f9fa",
+                      minHeight: "200px"
+                    }} 
+                    dangerouslySetInnerHTML={{ __html: questionData?.Qn || '' }}
+                  />
+                </div>
+                
+                {/* Expected Output Section */}
+                <div>
+                  <h5 className="mb-3" style={{ fontSize: "16px", fontWeight: "600" }}>
+                    Expected Output
+                  </h5>
+                  <div 
+                    style={{ 
+                      padding: "10px",
+                      border: "1px solid #e9ecef",
+                      borderRadius: "4px",
+                      backgroundColor: "#f8f9fa",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      minHeight: "200px"
+                    }}
+                  >
+                    {questionData?.image_path ? (
+                      <img 
+                        src={questionData.image_path} 
+                        className="img-fluid" 
+                        alt="Expected Output" 
+                        style={{ 
+                          pointerEvents: 'none', 
+                          maxWidth: '100%',
+                          height: 'auto',
+                          borderRadius: '4px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }} 
+                      />
+                    ) : (
+                      <div className="text-center text-muted">
+                        <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
+                        <p className="mt-2">No expected output image available</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+
       <Modal show={showAlert} onHide={handleCloseAlert} size='lg' aria-labelledby="contained-modal-title-vcenter" centered>
         <Modal.Body className='text-dark w-100 '>
                 {displ === 'image' ? (
                 <img
-                    src={questionData?.Sample_img}
+                    src={questionData?.image_path}
                     className="img-fluid mt-3"
                     alt="image"
                     style={{ pointerEvents: 'none', maxWidth: '100%', maxHeight: '100%' }}
