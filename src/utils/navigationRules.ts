@@ -13,6 +13,7 @@ export const navigationRules: NavigationRule[] = [
   { currentPath: '/SubjectOverview', previousPath: '/Dashboard', description: 'SubjectOverview -> Dashboard', allowBack: true },
   { currentPath: '/Subject-Roadmap', previousPath: '/SubjectOverview', description: 'SubjectRoadmap -> SubjectOverview', allowBack: true },
   { currentPath: '/py-editor', previousPath: '/Subject-Roadmap', description: 'PyEditor -> SubjectRoadmap', allowBack: true },
+  { currentPath: '/html-css-editor', previousPath: '/Subject-Roadmap', description: 'HTMLCSSEditor -> SubjectRoadmap', allowBack: true },
   { currentPath: '/test', previousPath: '/Dashboard', description: 'Test -> Dashboard', allowBack: true },
   { currentPath: '/test-introduction', previousPath: '/test', description: 'TestIntroduction -> Test', allowBack: true },
   { currentPath: '/test-section', previousPath: '/test-introduction', description: 'TestSection -> TestIntroduction', allowBack: true },
