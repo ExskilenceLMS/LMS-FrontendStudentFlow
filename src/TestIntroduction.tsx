@@ -63,6 +63,8 @@ const TestIntroduction: React.FC = () => {
           // This handles cases where user navigates back to test introduction
           const testStatus = instructionData.test_status || "Pending";
           setButtonText(testStatus === "Started" ? "Resume Test" : "Start Test");
+          // Store the determined status for consistency
+          sessionStorage.setItem('TestButtonStatus', testStatus === "Started" ? "Resume" : "Start");
         }
         
         // Use cached instruction and section data from SWR
@@ -86,24 +88,18 @@ const TestIntroduction: React.FC = () => {
     fetchData();
   }, [testId, studentId, navigate, instructionData, cachedSectionData]);
 
-  // Cleanup effect to clear button status when component unmounts
-  useEffect(() => {
-    return () => {
-      sessionStorage.removeItem('TestButtonStatus');
-    };
-  }, []);
 
   const handleStartTest = async () => {
-    // sessionStorage.setItem("timer", duration);
-    // api/student/test/start/25EABCXIS001/Test1/
+    try {
+      setResponseLoading(true);
+      // sessionStorage.setItem("timer", duration);
+      // api/student/test/start/25EABCXIS001/Test1/
     const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/start/${studentId}/${testId}/`;
     const response = await getApiClient().patch(url);
     const encryptedSectionData = CryptoJS.AES.encrypt(JSON.stringify(response.data), secretKey).toString();
     sessionStorage.setItem("sectionData", encryptedSectionData);
     
-    // Clear the button status from session storage as it's no longer needed
-    sessionStorage.removeItem('TestButtonStatus');
-    
+    sessionStorage.setItem('TestButtonStatus', 'Resume');
     if (response.data.status === "completed") {
       navigate("/test-report", { replace: true });
     } else {
@@ -111,6 +107,10 @@ const TestIntroduction: React.FC = () => {
         state: { sectionData },
         replace: true 
       });
+    }
+    } catch (error) {
+      console.error("Error starting test:", error);
+      setResponseLoading(false);
     }
   };
 

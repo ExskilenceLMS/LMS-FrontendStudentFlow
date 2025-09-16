@@ -504,13 +504,18 @@ const TestMcq: React.FC = () => {
                   </div>
                   <div className="col-11 lg-8 me-3" style={{ height: "100%", flex: 1 }}>
                     <div className="border border-dark rounded-2 overflowY-auto d-flex flex-column" style={{ height :"calc(100% - 100px)", backgroundColor: "#E5E5E533" }}>
-                        <pre className="p-3 pt-4 m-0 mh-50 w-100 fs-5 overflow-auto" style={{
-                                    whiteSpace: 'pre-wrap',
-                                    wordWrap: 'break-word',
-                                    overflowWrap: 'break-word',
-                                }}>
-                        Q{currentQuestion + 1}. {questions[currentQuestion].question}
-                        </pre>
+                        <div className="p-3 pt-4 m-0 mh-50 w-100 fs-5 overflow-auto d-flex" style={{ scrollbarWidth: 'thin' }}>
+                          <div className="col-auto" style={{ minWidth: '40px', flexShrink: 0 }}>
+                            <span>Q{currentQuestion + 1}.</span>
+                          </div>
+                          <div className="col" style={{
+                            whiteSpace: 'pre-wrap',
+                            wordWrap: 'break-word',
+                            overflowWrap: 'break-word',
+                          }}>
+                            {questions[currentQuestion].question}
+                          </div>
+                        </div>
                         <div className="p-3 mh-50">
                         {questions[currentQuestion].options.map((option, index) => (
                                                          <button onClick={() => handleOptionChange(option)} style={{
