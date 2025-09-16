@@ -30,6 +30,7 @@ interface QuestionData {
   type: string;
   Tabs: Tab[];
   Qn: string;
+  requirements: string;
   Code_Validation: CodeValidation;
   defaulttemplate: string;
   image_path: string;
@@ -139,6 +140,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
             type: q.type || "coding",
             Tabs: tabs,
             Qn: q.Qn || q.question || "",
+            requirements: q.requirements || "",
             Code_Validation: q.Code_Validation || codeValidation,
             defaulttemplate: q.defaulttemplate || "<html>\n  \n</html>",
             image_path: q.image_path || "",
@@ -947,16 +949,9 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                   <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
                     <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533", display: "flex", flexDirection: "column" }}>
                       
-                      {/* ===== FIRST ROW - PROBLEM STATEMENT (50%) ===== */}
+                      {/* ===== FIRST ROW - PROBLEM STATEMENT & REQUIREMENTS (50%) ===== */}
                       <div style={{ height: "50%", display: "flex", flexDirection: "column", borderBottom: "2px solid #dee2e6" }}>
-                        {/* Problem Statement Header */}
-                        <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
-                          <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
-                            Problem Statement
-                          </h5>
-                            </div>
-                        
-                        {/* Question Content with Scrollbar */}
+                        {/* Combined Content with Scrollbar */}
                         <div 
                           className="flex-fill overflow-auto p-3"
                           style={{ 
@@ -964,20 +959,38 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                             scrollbarColor: "#c1c1c1 #f1f1f1"
                           }}
                         >
-                          <div 
-                            style={{ 
-                              whiteSpace: "pre-wrap", 
-                              wordBreak: "break-word",
-                              fontFamily: "inherit",
-                              lineHeight: "1.5",
-                              fontSize: "14px"
-                            }} 
-                            dangerouslySetInnerHTML={{ __html: questionData?.Qn || '' }}
-                          />
+                          {/* Problem Statement Section */}
+                          <div style={{ marginBottom: "20px" }}>
+                            <h4 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "10px", color: "#333" }}>
+                              Problem Statement
+                            </h4>
+                            <div 
+                              style={{ 
+                                whiteSpace: "pre-wrap", 
+                                wordBreak: "break-word",
+                                fontFamily: "inherit",
+                                lineHeight: "1.5",
+                                fontSize: "14px",
+                                color: "#555"
+                              }} 
+                              dangerouslySetInnerHTML={{ __html: questionData?.Qn || '' }}
+                            />
+                          </div>
+
+                          {/* Requirements Section */}
+                          <div>
+                            <h4 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "10px", color: "#333" }}>
+                              Requirements
+                            </h4>
+                            <div 
+                             
+                              dangerouslySetInnerHTML={{ __html: questionData?.requirements || 'No requirements specified.' }}
+                            />
+                          </div>
                         </div>
-                            </div>
+                      </div>
                       
-                      {/* ===== SECOND ROW - EXPECTED OUTPUT (50%) ===== */}
+                      {/* ===== THIRD ROW - EXPECTED OUTPUT (50%) ===== */}
                       <div style={{ height: "50%", display: "flex", flexDirection: "column" }}>
                         {/* Expected Output Header */}
                         <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
@@ -1414,31 +1427,48 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                 flexDirection: 'column',
                 flexShrink: 0
               }}>
-                {/* Problem Statement Section (50%) */}
+                {/* Problem Statement & Requirements Section (50%) */}
                 <div style={{ 
                   height: '50%', 
                   display: 'flex', 
                   flexDirection: 'column',
                   borderBottom: '2px solid #dee2e6'
                 }}>
-                  <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
-                    <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
-                    Problem Statement
-                  </h5>
-                  </div>
                   <div 
                     className="flex-fill overflow-auto p-3"
                     style={{ 
-                      whiteSpace: "pre-wrap", 
-                      wordBreak: "break-word",
-                      fontFamily: "inherit",
-                      lineHeight: "1.5",
-                      fontSize: "14px",
                       scrollbarWidth: "thin",
                       scrollbarColor: "#c1c1c1 #f1f1f1"
-                    }} 
-                    dangerouslySetInnerHTML={{ __html: questionData?.Qn || '' }}
-                  />
+                    }}
+                  >
+                    {/* Problem Statement Section */}
+                    <div style={{ marginBottom: "20px" }}>
+                      <h4 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "10px", color: "#333" }}>
+                        Problem Statement
+                      </h4>
+                      <div 
+                        style={{ 
+                          whiteSpace: "pre-wrap", 
+                          wordBreak: "break-word",
+                          fontFamily: "inherit",
+                          lineHeight: "1.5",
+                          fontSize: "14px",
+                          color: "#555"
+                        }} 
+                        dangerouslySetInnerHTML={{ __html: questionData?.Qn || '' }}
+                      />
+                    </div>
+
+                    {/* Requirements Section */}
+                    <div>
+                      <h4 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "10px", color: "#333" }}>
+                        Requirements
+                      </h4>
+                      <div  
+                        dangerouslySetInnerHTML={{ __html: questionData?.requirements || 'No requirements specified.' }}
+                      />
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Expected Output Section (50%) */}
