@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import SkeletonCode from "./Components/EditorSkeletonCode"
 import { secretKey } from "./constants";
 import { QUESTION_STATUS } from "./constants/constants";
+import { autoSaveHTMLCode, getAutoSavedHTMLCode, cleanupAutoSavedHTMLCode } from "./utils/autoSaveUtils";
 import CryptoJS from "crypto-js";
 
 interface Tab {
@@ -66,7 +67,7 @@ const HTMLCSSEditor: React.FC = () => {
   const [structureResults, setStructureResults] = useState<{[key: string]: boolean[]}>({});
   const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
   const [activeOutputTab, setActiveOutputTab] = useState('image');
-const encryptedStudentId = sessionStorage.getItem('StudentId');
+  const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
   
@@ -109,7 +110,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
         // Process questions and handle saved code
         const questionsWithSavedCode = apiQuestions.map((q: any) => {
           // Check for saved code in session storage
-          const savedCodeKey = `htmlcss_${q.Qn_name}`;
+          const savedCodeKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${q.Qn_name}`;
           const savedCode = sessionStorage.getItem(savedCodeKey);
           let savedFileContents: {[key: string]: string} = {};
           
@@ -193,6 +194,42 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
             }
           });
           
+          // Check session storage first for auto-saved code
+          const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${currentQuestion.Qn_name}`;
+          const encryptedSessionCode = sessionStorage.getItem(sessionKey);
+          
+          if (encryptedSessionCode) {
+            // Load from session storage if available
+            try {
+              const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
+              const sessionCode = JSON.parse(decryptedCode);
+              
+              // Merge session code with current file contents
+              Object.keys(sessionCode).forEach(fileName => {
+                if (fileContents.hasOwnProperty(fileName)) {
+                  fileContents[fileName] = sessionCode[fileName];
+                }
+              });
+            } catch (error) {
+              console.error('Error loading session storage code:', error);
+            }
+          } else if (!currentQuestion.status && !isSubmittedStatus) {
+            // Only fetch from backend if no session storage data AND question is not submitted
+            try {
+              const autoSavedCode = await getAutoSavedHTMLCode(currentQuestion.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+              if (autoSavedCode) {
+                // Merge auto-saved code with current file contents
+                Object.keys(autoSavedCode).forEach(fileName => {
+                  if (fileContents.hasOwnProperty(fileName)) {
+                    fileContents[fileName] = autoSavedCode[fileName];
+                  }
+                });
+              }
+            } catch (error) {
+              console.error('Error loading auto-saved code from backend:', error);
+            }
+          }
+          
           setFileContents(fileContents);
           
           // Set active tab to the first file
@@ -222,7 +259,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
     });
   };
 
-  const handleQuestionChange = (index: number) => {
+  const handleQuestionChange = async (index: number) => {
     if (index >= 0 && index < questions.length) {
       const question = questions[index];
       setQuestionData(question);
@@ -246,6 +283,50 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
           fileContents[fileName] = '';
         }
       });
+      
+      // Check session storage first for auto-saved code
+      const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+      const encryptedSessionCode = sessionStorage.getItem(sessionKey);
+      
+      if (encryptedSessionCode) {
+        // Load from session storage if available
+        try {
+          const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
+          const sessionCode = JSON.parse(decryptedCode);
+          
+          // Merge session code with current file contents
+          Object.keys(sessionCode).forEach(fileName => {
+            if (fileContents.hasOwnProperty(fileName)) {
+              fileContents[fileName] = sessionCode[fileName];
+            }
+          });
+        } catch (error) {
+          console.error('Error loading session storage code:', error);
+        }
+      } else {
+        // Check if question is already submitted before fetching auto-save
+        const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+        const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
+        const isSubmittedStatus = encryptedSubmitStatus ? 
+          CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
+        
+        // Only fetch from backend if no session storage data AND question is not submitted
+        if (!question.status && !isSubmittedStatus) {
+          try {
+            const autoSavedCode = await getAutoSavedHTMLCode(question.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+            if (autoSavedCode) {
+              // Merge auto-saved code with current file contents
+              Object.keys(autoSavedCode).forEach(fileName => {
+                if (fileContents.hasOwnProperty(fileName)) {
+                  fileContents[fileName] = autoSavedCode[fileName];
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error loading auto-saved code from backend:', error);
+          }
+        }
+      }
       
       setFileContents(fileContents);
       
@@ -320,7 +401,7 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
       codeToSave[activeTab] = value;
       
       const encryptedCode = CryptoJS.AES.encrypt(JSON.stringify(codeToSave), secretKey).toString();
-      sessionStorage.setItem(`htmlcss_${questionData.Qn_name}`, encryptedCode);
+      sessionStorage.setItem(`userCode_${subject}_${weekNumber}_${dayNumber}_${questionData.Qn_name}`, encryptedCode);
     }
   }, [activeTab, fileContents, questionData]);
 
@@ -530,11 +611,16 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
         } else {
           // Child element - check if it's inside its parent
           const parentRequirement = structure.find((item: any) => item.id === parent);
-          if (!parentRequirement) return false;
+          if (!parentRequirement) {
+            // Parent ID not found in structure list - skip parent-child validation
+            // Just check if the tag exists in the code
+            return code.includes(`<${tag}`);
+          }
           
           const parentTag = parentRequirement.tag;
           // Check if the child tag exists inside the parent tag
-          const parentRegex = new RegExp(`<${parentTag}[^>]*>([\\s\\S]*?)</${parentTag}>`, 'g');
+          // Use case-insensitive matching and handle self-closing tags
+          const parentRegex = new RegExp(`<${parentTag}[^>]*>([\\s\\S]*?)</${parentTag}>`, 'gi');
           const parentMatches = [...code.matchAll(parentRegex)];
           
           for (const match of parentMatches) {
@@ -722,6 +808,15 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
       
       // Mark that code has been run
       setHasRunCode(true);
+      
+      // Auto-save code when running
+      const codeToSave: {[key: string]: string} = {};
+      Object.keys(fileContents).forEach(fileName => {
+        codeToSave[fileName] = fileContents[fileName] || '';
+      });
+      
+      // Auto-save to backend
+      autoSaveHTMLCode(codeToSave, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
       
       // Switch to test cases tab to show results
       setActiveSection('testcases');
@@ -1014,6 +1109,9 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
             updatedQuestions[currentQuestionIndex].status = true;
             setQuestions(updatedQuestions);
           }
+
+          // Clean up auto-saved code after successful submission
+          cleanupAutoSavedHTMLCode(questionData?.Qn_name!, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
 
           // Show success message
           setSuccessMessage("Code submitted successfully!");
