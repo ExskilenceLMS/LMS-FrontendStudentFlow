@@ -8,6 +8,7 @@ import { getApiClient } from "./utils/apiAuth";
 import { useNavigate } from "react-router-dom";
 import SkeletonCode from "./Components/EditorSkeletonCode"
 import { secretKey } from "./constants";
+import { QUESTION_STATUS } from "./constants/constants";
 import CryptoJS from "crypto-js";
 
 interface Tab {
@@ -39,6 +40,7 @@ interface QuestionData {
   CreatedOn: string;
   LastUpdated: string;
   status?: boolean;
+  score?: string;
 }
 
 
@@ -51,6 +53,8 @@ const HTMLCSSEditor: React.FC = () => {
   const [activeTab, setActiveTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [submittedFiles, setSubmittedFiles] = useState<{[key: string]: boolean}>({});
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [hasRunCode, setHasRunCode] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [additionalMessage, setAdditionalMessage] = useState<string>('');
@@ -61,6 +65,7 @@ const HTMLCSSEditor: React.FC = () => {
   const [testResults, setTestResults] = useState<{[key: string]: boolean[]}>({});
   const [structureResults, setStructureResults] = useState<{[key: string]: boolean[]}>({});
   const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
+  const [activeOutputTab, setActiveOutputTab] = useState('image');
 const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
@@ -165,14 +170,27 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
         if (questionsWithSavedCode.length > 0) {
           const currentQuestion = questionsWithSavedCode[initialIndex];
           setQuestionData(currentQuestion);
+          const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${currentQuestion.Qn_name}`;
+          const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
+          const isSubmittedStatus = encryptedSubmitStatus ? 
+            CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
+          
+          if (currentQuestion.status === true || isSubmittedStatus) {
+            setIsSubmitted(true);
+            setHasRunCode(true);
+          }
           
           // Initialize file contents from Code_Validation
           const fileContents: {[key: string]: string} = {};
           
           // Process each file in Code_Validation
           Object.keys(currentQuestion.Code_Validation).forEach(fileName => {
-            const fileData = currentQuestion.Code_Validation[fileName];
-               fileContents[fileName] = fileData.template || '';
+            // Use defaulttemplate for index.html, other files start empty
+            if (fileName === 'index.html') {
+              fileContents[fileName] = currentQuestion.defaulttemplate || '';
+            } else {
+              fileContents[fileName] = '';
+            }
           });
           
           setFileContents(fileContents);
@@ -210,6 +228,9 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
       setQuestionData(question);
       setCurrentQuestionIndex(index);
       
+      // Reset output tab to image (default)
+      setActiveOutputTab('image');
+      
       // Save current question index to session storage
       sessionStorage.setItem("currentQuestionIndex", index.toString());
       
@@ -218,8 +239,12 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
       
       // Process each file in Code_Validation
       Object.keys(question.Code_Validation).forEach(fileName => {
-        const fileData = question.Code_Validation[fileName];
-               fileContents[fileName] = fileData.template || '';
+        // Use defaulttemplate for index.html, other files start empty
+        if (fileName === 'index.html') {
+          fileContents[fileName] = question.defaulttemplate || '';
+        } else {
+          fileContents[fileName] = '';
+        }
       });
       
       setFileContents(fileContents);
@@ -229,8 +254,21 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
         setActiveTab(question.Tabs[0].name);
       }
       
-       // Reset submission status
-       setSubmittedFiles({});
+       // Check if question is already submitted (like Python editor)
+       const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+       const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
+       const isSubmittedStatus = encryptedSubmitStatus ? 
+         CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
+       
+       if (question.status === true || isSubmittedStatus) {
+         setIsSubmitted(true);
+         setHasRunCode(true);
+       } else {
+         // Reset submission status only if not already submitted
+         setSubmittedFiles({});
+         setIsSubmitted(false);
+         setHasRunCode(false);
+       }
        
        // Clear editor instances to ensure fresh state
        setEditorInstances({});
@@ -566,6 +604,12 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
           });
         }
         
+        // Special handling for DOCTYPE declarations
+        if (tag === '!DOCTYPE') {
+          expected += `>`;
+          return expected;
+        }
+        
         if (content) {
           expected += `>${content}</${tag}>`;
         } else {
@@ -629,6 +673,12 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
       });
     }
     
+    // Special handling for DOCTYPE declarations
+    if (tag === '!DOCTYPE') {
+      html += `>`;
+      return html;
+    }
+    
     // Handle content and children
     if (children && children.length > 0) {
       html += '>\n';
@@ -669,6 +719,9 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
         ...prev,
         [activeTab]: structureValidationResults
       }));
+      
+      // Mark that code has been run
+      setHasRunCode(true);
       
       // Switch to test cases tab to show results
       setActiveSection('testcases');
@@ -857,48 +910,118 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
 
       const handleSubmit = async () => {
         setProcessing(true);
-    const url=`${process.env.REACT_APP_BACKEND_URL}api/student/coding/`
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/frontend/submit/`;
+        
         try {
-          // Get HTML content (always from index.html)
-          const htmlContent = fileContents['index.html'] || '';
+          // Get all HTML files and their content
+          const htmlFiles = Object.keys(fileContents).filter(fileName => 
+            fileName.endsWith('.html')
+          );
+          const htmlCode: {[key: string]: string} = {};
+          const htmlResult: {[key: string]: string} = {};
           
-          // Get all CSS files dynamically
+          htmlFiles.forEach(fileName => {
+            htmlCode[fileName] = fileContents[fileName] || '';
+            // Calculate score for HTML file based on test results
+            const testResultsForFile = testResults[fileName] || [];
+            const passedTests = testResultsForFile.filter(result => result).length;
+            const totalTests = testResultsForFile.length;
+            htmlResult[fileName] = `${passedTests}/${totalTests}`;
+          });
+          
+          // Get all CSS files and their content
           const cssFiles = Object.keys(fileContents).filter(fileName => 
             fileName.endsWith('.css')
           );
-          const cssContent = cssFiles.map(fileName => fileContents[fileName] || '').join('\n');
+          const cssCode: {[key: string]: string} = {};
+          const cssResult: {[key: string]: string} = {};
+          
+          cssFiles.forEach(fileName => {
+            cssCode[fileName] = fileContents[fileName] || '';
+            // Calculate score for CSS file based on test results
+            const testResultsForFile = testResults[fileName] || [];
+            const passedTests = testResultsForFile.filter(result => result).length;
+            const totalTests = testResultsForFile.length;
+            cssResult[fileName] = `${passedTests}/${totalTests}`;
+          });
+          
+          // Get all JS files and their content
+          const jsFiles = Object.keys(fileContents).filter(fileName => 
+            fileName.endsWith('.js')
+          );
+          const jsCode: {[key: string]: string} = {};
+          const jsResult: {[key: string]: string} = {};
+          
+          jsFiles.forEach(fileName => {
+            jsCode[fileName] = fileContents[fileName] || '';
+            // Calculate score for JS file based on test results
+            const testResultsForFile = testResults[fileName] || [];
+            const passedTests = testResultsForFile.filter(result => result).length;
+            const totalTests = testResultsForFile.length;
+            jsResult[fileName] = `${passedTests}/${totalTests}`;
+          });
+          
+          // Get max score from question data (e.g., "0/10" -> use 10 as max score)
+          const questionScore = questionData?.score || "0/10";
+          const maxScore = parseInt(questionScore.split('/')[1]);
+          
+          // Get additional required fields from session storage
+          const encryptedBatchId = sessionStorage.getItem('BatchId');
+          const decryptedBatchId = encryptedBatchId ? 
+            CryptoJS.AES.decrypt(encryptedBatchId, secretKey).toString(CryptoJS.enc.Utf8) : 'batch4';
+          
+          const encryptedCourseId = sessionStorage.getItem('CourseId');
+          const decryptedCourseId = encryptedCourseId ? 
+            CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : 'course1';
           
           const postData = {
             student_id: studentId,
+            question_id: questionData?.Qn_name,
+            question_done_at: QUESTION_STATUS.PRACTICE,
+            subject_id: subjectId,
+            batch_id: decryptedBatchId,
+            course_id: decryptedCourseId,
             week_number: weekNumber,
             day_number: dayNumber,
             subject: subject,
-            subject_id: subjectId,
-            Qn: questionData?.Qn_name || "htmlcss_question",
-            final_score: "14/19",
-            Ans: htmlContent,
-            CSS_Ans: cssContent,
-            Result: "",
-            Attempt: 0
+            score: maxScore,
+            HTML_Code: htmlCode,
+            HTML_Result: htmlResult,
+            CSS_Code: cssCode,
+            CSS_Result: cssResult,
+            JS_Code: jsCode,
+            JS_Result: jsResult
           };
     
-          const response = await getApiClient().put(
+          const response = await getApiClient().post(
             url,
             postData
           );
     
           const responseData = response.data;
           
-          // Mark all files as submitted
-          const newSubmittedFiles: {[key: string]: boolean} = {};
-          Object.keys(fileContents).forEach(fileName => {
-            newSubmittedFiles[fileName] = true;
-          });
-          setSubmittedFiles(newSubmittedFiles);
+          // Mark as submitted
+          setIsSubmitted(true);
 
+          // Save submission status to session storage (like Python editor)
+          const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questionData?.Qn_name}`;
+          const encryptedSubmitStatus = CryptoJS.AES.encrypt("true", secretKey).toString();
+          sessionStorage.setItem(submitStatusKey, encryptedSubmitStatus);
+
+          // Update question status in the questions array
+          const updatedQuestions = [...questions];
+          if (updatedQuestions[currentQuestionIndex]) {
+            updatedQuestions[currentQuestionIndex].status = true;
+            setQuestions(updatedQuestions);
+          }
+
+          // Show success message
+          setSuccessMessage("Code submitted successfully!");
      
         } catch (error) {
           console.error("Error submitting code:", error);
+          setSuccessMessage("Submission failed");
+          setAdditionalMessage("There was an error submitting your code. Please try again.");
         } finally {
           setProcessing(false);
         }
@@ -997,9 +1120,31 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                             <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
                               Expected Output
                             </h5>
-                                        </div>
+                        </div>
+
+                        {/* Output Tabs - Only show if both image and video are available */}
+                        {questionData?.image_path && questionData?.video_path && (
+                          <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                            <div className="d-flex">
+                              <button
+                                className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                onClick={() => setActiveOutputTab('image')}
+                                style={{ fontSize: "12px", padding: "4px 8px" }}
+                              >
+                                Image
+                              </button>
+                              <button
+                                className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                onClick={() => setActiveOutputTab('video')}
+                                style={{ fontSize: "12px", padding: "4px 8px" }}
+                              >
+                                Video
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         
-                        {/* Image Content with Scrollbar */}
+                        {/* Content with Scrollbar */}
                         <div 
                           className="flex-fill overflow-auto p-3 d-flex justify-content-center align-items-start"
                           style={{ 
@@ -1007,7 +1152,9 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                             scrollbarColor: "#c1c1c1 #f1f1f1"
                           }}
                         >
-                          {questionData?.image_path ? (
+                          {/* Show image if it's the active tab or if no video is available */}
+                          {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'image') || 
+                            (questionData?.image_path && !questionData?.video_path)) && (
                             <img 
                               src={questionData.image_path} 
                               className="img-fluid" 
@@ -1020,14 +1167,33 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                               }} 
                             />
-                          ) : (
+                          )}
+
+                          {/* Show video if it's the active tab or if no image is available */}
+                          {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'video') || 
+                            (!questionData?.image_path && questionData?.video_path)) && (
+                            <video 
+                              src={questionData.video_path} 
+                              className="img-fluid" 
+                              controls
+                              style={{ 
+                                maxWidth: '100%',
+                                height: 'auto',
+                                borderRadius: '4px',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                              }} 
+                            />
+                          )}
+
+                          {/* Show message if neither image nor video is available */}
+                          {!questionData?.image_path && !questionData?.video_path && (
                             <div className="text-center text-muted" style={{ padding: "20px" }}>
                               <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
-                              <p className="mt-2">No expected output image available</p>
+                              <p className="mt-2">No expected output available</p>
                             </div>
                           )}
                         </div>
-                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1140,13 +1306,13 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                               height: "30px"
                             }}
                             onClick={handleSubmit}
-                            disabled={processing || Object.values(submittedFiles).every(submitted => submitted)}
+                            disabled={processing || isSubmitted || !hasRunCode}
                           >
-                            {processing ? "PROCESSING..." : Object.values(submittedFiles).every(submitted => submitted) ? "SUBMITTED" : "SUBMIT"}
+                            {processing ? "PROCESSING..." : isSubmitted ? "SUBMITTED" : "SUBMIT"}
                           </button>
                           
                           {/* Next Button (only shown when question is completed) */}
-                          {Object.values(submittedFiles).every(submitted => submitted) &&
+                          {isSubmitted &&
                             <button
                               className="btn btn-sm btn-light processingDivButton"
                             style={{
@@ -1482,6 +1648,29 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                     Expected Output
                   </h5>
                   </div>
+
+                  {/* Output Tabs - Only show if both image and video are available */}
+                  {questionData?.image_path && questionData?.video_path && (
+                    <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                      <div className="d-flex">
+                        <button
+                          className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
+                          onClick={() => setActiveOutputTab('image')}
+                          style={{ fontSize: "12px", padding: "4px 8px" }}
+                        >
+                          Image
+                        </button>
+                        <button
+                          className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
+                          onClick={() => setActiveOutputTab('video')}
+                          style={{ fontSize: "12px", padding: "4px 8px" }}
+                        >
+                          Video
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div 
                     className="flex-fill overflow-auto p-3 d-flex justify-content-center align-items-start"
                     style={{ 
@@ -1489,7 +1678,9 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                       scrollbarColor: "#c1c1c1 #f1f1f1"
                     }}
                   >
-                    {questionData?.image_path ? (
+                    {/* Show image if it's the active tab or if no video is available */}
+                    {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'image') || 
+                      (questionData?.image_path && !questionData?.video_path)) && (
                       <img 
                         src={questionData.image_path} 
                         className="img-fluid" 
@@ -1502,10 +1693,29 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                         }} 
                       />
-                    ) : (
+                    )}
+
+                    {/* Show video if it's the active tab or if no image is available */}
+                    {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'video') || 
+                      (!questionData?.image_path && questionData?.video_path)) && (
+                      <video 
+                        src={questionData.video_path} 
+                        className="img-fluid" 
+                        controls
+                        style={{ 
+                          maxWidth: '100%',
+                          height: 'auto',
+                          borderRadius: '4px',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }} 
+                      />
+                    )}
+
+                    {/* Show message if neither image nor video is available */}
+                    {!questionData?.image_path && !questionData?.video_path && (
                       <div className="text-center text-muted" style={{ padding: "20px" }}>
                         <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
-                        <p className="mt-2">No expected output image available</p>
+                        <p className="mt-2">No expected output available</p>
                       </div>
                     )}
                   </div>
