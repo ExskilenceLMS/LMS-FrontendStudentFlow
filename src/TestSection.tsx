@@ -71,6 +71,7 @@ import { secretKey } from "./constants";
     const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
     const [questionStatuses, setQuestionStatuses] = useState<{[key: string]: string}>({});
     const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
+    const [isLoadingStatus, setIsLoadingStatus] = useState(false);
 
     // Use SWR for tables API with 1-day cache
     const tablesUrl = sessionStorage.getItem('TestSubject') === 'SQL' 
@@ -93,11 +94,14 @@ import { secretKey } from "./constants";
 
       const fetchQuestionStatus = async () => {
         const url=`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/status/${studentId}/${testId}/`
+        setIsLoadingStatus(true);
         try {
           const response = await getApiClient().get(url);
+          setIsLoadingStatus(false);
           return response.data;
         } catch (innerError: any) {
           console.error("Error submitting test:", innerError);
+          setIsLoadingStatus(false);
           return null;
         }
       };
@@ -341,7 +345,7 @@ import { secretKey } from "./constants";
             <div className="mb-3">
               <span className="fs-5">Section 1: MCQ</span>
               <span className="float-end">
-                Completed : {questionList.completed_questions}
+                Completed : {isLoadingStatus ? `-/${(questionList?.sections?.MCQ?.length || 0) + (questionList?.sections?.Coding?.length || 0)}` : (questionList?.completed_questions || '-')}
               </span>
             </div>
             
