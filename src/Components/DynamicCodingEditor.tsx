@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import QuestionNavigation from "./QuestionNavigation";
 import PythonCodeEditor from "./PythonCodeEditor";
 import SQLCodeEditor from "./SQLCodeEditor";
+import HTMLCSSEditor from "./HTMLCSSCodeEditor";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 
@@ -23,7 +24,7 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
 }) => {
   // ===== STATE MANAGEMENT =====
   
-  const [currentSubject, setCurrentSubject] = useState<'py' | 'sq'>('py');
+  const [currentSubject, setCurrentSubject] = useState<'py' | 'sq' | 'ht'>('py');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -101,12 +102,13 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
    * Determines the subject type from question ID
    * Extracts 2nd and 3rd letters from qn_id
    */
-  const getSubjectFromQuestion = (question: any): 'py' | 'sq' => {
+  const getSubjectFromQuestion = (question: any): 'py' | 'sq' | 'ht' => {
     const qnId = question.Qn_name || '';
     if (qnId.length >= 3) {
       const subjectCode = qnId.substring(1, 3).toLowerCase();
       if (subjectCode === 'py') return 'py';
       if (subjectCode === 'sq') return 'sq';
+      if (subjectCode === 'ht') return 'ht'; // HTML/CSS questions
     }
     return 'py'; // Default to Python
   };
@@ -236,12 +238,13 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
   /**
    * Handles subject change with loading state
    */
-  const handleSubjectChange = async (newSubject: 'py' | 'sq') => {
+  const handleSubjectChange = async (newSubject: 'py' | 'sq' | 'ht') => {
     if (newSubject === currentSubject) return;
     
     try {
       setLoading(true);
-      setSwitchingMessage(`Switching to ${newSubject === 'py' ? 'Python' : 'SQL'} editor...`);
+      const subjectName = newSubject === 'py' ? 'Python' : newSubject === 'sq' ? 'SQL' : 'HTML/CSS';
+      setSwitchingMessage(`Switching to ${subjectName} editor...`);
       
       // Simulate loading time for better UX
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -318,6 +321,11 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
     
     // For Python questions: check isSubmitted or status
     if (getSubjectFromQuestion(question) === 'py') {
+      return question.isSubmitted || question.status === true;
+    }
+    
+    // For HTML/CSS questions: check isSubmitted or status
+    if (getSubjectFromQuestion(question) === 'ht') {
       return question.isSubmitted || question.status === true;
     }
     
@@ -430,11 +438,21 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
                           nextButtonText={getNextButtonText()}
                           onQuestionSubmitted={markQuestionAsSubmitted}
                         />
-                      ) : (
+                      ) : currentSubject === 'sq' ? (
                         <SQLCodeEditor
                           questionData={questionData}
                           currentQuestionIndex={currentQuestionIndex}
                           onQuestionChange={handleSubjectChange}
+                          onNext={handleNext}
+                          showNextButton={shouldShowNextButton(questions[currentQuestionIndex])}
+                          nextButtonText={getNextButtonText()}
+                          onQuestionSubmitted={markQuestionAsSubmitted}
+                        />
+                      ) : (
+                        <HTMLCSSEditor
+                          questionData={questionData}
+                          currentQuestionIndex={currentQuestionIndex}
+                          onQuestionChange={handleQuestionChange}
                           onNext={handleNext}
                           showNextButton={shouldShowNextButton(questions[currentQuestionIndex])}
                           nextButtonText={getNextButtonText()}
