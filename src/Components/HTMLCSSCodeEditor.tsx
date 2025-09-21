@@ -99,6 +99,12 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     }
   };
 
+  // Decrypts data using AES decryption (matching Python editor pattern)
+  const decryptData = (encryptedData: string) => {
+    const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey);
+    return bytes.toString(CryptoJS.enc.Utf8);
+  };
+
   const studentId = decryptSessionValue('StudentId');
   const testId = decryptSessionValue('TestId');
   
@@ -147,6 +153,15 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     
     // Clear editor instances for fresh start - exactly like practice editor
     setEditorInstances({});
+    
+    // Reset additional states for fresh question
+    setTestResults({});
+    setStructureResults({});
+    setSelectedTestCaseIndex(null);
+    setSuccessMessage('');
+    setAdditionalMessage('');
+    setHasRunCode(false);
+    setIsSubmitted(false);
     
     // Initialize file contents from Code_Validation - exactly like practice editor
     const fileContents: {[key: string]: string} = {};
@@ -243,6 +258,13 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     }
   }, [questionData, handleQuestionChange]);
 
+  // Ensure activeTab is set when questionData is available
+  useEffect(() => {
+    if (questionData?.Tabs && questionData.Tabs.length > 0 && !activeTab) {
+      setActiveTab(questionData.Tabs[0].name);
+    }
+  }, [questionData?.Tabs, activeTab]);
+
 
   const handleTabClick = (fileName: string) => {
     setActiveTab(fileName);
@@ -263,8 +285,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
 
   // Helper function to get current file content
   const getCurrentFileContent = useCallback((): string => {
-    return fileContents[activeTab] || '';
-  }, [fileContents, activeTab]);
+    const currentActiveTab = activeTab || (questionData?.Tabs && questionData.Tabs.length > 0 ? questionData.Tabs[0].name : '');
+    return fileContents[currentActiveTab] || '';
+  }, [fileContents, activeTab, questionData?.Tabs]);
 
   // Helper function to update file content
   const updateFileContent = (fileName: string, content: string) => {
@@ -278,7 +301,12 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
 
   
   const onChangeFileContent = useCallback((value: string, viewUpdate: any) => {
-    updateFileContent(activeTab, value);
+    // Ensure we have an active tab, fallback to first tab if none selected
+    const currentActiveTab = activeTab || (questionData?.Tabs && questionData.Tabs.length > 0 ? questionData.Tabs[0].name : '');
+    
+    if (!currentActiveTab) return;
+    
+    updateFileContent(currentActiveTab, value);
     
     if (questionData?.Qn_name && !processing && !isSubmitted) {
       // Create a dynamic object with all current file contents
@@ -290,12 +318,12 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
       });
       
       // Update the current file content before saving
-      codeToSave[activeTab] = value;
+      codeToSave[currentActiveTab] = value;
       
       const encryptedCode = CryptoJS.AES.encrypt(JSON.stringify(codeToSave), secretKey).toString();
       sessionStorage.setItem(`userCode_${testId}_${questionData.Qn_name}`, encryptedCode);
     }
-  }, [activeTab, fileContents, questionData?.Qn_name, processing, testId, isSubmitted]);
+  }, [activeTab, fileContents, questionData?.Qn_name, questionData?.Tabs, processing, testId, isSubmitted]);
 
   // HTML Structure Validation using regex
   const validateHTMLStructure = (htmlCode: string, tag: string, attributes: any, parentTag?: string, content?: string, parentAttributes?: any): boolean => {
@@ -733,8 +761,17 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
   
 
   const renderEditor = useCallback(() => {
-    const fileType = getFileType(activeTab);
-    const currentContent = getCurrentFileContent();
+    // Ensure we have an active tab, fallback to first tab if none selected
+    const currentActiveTab = activeTab || (questionData?.Tabs && questionData.Tabs.length > 0 ? questionData.Tabs[0].name : '');
+    
+    if (!currentActiveTab) {
+      return <div className="d-flex align-items-center justify-content-center h-100">
+        <div className="text-muted">No files available</div>
+      </div>;
+    }
+    
+    const fileType = getFileType(currentActiveTab);
+    const currentContent = fileContents[currentActiveTab] || '';
     
     let extensions: any[] = [];
     if (fileType === 'html') {
@@ -745,7 +782,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     
         return (
           <CodeMirror
-            key={`${activeTab}-${questionData?.Qn_name}`} // Stable key for each file and question
+            key={`${currentActiveTab}-${questionData?.Qn_name}`} // Stable key for each file and question
             className="text-xl text-start custom-codemirror"
             value={currentContent}
             height="100%"
@@ -766,7 +803,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             }}
           />
         );
-  }, [activeTab, questionData?.Qn_name, onChangeFileContent]);
+  }, [activeTab, questionData?.Qn_name, questionData?.Tabs, fileContents, onChangeFileContent]);
 
   // Generate HTML preview with dynamic file processing
   const generateHTMLPreview = (files: {[key: string]: string}) => {
@@ -899,7 +936,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
 
       const handleSubmit = async () => {
         setProcessing(true);
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/frontend/submit/`;
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/frontend/`;
         
         try {
           // Get all HTML files and their content
@@ -954,18 +991,23 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
           const questionScore = questionData?.score || "0/10";
           const maxScore = parseInt(questionScore.split('/')[1]);
           
-          // Get additional required fields from session storage
-          const decryptedBatchId = decryptSessionValue('BatchId', 'batch4');
-          const decryptedCourseId = decryptSessionValue('CourseId', 'course1');
-          const subjectId = decryptSessionValue('SubjectId');
-          const subject = decryptSessionValue('Subject');
-          const weekNumber = decryptSessionValue('WeekNumber');
-          const dayNumber = decryptSessionValue('DayNumber');
+          // Get additional required fields from session storage (matching Python editor pattern)
+          const decryptedBatchId = decryptData(sessionStorage.getItem("BatchId") || "");
+          const decryptedCourseId = sessionStorage.getItem('CourseId') ? 
+            CryptoJS.AES.decrypt(sessionStorage.getItem('CourseId')!, secretKey).toString(CryptoJS.enc.Utf8) : "course19";
+          
+          // Use same pattern as Python editor
+          const subjectId = decryptData(sessionStorage.getItem("TestSubjectId") || "");
+          const subject = sessionStorage.getItem("TestSubject") || "";
+          
+          const weekNumber = decryptSessionValue('WeekNumber', '0');
+          const dayNumber = decryptSessionValue('DayNumber', '0');
           
           const postData = {
             student_id: studentId,
             question_id: questionData?.Qn_name,
             question_done_at: testId,
+            test_id: testId,
             subject_id: subjectId,
             batch_id: decryptedBatchId,
             course_id: decryptedCourseId,
@@ -980,6 +1022,16 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             JS_Code: jsCode,
             JS_Result: jsResult
           };
+
+          // Debug: Log the values being sent (matching Python editor pattern)
+          console.log('Subject data being sent:', {
+            subject_id: subjectId,
+            subject: subject,
+            batch_id: decryptedBatchId,
+            course_id: decryptedCourseId,
+            week_number: weekNumber,
+            day_number: dayNumber
+          });
     
           const response = await getApiClient().post(
             url,
@@ -1075,7 +1127,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
   }
 
   return (
-    <div className="container-fluid p-0" style={{ height: 'calc(100vh - 70px)', overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
+    <div key={questionData?.Qn_name || 'default'} className="container-fluid p-0" style={{ height: 'calc(100vh - 70px)', overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
       <div className="p-0 my-0" style={{ backgroundColor: "#F2EEEE", marginRight: '10px' }}>
         <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
           <div className="row g-2">
@@ -1169,6 +1221,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                           {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'image') || 
                             (questionData?.image_path && !questionData?.video_path)) && (
                             <img 
+                              key={`image-${questionData?.Qn_name}`}
                               src={questionData.image_path} 
                               className="img-fluid" 
                               alt="Expected Output" 
@@ -1186,6 +1239,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                           {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'video') || 
                             (!questionData?.image_path && questionData?.video_path)) && (
                             <video 
+                              key={`video-${questionData?.Qn_name}`}
                               src={questionData.video_path} 
                               className="img-fluid" 
                               controls
@@ -1689,6 +1743,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                     {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'image') || 
                       (questionData?.image_path && !questionData?.video_path)) && (
                       <img 
+                        key={`maximized-image-${questionData?.Qn_name}`}
                         src={questionData.image_path} 
                         className="img-fluid" 
                         alt="Expected Output" 
@@ -1706,6 +1761,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                     {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'video') || 
                       (!questionData?.image_path && questionData?.video_path)) && (
                       <video 
+                        key={`maximized-video-${questionData?.Qn_name}`}
                         src={questionData.video_path} 
                         className="img-fluid" 
                         controls
