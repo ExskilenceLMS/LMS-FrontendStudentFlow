@@ -10,6 +10,7 @@ import SkeletonCode from "../Components/EditorSkeletonCode"
 import { secretKey } from "../constants";
 import { QUESTION_STATUS } from "../constants/constants";
 import { autoSaveHTMLCode, getAutoSavedHTMLCode, cleanupAutoSavedHTMLCode } from "../utils/autoSaveUtils";
+import { validateBasicHTMLStructure } from "../utils/htmlStructureValidation";
 import CryptoJS from "crypto-js";
 
 interface Tab {
@@ -559,6 +560,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     });
   };
 
+
   // Main validation function - checks all requirements (structure + attributes)
   const validateCode = (code: string, fileName: string, questionData: any) => {
     const fileValidation = questionData?.Code_Validation[fileName];
@@ -566,6 +568,15 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     
     const structure = fileValidation.structure;
     const type = fileName.endsWith('.html') ? 'HTML' : fileName.endsWith('.css') ? 'CSS' : 'JS';
+    
+    // For HTML files, first check basic structure
+    if (type === 'HTML') {
+      const basicStructureCheck = validateBasicHTMLStructure(code);
+      if (!basicStructureCheck.isValid) {
+        // Return all false results if basic structure is missing
+        return structure.map(() => false);
+      }
+    }
     
     // Get structure validation results
     const structureResults = validateStructure(code, fileName, questionData);
@@ -711,6 +722,41 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     // Validate only the current active file
     if (questionData && activeTab) {
       const currentCode = getCurrentFileContent();
+      
+      // First check basic HTML structure for HTML files
+      if (activeTab.endsWith('.html')) {
+        const basicStructureCheck = validateBasicHTMLStructure(currentCode);
+        if (!basicStructureCheck.isValid) {
+          let errorMessage = '';
+          
+          if (basicStructureCheck.missingElements.length > 0) {
+            errorMessage += `Missing elements: ${basicStructureCheck.missingElements.join(', ')}. `;
+          }
+          
+          if (basicStructureCheck.structureErrors.length > 0) {
+            errorMessage += `Structure errors: ${basicStructureCheck.structureErrors.join(', ')}.`;
+          }
+          
+          setSuccessMessage("Fix HTML Structure");
+          setAdditionalMessage(errorMessage);
+          setHasRunCode(true);
+          
+          // Clear test results when structure validation fails
+          setTestResults(prev => ({
+            ...prev,
+            [activeTab]: []
+          }));
+          setStructureResults(prev => ({
+            ...prev,
+            [activeTab]: []
+          }));
+          
+          setActiveSection('testcases');
+          setSelectedTestCaseIndex(null);
+          return; // Stop validation here if basic structure is missing
+        }
+      }
+      
       const results = validateCode(currentCode, activeTab, questionData);
       const structureValidationResults = validateStructure(currentCode, activeTab, questionData);
       
@@ -822,16 +868,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
       return '';
     }
 
-    // Ensure we have a complete HTML document
-    if (!htmlContent.includes('<html')) {
-      htmlContent = htmlContent;
-    }
-    if (!htmlContent.includes('<head')) {
-      htmlContent = htmlContent.replace('<html>', '<html>\n<head>\n<title>Preview</title>\n</head>');
-    }
-    if (!htmlContent.includes('<body')) {
-      htmlContent = htmlContent.replace('</head>', '</head>\n<body>') + '\n</body>';
-    }
+    // Don't auto-fix missing HTML structure - let validation handle this
+    // The preview should show the actual student code as-is
 
     let htmlWithDataUrl = htmlContent;
     
@@ -1022,16 +1060,6 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             JS_Code: jsCode,
             JS_Result: jsResult
           };
-
-          // Debug: Log the values being sent (matching Python editor pattern)
-          console.log('Subject data being sent:', {
-            subject_id: subjectId,
-            subject: subject,
-            batch_id: decryptedBatchId,
-            course_id: decryptedCourseId,
-            week_number: weekNumber,
-            day_number: dayNumber
-          });
     
           const response = await getApiClient().post(
             url,
