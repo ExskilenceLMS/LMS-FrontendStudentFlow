@@ -5,3 +5,7 @@ export const SUBJECT_ROADMAP = {
   UPDATED: "Updated",
   PRACTICE: "Practice"
 } as const;
+
+export const QUESTION_STATUS = {
+  PRACTICE: "practice"
+} as const;
