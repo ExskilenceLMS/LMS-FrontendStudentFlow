@@ -107,9 +107,6 @@ const HTMLCSSEditor: React.FC = () => {
         
         const response = await getApiClient().get(url);
         const apiQuestions = response.data.questions;
-        
-        // Process questions and handle saved code
-        console.log('API Questions data:', apiQuestions);
         const questionsWithSavedCode = apiQuestions.map((q: any) => {
           // Check for saved code in session storage
           const savedCodeKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${q.Qn_name}`;
@@ -191,8 +188,6 @@ const HTMLCSSEditor: React.FC = () => {
           Object.keys(currentQuestion.Code_Validation).forEach(fileName => {
             // Check if question is submitted and has entered_ans
             if (currentQuestion.status === true && currentQuestion.entered_ans && currentQuestion.entered_ans[fileName]) {
-              // Use submitted answer if available
-              console.log('Loading from entered_ans for', fileName, ':', currentQuestion.entered_ans[fileName]);
               fileContents[fileName] = currentQuestion.entered_ans[fileName];
             } else if (fileName === 'index.html') {
               // Use defaulttemplate for index.html if not submitted
@@ -287,8 +282,6 @@ const HTMLCSSEditor: React.FC = () => {
       Object.keys(question.Code_Validation).forEach(fileName => {
         // Check if question is submitted and has entered_ans
         if (question.status === true && question.entered_ans && question.entered_ans[fileName]) {
-          // Use submitted answer if available
-          console.log('Loading from entered_ans for', fileName, ':', question.entered_ans[fileName]);
           fileContents[fileName] = question.entered_ans[fileName];
         } else if (fileName === 'index.html') {
           // Use defaulttemplate for index.html if not submitted
