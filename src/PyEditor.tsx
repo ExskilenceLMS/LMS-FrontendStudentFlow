@@ -1527,32 +1527,8 @@ Write your Code here.`}
                                               if (response?.result?.parsed_results?.[selectedTestCaseIndex] && response.result.parsed_results[selectedTestCaseIndex].result !== undefined && response.result.parsed_results[selectedTestCaseIndex].result !== null) {
                                                 const value = response.result.parsed_results[selectedTestCaseIndex].result;
                                                 if (Array.isArray(value)) {
-                                                  // Handle array of values (each on new line)
-                                                  return value.map((item: any, index: number) => {
-                                                    const itemString = String(item);
-                                                    // Replace literal '\n' strings with actual line breaks
-                                                    if (itemString.includes('\\n')) {
-                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
-                                                        <React.Fragment key={`${index}-${lineIndex}`}>
-                                                          {line}
-                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
-                                                        </React.Fragment>
-                                                      ));
-                                                    } else if (itemString.includes('\n')) {
-                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
-                                                        <React.Fragment key={`${index}-${lineIndex}`}>
-                                                          {line}
-                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
-                                                        </React.Fragment>
-                                                      ));
-                                                    }
-                                                    return (
-                                                      <React.Fragment key={index}>
-                                                        {itemString}
-                                                        {index < value.length - 1 && <br />}
-                                                      </React.Fragment>
-                                                    );
-                                                  });
+                                                  // Display array in proper format with brackets
+                                                  return `[${value.join(', ')}]`;
                                                 } else {
                                                   // Handle single value with potential newlines
                                                   const stringValue = String(value);
@@ -1717,32 +1693,8 @@ Write your Code here.`}
                                               if (response?.result?.parsed_results?.[selectedTestCaseIndex] && response.result.parsed_results[selectedTestCaseIndex].result !== undefined && response.result.parsed_results[selectedTestCaseIndex].result !== null) {
                                                 const value = response.result.parsed_results[selectedTestCaseIndex].result;
                                                 if (Array.isArray(value)) {
-                                                  // Handle array of values (each on new line)
-                                                  return value.map((item: any, index: number) => {
-                                                    const itemString = String(item);
-                                                    // Replace literal '\n' strings with actual line breaks
-                                                    if (itemString.includes('\\n')) {
-                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
-                                                        <React.Fragment key={`${index}-${lineIndex}`}>
-                                                          {line}
-                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
-                                                        </React.Fragment>
-                                                      ));
-                                                    } else if (itemString.includes('\n')) {
-                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
-                                                        <React.Fragment key={`${index}-${lineIndex}`}>
-                                                          {line}
-                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
-                                                        </React.Fragment>
-                                                      ));
-                                                    }
-                                                    return (
-                                                      <React.Fragment key={index}>
-                                                        {itemString}
-                                                        {index < value.length - 1 && <br />}
-                                                      </React.Fragment>
-                                                    );
-                                                  });
+                                                  // Display array in proper format with brackets
+                                                  return `[${value.join(', ')}]`;
                                                 } else {
                                                   // Handle single value with potential newlines
                                                   const stringValue = String(value);
