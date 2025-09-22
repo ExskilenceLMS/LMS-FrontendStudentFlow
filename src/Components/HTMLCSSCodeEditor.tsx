@@ -1022,16 +1022,6 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             JS_Code: jsCode,
             JS_Result: jsResult
           };
-
-          // Debug: Log the values being sent (matching Python editor pattern)
-          console.log('Subject data being sent:', {
-            subject_id: subjectId,
-            subject: subject,
-            batch_id: decryptedBatchId,
-            course_id: decryptedCourseId,
-            week_number: weekNumber,
-            day_number: dayNumber
-          });
     
           const response = await getApiClient().post(
             url,
