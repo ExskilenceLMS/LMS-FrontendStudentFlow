@@ -167,6 +167,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     setStructureErrorMessage('');
     setHasRunCode(false);
     setIsSubmitted(false);
+    setActiveSection('output');
+    setActiveOutputTab('image');
     
     // Initialize file contents from Code_Validation - exactly like practice editor
     const fileContents: {[key: string]: string} = {};
