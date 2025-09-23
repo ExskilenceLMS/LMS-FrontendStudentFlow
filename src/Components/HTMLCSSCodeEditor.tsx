@@ -1364,8 +1364,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                             <h5 className="m-0 processingDivHeadingTag">Processing...</h5>
                           ) : (
                             <>
-                              {successMessage && <h5 className="m-0 ps-1" style={{ fontSize: '14px' }}>{successMessage}</h5>}
-                              {additionalMessage && <p className="processingDivParaTag m-0 ps-1" style={{ fontSize: "10px" }}>{additionalMessage}</p>}
+                              {successMessage && <h5 className={`m-0 ps-1 ${successMessage === "Congratulations!" ? 'text-success' : 'text-danger'}`} style={{ fontSize: '14px' }}>{successMessage}</h5>}
+                              {additionalMessage && <p className={`processingDivParaTag m-0 ps-1 ${successMessage === "Congratulations!" ? 'text-success' : 'text-danger'}`} style={{ fontSize: "10px" }}>{additionalMessage}</p>}
                             </>
                           )}
                         </div>
