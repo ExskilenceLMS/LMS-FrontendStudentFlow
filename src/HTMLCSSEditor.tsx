@@ -1241,7 +1241,7 @@ const HTMLCSSEditor: React.FC = () => {
                     ))}
                   </div>
                   {/* ===== PROBLEM STATEMENT PANEL ===== */}
-                  <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
+                  <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px",  borderRight: "2px solid #dee2e6" }}>
                     <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533", display: "flex", flexDirection: "column" }}>
                       
                       {/* ===== FIRST ROW - PROBLEM STATEMENT & REQUIREMENTS (50%) ===== */}
@@ -1292,9 +1292,9 @@ const HTMLCSSEditor: React.FC = () => {
                             <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
                               Expected Output
                             </h5>
-                            {/* Image and Video buttons */}
-                            <div className="d-flex">
-                              {questionData?.image_path && (
+                            {/* Image and Video buttons - only show if both are available */}
+                            {questionData?.image_path && questionData?.video_path && (
+                              <div className="d-flex">
                                 <button
                                   className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
                                   onClick={() => setActiveOutputTab('image')}
@@ -1302,8 +1302,6 @@ const HTMLCSSEditor: React.FC = () => {
                                 >
                                   Image
                                 </button>
-                              )}
-                              {questionData?.video_path && (
                                 <button
                                   className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
                                   onClick={() => setActiveOutputTab('video')}
@@ -1311,8 +1309,8 @@ const HTMLCSSEditor: React.FC = () => {
                                 >
                                   Video
                                 </button>
-                              )}
-                            </div>
+                              </div>
+                            )}
                         </div>
                         
                         {/* Content with Scrollbar */}
@@ -1393,31 +1391,20 @@ const HTMLCSSEditor: React.FC = () => {
                              }}
                            >
                             {questionData?.Tabs.map((tab, index) => (
-                                <div
+                                <button
                                     key={index}
-                                    style={{
-                                     minWidth: 'fit-content',
-                                     width: 'auto',
-                                        height: '30px',
-                                        borderRadius: '10px',
-                                     backgroundColor: activeTab === tab.name ? "black" : "transparent",
-                                     color: activeTab === tab.name ? "white" : "black",
-                                     border: activeTab === tab.name ? "none" : "1px solid black",
-                                        display: 'inline-block',
-                                        textAlign: 'center',
-                                        lineHeight: '30px',
-                                        marginRight: '8px',
-                                     cursor: 'pointer',
-                                     padding: '0 12px',
-                                     whiteSpace: 'nowrap',
-                                     flexShrink: 0
+                                    className={`btn me-2 ${activeTab === tab.name ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={() => handleTabClick(tab.name)}
+                                    style={{ 
+                                      fontSize: "12px", 
+                                      padding: "4px 8px",
+                                      whiteSpace: 'nowrap',
+                                      flexShrink: 0
                                     }}
-                                   className={`tab-button me-1 ${activeTab === tab.name ? 'selected-tab' : ''}`}
-                                   onClick={() => handleTabClick(tab.name)}
-                                   title={tab.name} // Show full filename on hover
+                                    title={tab.name} // Show full filename on hover
                                 >
                                    {tab.name}
-                                </div>
+                                </button>
                             ))}
                            </div>
                            <FontAwesomeIcon 
@@ -1795,9 +1782,9 @@ const HTMLCSSEditor: React.FC = () => {
                     <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
                     Expected Output
                   </h5>
-                    {/* Image and Video buttons */}
-                    <div className="d-flex">
-                      {questionData?.image_path && (
+                    {/* Image and Video buttons - only show if both are available */}
+                    {questionData?.image_path && questionData?.video_path && (
+                      <div className="d-flex">
                         <button
                           className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
                           onClick={() => setActiveOutputTab('image')}
@@ -1805,8 +1792,6 @@ const HTMLCSSEditor: React.FC = () => {
                         >
                           Image
                         </button>
-                      )}
-                      {questionData?.video_path && (
                         <button
                           className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
                           onClick={() => setActiveOutputTab('video')}
@@ -1814,8 +1799,8 @@ const HTMLCSSEditor: React.FC = () => {
                         >
                           Video
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   <div 
@@ -1879,28 +1864,37 @@ const HTMLCSSEditor: React.FC = () => {
               display: 'flex',
               flexDirection: 'column'
             }}>
-              {/* Filename display on top of editor */}
+              {/* File tabs on top of editor */}
               <div className="bg-light border-bottom p-2 d-flex align-items-center">
                 <div 
-                  style={{
-                    minWidth: 'fit-content',
-                    width: 'auto',
-                    height: '30px',
-                    borderRadius: '10px',
-                    backgroundColor: "black",
-                    color: "white",
-                    border: "none",
-                    display: 'inline-block',
-                    textAlign: 'center',
-                    lineHeight: '30px',
-                    marginRight: '8px',
-                    padding: '0 12px',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
+                  className="d-flex"
+                  style={{ 
+                    flexWrap: 'nowrap',
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#c1c1c1 #f1f1f1",
+                    flex: 1,
+                    minWidth: 0,
+                    maxWidth: '100%'
                   }}
-                  className="tab-button"
                 >
-                  {activeTab}
+                  {questionData?.Tabs.map((tab, index) => (
+                    <button
+                      key={index}
+                      className={`btn me-2 ${activeTab === tab.name ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => handleTabClick(tab.name)}
+                      style={{ 
+                        fontSize: "12px", 
+                        padding: "4px 8px",
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                      title={tab.name}
+                    >
+                      {tab.name}
+                    </button>
+                  ))}
                 </div>
               </div>
               {/* Editor area */}
