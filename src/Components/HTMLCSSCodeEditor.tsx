@@ -1235,33 +1235,32 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                       {/* ===== THIRD ROW - EXPECTED OUTPUT (50%) ===== */}
                       <div className="px-3" style={{ height: "50%", display: "flex", flexDirection: "column" }}>
                         {/* Expected Output Header */}
-                        <div className="py-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                        <div className="py-2 d-flex justify-content-between align-items-center" style={{ borderBottom: "1px solid #e9ecef" }}>
                             <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
                               Expected Output
                             </h5>
-                        </div>
-
-                        {/* Output Tabs - Only show if both image and video are available */}
-                        {questionData?.image_path && questionData?.video_path && (
-                          <div className="py-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                            {/* Image and Video buttons */}
                             <div className="d-flex">
-                              <button
-                                className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
-                                onClick={() => setActiveOutputTab('image')}
-                                style={{ fontSize: "12px", padding: "4px 8px" }}
-                              >
-                                Image
-                              </button>
-                              <button
-                                className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
-                                onClick={() => setActiveOutputTab('video')}
-                                style={{ fontSize: "12px", padding: "4px 8px" }}
-                              >
-                                Video
-                              </button>
+                              {questionData?.image_path && (
+                                <button
+                                  className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                  onClick={() => setActiveOutputTab('image')}
+                                  style={{ fontSize: "12px", padding: "4px 8px" }}
+                                >
+                                  Image
+                                </button>
+                              )}
+                              {questionData?.video_path && (
+                                <button
+                                  className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                  onClick={() => setActiveOutputTab('video')}
+                                  style={{ fontSize: "12px", padding: "4px 8px" }}
+                                >
+                                  Video
+                                </button>
+                              )}
                             </div>
-                          </div>
-                        )}
+                        </div>
                         
                         {/* Content with Scrollbar */}
                         <div 
@@ -1327,7 +1326,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                     
                     {/* ===== CODE EDITOR ===== */}
                     <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
-                    <div className="border-bottom border-dark p-3 d-flex justify-content-between align-items-center">
+                    <div className="border-bottom border-dark p-1 d-flex justify-content-between align-items-center">
                          <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0 }}>
                            <div 
                              className="d-flex"
@@ -1372,7 +1371,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                            </div>
                            <FontAwesomeIcon 
                              icon={faExpand} 
-                             className='text-dark ms-2 me-1' 
+                             className='text-dark ms-2 me-2' 
                              onClick={() => setIsMaximized(true)} 
                              style={{ cursor: 'pointer', fontSize: "16px", flexShrink: 0 }} 
                            />
@@ -1735,16 +1734,13 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                   display: 'flex', 
                   flexDirection: 'column'
                 }}>
-                  <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                  <div className="p-2 d-flex justify-content-between align-items-center" style={{ borderBottom: "1px solid #e9ecef" }}>
                     <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
                     Expected Output
                   </h5>
-                  </div>
-
-                  {/* Output Tabs - Only show if both image and video are available */}
-                  {questionData?.image_path && questionData?.video_path && (
-                    <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
-                      <div className="d-flex">
+                    {/* Image and Video buttons */}
+                    <div className="d-flex">
+                      {questionData?.image_path && (
                         <button
                           className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
                           onClick={() => setActiveOutputTab('image')}
@@ -1752,6 +1748,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                         >
                           Image
                         </button>
+                      )}
+                      {questionData?.video_path && (
                         <button
                           className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
                           onClick={() => setActiveOutputTab('video')}
@@ -1759,9 +1757,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                         >
                           Video
                         </button>
-                      </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   <div 
                     className="flex-fill overflow-auto p-3 d-flex justify-content-center align-items-start"
