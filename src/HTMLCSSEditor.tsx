@@ -371,6 +371,11 @@ const HTMLCSSEditor: React.FC = () => {
        setStructureResults({});
        setSelectedTestCaseIndex(null);
        setActiveSection('output');
+       
+       // Clear all messages and status for new question
+       setSuccessMessage('');
+       setAdditionalMessage('');
+       setStructureErrorMessage('');
      }
    };
 

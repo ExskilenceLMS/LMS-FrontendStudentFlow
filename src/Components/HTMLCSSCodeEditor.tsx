@@ -164,6 +164,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     setSelectedTestCaseIndex(null);
     setSuccessMessage('');
     setAdditionalMessage('');
+    setStructureErrorMessage('');
     setHasRunCode(false);
     setIsSubmitted(false);
     
