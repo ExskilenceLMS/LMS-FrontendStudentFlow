@@ -117,7 +117,8 @@ function AppContent() {
   // Check if user is on login page
   const isOnLoginPage = () => {
     const currentPath = location.pathname;
-    const isLogin = currentPath === "/";
+    const loginPath = process.env.REACT_APP_LOGIN_PATH;
+    const isLogin = currentPath === `/${loginPath}/login`;
     return isLogin;
   };
 
