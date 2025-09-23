@@ -29,10 +29,13 @@ import PythonContentTester from './PythonContentTester';
 import DynamicCodingEditorWrapper from './Components/DynamicCodingEditorWrapper';
 
 const AppRoutes = () => {
+  const showMaintenance = process.env.REACT_APP_SHOW_MAINTENANCE === 'true';
+  const loginPath = process.env.REACT_APP_LOGIN_PATH;
+  
   return (
           <Routes>
-        <Route path="/" element={<Maintenance />} />
-        <Route path={`/${process.env.REACT_APP_LOGIN_PATH}/login`} element={<Login />} />
+        <Route path="/" element={showMaintenance ? <Maintenance /> : <Login />} />
+        {showMaintenance && <Route path={`/${loginPath}/login`} element={<Login />} />}
         {/* Public route for Python content testing - no login required */}
         <Route path="/python-content-tester" element={<PythonContentTester />} />
         <Route element={<ProtectedRoute />}>
