@@ -69,6 +69,7 @@ const HTMLCSSEditor: React.FC = () => {
   const [structureResults, setStructureResults] = useState<{[key: string]: boolean[]}>({});
   const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
   const [activeOutputTab, setActiveOutputTab] = useState('image');
+  const [structureErrorMessage, setStructureErrorMessage] = useState<string>('');
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
@@ -825,8 +826,9 @@ const HTMLCSSEditor: React.FC = () => {
             errorMessage += `Structure errors: ${basicStructureCheck.structureErrors.join(', ')}.`;
           }
           
-          setSuccessMessage("Fix HTML Structure");
-          setAdditionalMessage(errorMessage);
+          setSuccessMessage("Wrong Answer");
+          setAdditionalMessage("You have not passed all the test cases.");
+          setStructureErrorMessage(errorMessage);
           setHasRunCode(true);
           
           // Clear test results when structure validation fails
@@ -839,8 +841,6 @@ const HTMLCSSEditor: React.FC = () => {
             [activeTab]: []
           }));
           
-          // Keep current tab active - don't switch to test cases automatically
-          // setActiveSection('testcases');
           setSelectedTestCaseIndex(null);
           return; // Stop validation here if basic structure is missing
         }
@@ -864,6 +864,9 @@ const HTMLCSSEditor: React.FC = () => {
       // Mark that code has been run
       setHasRunCode(true);
       
+      // Clear structure error message for successful validation
+      setStructureErrorMessage('');
+      
       // Auto-save code when running (only if not submitted)
       if (!isSubmitted) {
         const codeToSave: {[key: string]: string} = {};
@@ -875,8 +878,6 @@ const HTMLCSSEditor: React.FC = () => {
         autoSaveHTMLCode(codeToSave, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
       }
       
-      // Keep current tab active - don't switch to test cases automatically
-      // setActiveSection('testcases');
       setSelectedTestCaseIndex(0);
       
       // Calculate success rate
@@ -1508,17 +1509,28 @@ const HTMLCSSEditor: React.FC = () => {
 
                         {/* ===== HTML/CSS OUTPUT ===== */}
                         {activeSection === 'output' && (
-                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
-                    <iframe
-                    style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
-                    className="w-full h-full"
-                    srcDoc={srcCode}
-                    title="output"
-                    sandbox="allow-scripts"
-                    width="100%"
-                    height="100%"
-                    ></iframe>
-                </div>
+                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto", display: "flex", flexDirection: "column" }}>
+                            {/* Structure Error Display */}
+                            {hasRunCode && activeTab.endsWith('.html') && testResults[activeTab] && testResults[activeTab].length === 0 && structureErrorMessage && (
+                              <div className="alert alert-warning m-0 me-3 align-self-center" style={{ fontSize: "12px", padding: "8px 12px", margin: "0 0 10px 0" }}>
+                                <strong>HTML Structure Error:</strong>
+                                {structureErrorMessage}
+                              </div>
+                            )}
+                            
+                            {/* Output iframe */}
+                            <div style={{ flex: 1, minHeight: 0 }}>
+                              <iframe
+                                style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
+                                className="w-full h-full"
+                                srcDoc={srcCode}
+                                title="output"
+                                sandbox="allow-scripts"
+                                width="100%"
+                                height="100%"
+                              ></iframe>
+                            </div>
+                          </div>
                         )}
                         
                         {/* ===== TEST CASES SECTION ===== */}
@@ -1719,16 +1731,6 @@ const HTMLCSSEditor: React.FC = () => {
           {/* Main content area */}
           <div style={{ flex: 1, display: 'flex', margin: '10px', gap: '10px' }}>
             {/* Editor area */}
-            <div style={{ 
-              width: showRequirement ? '60%' : '100%', 
-              backgroundColor: 'white', 
-              borderRadius: '4px',
-              transition: 'width 0.3s ease'
-            }}>
-              {renderEditor()}
-            </div>
-            
-            {/* Requirement panel - only shown when showRequirement is true */}
             {showRequirement && (
               <div style={{ 
                 width: '40%',
@@ -1869,6 +1871,13 @@ const HTMLCSSEditor: React.FC = () => {
                 </div>
               </div>
             )}
+            <div style={{ 
+              width: showRequirement ? '60%' : '100%', 
+              backgroundColor: 'white', 
+              borderRadius: '4px'
+            }}>
+              {renderEditor()}
+            </div>
           </div>
         </div>
       )}

@@ -84,6 +84,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
   const [structureResults, setStructureResults] = useState<{[key: string]: boolean[]}>({});
   const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
   const [activeOutputTab, setActiveOutputTab] = useState('image');
+  const [structureErrorMessage, setStructureErrorMessage] = useState<string>('');
   const hasLoadedAutoSavedCode = useRef(false);
   // Helper function to safely decrypt session storage values
   const decryptSessionValue = (key: string, defaultValue: string = ''): string => {
@@ -737,8 +738,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             errorMessage += `Structure errors: ${basicStructureCheck.structureErrors.join(', ')}.`;
           }
           
-          setSuccessMessage("Fix HTML Structure");
-          setAdditionalMessage(errorMessage);
+          setSuccessMessage("Wrong Answer");
+          setAdditionalMessage("You have not passed all the test cases.");
+          setStructureErrorMessage(errorMessage);
           setHasRunCode(true);
           
           // Clear test results when structure validation fails
@@ -773,6 +775,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
       
       // Mark that code has been run
       setHasRunCode(true);
+      
+      // Clear structure error message for successful validation
+      setStructureErrorMessage('');
       
       // Auto-save to backend when running (not session storage)
       const codeToSave: {[key: string]: string} = {};
@@ -1447,17 +1452,28 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
 
                         {/* ===== HTML/CSS OUTPUT ===== */}
                         {activeSection === 'output' && (
-                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
-                    <iframe
-                    style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
-                    className="w-full h-full"
-                    srcDoc={srcCode}
-                    title="output"
-                    sandbox="allow-scripts"
-                    width="100%"
-                    height="100%"
-                    ></iframe>
-                </div>
+                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto", display: "flex", flexDirection: "column" }}>
+                            {/* Structure Error Display */}
+                            {hasRunCode && activeTab.endsWith('.html') && testResults[activeTab] && testResults[activeTab].length === 0 && structureErrorMessage && (
+                              <div className="alert alert-warning m-0 me-3 align-self-center" style={{ fontSize: "12px", padding: "8px 12px", margin: "0 0 10px 0" }}>
+                                <strong>HTML Structure Error:</strong>
+                                {structureErrorMessage}
+                              </div>
+                            )}
+                            
+                            {/* Output iframe */}
+                            <div style={{ flex: 1, minHeight: 0 }}>
+                              <iframe
+                                style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
+                                className="w-full h-full"
+                                srcDoc={srcCode}
+                                title="output"
+                                sandbox="allow-scripts"
+                                width="100%"
+                                height="100%"
+                              ></iframe>
+                            </div>
+                          </div>
                         )}
                         
                         {/* ===== TEST CASES SECTION ===== */}
@@ -1658,16 +1674,6 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
           {/* Main content area */}
           <div style={{ flex: 1, display: 'flex', margin: '10px', gap: '10px' }}>
             {/* Editor area */}
-            <div style={{ 
-              width: showRequirement ? '60%' : '100%', 
-              backgroundColor: 'white', 
-              borderRadius: '4px',
-              transition: 'width 0.3s ease'
-            }}>
-              {renderEditor()}
-            </div>
-            
-            {/* Requirement panel - only shown when showRequirement is true */}
             {showRequirement && (
               <div style={{ 
                 width: '40%',
@@ -1810,6 +1816,13 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                 </div>
               </div>
             )}
+            <div style={{ 
+              width: showRequirement ? '60%' : '100%', 
+              backgroundColor: 'white', 
+              borderRadius: '4px'
+            }}>
+              {renderEditor()}
+            </div>
           </div>
         </div>
       )}
