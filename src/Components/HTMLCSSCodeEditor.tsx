@@ -1465,7 +1465,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
 
                         {/* ===== HTML/CSS OUTPUT ===== */}
                         {activeSection === 'output' && (
-                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto", display: "flex", flexDirection: "column" }}>
+                          <div style={{ flex: 1, maxHeight: "90%", display: "flex", flexDirection: "column" }}>
                             {/* Structure Error Display */}
                             {hasRunCode && activeTab.endsWith('.html') && testResults[activeTab] && testResults[activeTab].length === 0 && structureErrorMessage && (
                               <div className="alert alert-warning m-0 me-3 align-self-center" style={{ fontSize: "12px", padding: "8px 12px", margin: "0 0 10px 0" }}>
@@ -1475,30 +1475,36 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                             )}
                             
                             {/* Output iframe */}
-                            <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-                              <iframe
-                                style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
-                                className="w-full h-full"
-                                srcDoc={srcCode}
-                                title="output"
-                                sandbox="allow-scripts"
-                                width="100%"
-                                height="100%"
-                              ></iframe>
-                              {/* Overlay for click to open modal */}
-                              <div 
-                                style={{
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  cursor: 'pointer',
-                                  backgroundColor: 'transparent'
-                                }}
-                                onClick={() => openModal('output', srcCode, 'Student Output')}
-                                title="Click to open in modal"
-                              ></div>
+                            <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+                              {srcCode ? (
+                                <>
+                                  <iframe
+                                    style={{ 
+                                      width: '100%', 
+                                      height: '100%', 
+                                      backgroundColor: 'white', 
+                                      color: 'black', 
+                                      border: 'none',
+                                      outline: 'none',
+                                      overflow: 'auto'
+                                    }}
+                                    className="w-full h-full"
+                                    srcDoc={srcCode}
+                                    title="Output"
+                                    sandbox="allow-scripts allow-same-origin"
+                                    width="100%"
+                                    height="100%"
+                                    scrolling="yes"
+                                  ></iframe>
+                                </>
+                              ) : (
+                                <div className="d-flex align-items-center justify-content-center h-100" style={{ backgroundColor: '#f8f9fa' }}>
+                                  <div className="text-center text-muted">
+                                    <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
+                                    <p className="mt-2">Click RUN to see output</p>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1878,14 +1884,16 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                   aria-label="Close"
                 ></button>
               </div>
-              <div className="modal-body p-0" style={{ maxHeight: '80vh', overflow: 'auto' }}>
+              <div className="modal-body p-0" style={{ maxHeight: '80vh' }}>
                 {modalContent.type === 'image' && (
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'center', 
                     alignItems: 'flex-start',
                     minHeight: '100%',
-                    padding: '10px'
+                    padding: '10px',
+                    maxHeight: '80vh',
+                    overflow: 'auto'
                   }}>
                     <img 
                       src={modalContent.src} 
@@ -1906,7 +1914,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                     justifyContent: 'center', 
                     alignItems: 'flex-start',
                     minHeight: '100%',
-                    padding: '10px'
+                    padding: '10px',
+                    maxHeight: '80vh',
+                    overflow: 'auto'
                   }}>
                     <video 
                       src={modalContent.src} 
@@ -1920,12 +1930,24 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                   </div>
                 )}
                 {modalContent.type === 'output' && (
-                  <iframe
-                    srcDoc={modalContent.src}
-                    style={{ width: '100%', height: '80vh', border: 'none' }}
-                    sandbox="allow-scripts"
-                    title={modalContent.title}
-                  />
+                  <div style={{ 
+                    maxHeight: '80vh', 
+                    overflow: 'auto',
+                    padding: '10px'
+                  }}>
+                    <iframe
+                      srcDoc={modalContent.src}
+                      style={{ 
+                        width: '100%', 
+                        height: '80vh', 
+                        border: 'none',
+                        overflow: 'auto'
+                      }}
+                      sandbox="allow-scripts allow-same-origin"
+                      scrolling="yes"
+                      title={modalContent.title}
+                    />
+                  </div>
                 )}
               </div>
             </div>
