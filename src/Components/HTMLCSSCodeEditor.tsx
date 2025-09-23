@@ -1,16 +1,16 @@
-import React, { useState, useEffect,  useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { html } from '@codemirror/lang-html';
 import { css } from '@codemirror/lang-css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExpand } from '@fortawesome/free-solid-svg-icons';
-import { getApiClient } from "./utils/apiAuth";
+import { getApiClient } from "../utils/apiAuth";
 import { useNavigate } from "react-router-dom";
-import SkeletonCode from "./Components/EditorSkeletonCode"
-import { secretKey } from "./constants";
-import { QUESTION_STATUS } from "./constants/constants";
-import { autoSaveHTMLCode, getAutoSavedHTMLCode, cleanupAutoSavedHTMLCode } from "./utils/autoSaveUtils";
-import { validateBasicHTMLStructure } from "./utils/htmlStructureValidation";
+import SkeletonCode from "../Components/EditorSkeletonCode"
+import { secretKey } from "../constants";
+import { QUESTION_STATUS } from "../constants/constants";
+import { autoSaveHTMLCode, getAutoSavedHTMLCode, cleanupAutoSavedHTMLCode } from "../utils/autoSaveUtils";
+import { validateBasicHTMLStructure } from "../utils/htmlStructureValidation";
 import CryptoJS from "crypto-js";
 
 interface Tab {
@@ -43,18 +43,33 @@ interface QuestionData {
   LastUpdated: string;
   status?: boolean;
   score?: string;
-  entered_ans?: {[key: string]: string};
 }
 
+interface HTMLCSSEditorProps {
+  questionData: any;
+  currentQuestionIndex: number;
+  onQuestionChange: (index: number) => void;
+  onNext: () => void;
+  showNextButton: boolean;
+  nextButtonText: string;
+  onQuestionSubmitted: (questionName: string) => void;
+}
 
-const HTMLCSSEditor: React.FC = () => {
+const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
+  questionData: propQuestionData,
+  currentQuestionIndex: propCurrentQuestionIndex,
+  onQuestionChange,
+  onNext,
+  showNextButton,
+  nextButtonText,
+  onQuestionSubmitted
+}) => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<QuestionData[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
-  const [questionData, setQuestionData] = useState<QuestionData | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<QuestionData | null>(null);
   const [fileContents, setFileContents] = useState<{[key: string]: string}>({});
   const [activeTab, setActiveTab] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submittedFiles, setSubmittedFiles] = useState<{[key: string]: boolean}>({});
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [hasRunCode, setHasRunCode] = useState<boolean>(false);
@@ -69,236 +84,125 @@ const HTMLCSSEditor: React.FC = () => {
   const [structureResults, setStructureResults] = useState<{[key: string]: boolean[]}>({});
   const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
   const [activeOutputTab, setActiveOutputTab] = useState('image');
-  const encryptedStudentId = sessionStorage.getItem('StudentId');
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const studentId = decryptedStudentId;
-  
-  const encryptedSubjectId = sessionStorage.getItem('SubjectId');
-  const decryptedSubjectId = CryptoJS.AES.decrypt(encryptedSubjectId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const subjectId = decryptedSubjectId;
-  
-  const encryptedSubject = sessionStorage.getItem('Subject');
-  const decryptedSubject = CryptoJS.AES.decrypt(encryptedSubject!, secretKey).toString(CryptoJS.enc.Utf8);
-  const subject = decryptedSubject;
-  
-  const encryptedWeekNumber = sessionStorage.getItem('WeekNumber');
-  const decryptedWeekNumber = CryptoJS.AES.decrypt(encryptedWeekNumber!, secretKey).toString(CryptoJS.enc.Utf8);
-  const weekNumber = decryptedWeekNumber;
-  
-  const encryptedDayNumber = sessionStorage.getItem('DayNumber');
-  const decryptedDayNumber = CryptoJS.AES.decrypt(encryptedDayNumber!, secretKey).toString(CryptoJS.enc.Utf8);
-  const dayNumber = decryptedDayNumber;
-  
- 
- 
-
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      try {
-        setLoading(true);
-        
-        // Construct API URL with all necessary parameters
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/` +
-          `${studentId}/` +
-          `${subject}/` +
-          `${subjectId}/` +
-          `${dayNumber}/` +
-          `${weekNumber}/` +
-          `${sessionStorage.getItem("currentSubTopicId")}/`;
-        
-        const response = await getApiClient().get(url);
-        const apiQuestions = response.data.questions;
-        const questionsWithSavedCode = apiQuestions.map((q: any) => {
-          // Check for saved code in session storage
-          const savedCodeKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${q.Qn_name}`;
-          const savedCode = sessionStorage.getItem(savedCodeKey);
-          let savedFileContents: {[key: string]: string} = {};
-          
-          if (savedCode) {
-            try {
-              const decryptedCode = CryptoJS.AES.decrypt(savedCode, secretKey).toString(CryptoJS.enc.Utf8);
-              savedFileContents = JSON.parse(decryptedCode);
-            } catch (error) {
-              console.error('Error decrypting saved code:', error);
-            }
-          }
-          
-          // Determine tabs dynamically from API or use default
-          const tabs = q.Tabs || [
-            { name: "index.html", type: "HTML" },
-            { name: "styles.css", type: "CSS" }
-          ];
-          
-          // Build Code_Validation dynamically
-          const codeValidation: {[key: string]: any} = {};
-          tabs.forEach((tab: any) => {
-            const fileName = tab.name;
-            codeValidation[fileName] = {
-              template: ""
-            };
-          });
-          
-          return {
-            Qn_name: q.Qn_name,
-            Page_Name: q.Page_Name || "HTML/CSS Question",
-            level: q.level || "level1",
-            subtopic_id: q.subtopic_id || "",
-            type: q.type || "coding",
-            Tabs: tabs,
-            Qn: q.Qn || q.question || "",
-            requirements: q.requirements || "",
-            Code_Validation: q.Code_Validation || codeValidation,
-            defaulttemplate: q.defaulttemplate || "",
-            image_path: q.image_path || "",
-            video_path: q.video_path || "",
-            CreatedBy: q.CreatedBy || "",
-            CreatedOn: q.CreatedOn || "",
-            LastUpdated: q.LastUpdated || "",
-            status: q.status || false,
-            entered_ans: q.entered_ans || {}
-          };
-        });
-        
-        setQuestions(questionsWithSavedCode);
-        
-        // Set initial question index from session storage or default to 0
-        const storedIndex = sessionStorage.getItem("currentQuestionIndex");
-        const initialIndex = storedIndex ? 
-          Math.max(0, Math.min(parseInt(storedIndex) || 0, questionsWithSavedCode.length - 1)) : 0;
-        
-        setCurrentQuestionIndex(initialIndex);
-        
-        // Set current question based on stored index
-        if (questionsWithSavedCode.length > 0) {
-          const currentQuestion = questionsWithSavedCode[initialIndex];
-          setQuestionData(currentQuestion);
-          const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${currentQuestion.Qn_name}`;
-          const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
-          const isSubmittedStatus = encryptedSubmitStatus ? 
-            CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
-          
-          if (currentQuestion.status === true || isSubmittedStatus) {
-            setIsSubmitted(true);
-            setHasRunCode(true);
-          }
-          
-          // Initialize file contents from Code_Validation
-          const fileContents: {[key: string]: string} = {};
-          
-          // Process each file in Code_Validation
-          Object.keys(currentQuestion.Code_Validation).forEach(fileName => {
-            // Check if question is submitted and has entered_ans
-            if (currentQuestion.status === true && currentQuestion.entered_ans && currentQuestion.entered_ans[fileName]) {
-              fileContents[fileName] = currentQuestion.entered_ans[fileName];
-            } else if (fileName === 'index.html') {
-              // Use defaulttemplate for index.html if not submitted
-              fileContents[fileName] = currentQuestion.defaulttemplate || '';
-            } else {
-              // Other files start empty if not submitted
-              fileContents[fileName] = '';
-            }
-          });
-          
-          // Check session storage first for auto-saved code
-          const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${currentQuestion.Qn_name}`;
-          const encryptedSessionCode = sessionStorage.getItem(sessionKey);
-          
-          if (encryptedSessionCode && !currentQuestion.status && !isSubmittedStatus) {
-            // Load from session storage if available and question is not submitted
-            try {
-              const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
-              const sessionCode = JSON.parse(decryptedCode);
-              
-              // Merge session code with current file contents
-              Object.keys(sessionCode).forEach(fileName => {
-                if (fileContents.hasOwnProperty(fileName)) {
-                  fileContents[fileName] = sessionCode[fileName];
-                }
-              });
-            } catch (error) {
-              console.error('Error loading session storage code:', error);
-            }
-          } else if (!currentQuestion.status && !isSubmittedStatus) {
-            // Only fetch from backend if no session storage data AND question is not submitted
-            try {
-              const autoSavedCode = await getAutoSavedHTMLCode(currentQuestion.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
-              if (autoSavedCode) {
-                // Merge auto-saved code with current file contents
-                Object.keys(autoSavedCode).forEach(fileName => {
-                  if (fileContents.hasOwnProperty(fileName)) {
-                    fileContents[fileName] = autoSavedCode[fileName];
-                  }
-                });
-              }
-            } catch (error) {
-              console.error('Error loading auto-saved code from backend:', error);
-            }
-          }
-          
-          setFileContents(fileContents);
-          
-          // Set active tab to the first file
-          if (currentQuestion.Tabs.length > 0) {
-            setActiveTab(currentQuestion.Tabs[0].name);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching questions:", error);
-        setLoading(false);
-      } finally {
-        setLoading(false);
+  const hasLoadedAutoSavedCode = useRef(false);
+  // Helper function to safely decrypt session storage values
+  const decryptSessionValue = (key: string, defaultValue: string = ''): string => {
+    try {
+      const encryptedValue = sessionStorage.getItem(key);
+      if (!encryptedValue) {
+        console.warn(`Session storage key '${key}' not found, using default value`);
+        return defaultValue;
       }
-    };
-
-    fetchQuestions();
-  }, [studentId, subject, subjectId, dayNumber, weekNumber]);
-
-
-  const handleTabClick = (fileName: string) => {
-    setActiveTab(fileName);
-    // Force re-render of editor by clearing the instance for this file
-    setEditorInstances(prev => {
-      const newInstances = { ...prev };
-      delete newInstances[fileName];
-      return newInstances;
-    });
+      return CryptoJS.AES.decrypt(encryptedValue, secretKey).toString(CryptoJS.enc.Utf8);
+            } catch (error) {
+      console.error(`Error decrypting session storage key '${key}':`, error);
+      return defaultValue;
+    }
   };
 
-  const handleQuestionChange = async (index: number) => {
-    if (index >= 0 && index < questions.length) {
-      const question = questions[index];
-      setQuestionData(question);
-      setCurrentQuestionIndex(index);
-      
-      // Reset output tab to image (default)
-      setActiveOutputTab('image');
-      
-      // Save current question index to session storage
-      sessionStorage.setItem("currentQuestionIndex", index.toString());
-      
-      // Initialize file contents from Code_Validation
-      const fileContents: {[key: string]: string} = {};
+  // Decrypts data using AES decryption (matching Python editor pattern)
+  const decryptData = (encryptedData: string) => {
+    const bytes = CryptoJS.AES.decrypt(encryptedData, secretKey);
+    return bytes.toString(CryptoJS.enc.Utf8);
+  };
+
+  const studentId = decryptSessionValue('StudentId');
+  const testId = decryptSessionValue('TestId');
+  
+  // Transform TestSection data to HTML/CSS format
+  const transformTestSectionData = (testSectionQuestion: any): QuestionData => {
+    const questionData = testSectionQuestion.question_data || testSectionQuestion;
+          
+          return {
+      Qn_name: testSectionQuestion.Qn_name,
+      Page_Name: questionData.Page_Name,
+      level: questionData.level,
+      subtopic_id: questionData.subtopic_id,
+      type: questionData.type,
+      Tabs: questionData.Tabs,
+      Qn: questionData.Qn || testSectionQuestion.Qn,
+      requirements: questionData.requirements,
+      Code_Validation: questionData.Code_Validation,
+      defaulttemplate: questionData.defaulttemplate,
+      image_path: questionData.image_path,
+      video_path: questionData.video_path,
+      CreatedBy: questionData.CreatedBy,
+      CreatedOn: questionData.CreatedOn,
+      LastUpdated: questionData.LastUpdated,
+      status: testSectionQuestion.status,
+      score: questionData.score
+    };
+  };
+  
+  // Create a default question data structure if propQuestionData doesn't have the expected structure
+  const rawQuestionData = propQuestionData?.qns_data?.coding?.[propCurrentQuestionIndex] || propQuestionData;
+  const questionData = useMemo(() => {
+    return rawQuestionData ? transformTestSectionData(rawQuestionData) : null;
+  }, [rawQuestionData]);
+  
+  
+  
+ 
+ 
+
+  // Handle question change - exactly like practice editor's handleQuestionChange function
+  const handleQuestionChange = useCallback(async (question: any) => {
+    if (!question || !studentId || !testId) return;
+    
+    // Reset output tab to image (default)
+    setActiveOutputTab('image');
+    
+    // Clear editor instances for fresh start - exactly like practice editor
+    setEditorInstances({});
+    
+    // Reset additional states for fresh question
+    setTestResults({});
+    setStructureResults({});
+    setSelectedTestCaseIndex(null);
+    setSuccessMessage('');
+    setAdditionalMessage('');
+    setHasRunCode(false);
+    setIsSubmitted(false);
+    
+    // Initialize file contents from Code_Validation - exactly like practice editor
+    const fileContents: {[key: string]: string} = {};
+    
+        // Check if question is submitted (either via question.status or session storage)
+        const questionStatusKey = `coding_${question?.Qn_name}`;
+        const statusSessionKey = `${testId}_questionStatus`;
+        const sessionStatus = sessionStorage.getItem(statusSessionKey);
+        
+        let isSubmittedStatus = false;
+        if (sessionStatus) {
+          try {
+            const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+            const statuses = JSON.parse(decryptedStatuses);
+            isSubmittedStatus = statuses[questionStatusKey] === "Submitted";
+            } catch (error) {
+            console.error('Error decrypting submit status:', error);
+            isSubmittedStatus = false;
+          }
+        }
+        
+        const isSubmitted = question.status === true || isSubmittedStatus;
       
       // Process each file in Code_Validation
-      Object.keys(question.Code_Validation).forEach(fileName => {
-        // Check if question is submitted and has entered_ans
-        if (question.status === true && question.entered_ans && question.entered_ans[fileName]) {
-          fileContents[fileName] = question.entered_ans[fileName];
-        } else if (fileName === 'index.html') {
-          // Use defaulttemplate for index.html if not submitted
-          fileContents[fileName] = question.defaulttemplate || '';
-        } else {
-          // Other files start empty if not submitted
-          fileContents[fileName] = '';
-        }
-      });
+        Object.keys(question?.Code_Validation || {}).forEach(fileName => {
+          if (fileName === 'index.html') {
+            // Use defaulttemplate for index.html, or empty if not available
+            fileContents[fileName] = question?.defaulttemplate || '';
+          } else {
+            // Other files start empty
+            fileContents[fileName] = '';
+          }
+        });
       
-      // Check session storage first for auto-saved code
-      const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+      // Check session storage first for auto-saved code (priority over entered_ans for test flow)
+      const sessionKey = `userCode_${testId}_${question?.Qn_name}`;
       const encryptedSessionCode = sessionStorage.getItem(sessionKey);
       
-      if (encryptedSessionCode && !question.status) {
-        // Load from session storage if available and question is not submitted
+      if (encryptedSessionCode) {
+        // Load from session storage if available (both submitted and non-submitted questions)
         try {
           const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
           const sessionCode = JSON.parse(decryptedCode);
@@ -312,17 +216,11 @@ const HTMLCSSEditor: React.FC = () => {
         } catch (error) {
           console.error('Error loading session storage code:', error);
         }
-      } else if (!question.status) {
-        // Check if question is already submitted before fetching auto-save
-        const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
-        const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
-        const isSubmittedStatus = encryptedSubmitStatus ? 
-          CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
-        
+      } else if (!isSubmitted) {
         // Only fetch from backend if no session storage data AND question is not submitted
-        if (!question.status && !isSubmittedStatus) {
+      if (!question.status) {
           try {
-            const autoSavedCode = await getAutoSavedHTMLCode(question.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+          const autoSavedCode = await getAutoSavedHTMLCode(question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
             if (autoSavedCode) {
               // Merge auto-saved code with current file contents
               Object.keys(autoSavedCode).forEach(fileName => {
@@ -340,36 +238,45 @@ const HTMLCSSEditor: React.FC = () => {
       setFileContents(fileContents);
       
       // Set active tab to the first file
-      if (question.Tabs.length > 0) {
+    if (question?.Tabs && question.Tabs.length > 0) {
         setActiveTab(question.Tabs[0].name);
       }
       
-       // Check if question is already submitted (like Python editor)
-       const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
-       const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
-       const isSubmittedStatus = encryptedSubmitStatus ? 
-         CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
-       
-       if (question.status === true || isSubmittedStatus) {
+    // Set submission status based on already calculated isSubmitted
+    if (isSubmitted) {
          setIsSubmitted(true);
          setHasRunCode(true);
        } else {
-         // Reset submission status only if not already submitted
-         setSubmittedFiles({});
          setIsSubmitted(false);
          setHasRunCode(false);
        }
-       
-       // Clear editor instances to ensure fresh state
-       setEditorInstances({});
-       
-       // Reset test results for new question
-       setTestResults({});
-       setStructureResults({});
-       setSelectedTestCaseIndex(null);
-       setActiveSection('output');
-     }
-   };
+  }, [studentId, testId]);
+
+  // Call handleQuestionChange when questionData changes
+  useEffect(() => {
+    if (questionData) {
+      handleQuestionChange(questionData);
+    }
+  }, [questionData, handleQuestionChange]);
+
+  // Ensure activeTab is set when questionData is available
+  useEffect(() => {
+    if (questionData?.Tabs && questionData.Tabs.length > 0 && !activeTab) {
+      setActiveTab(questionData.Tabs[0].name);
+    }
+  }, [questionData?.Tabs, activeTab]);
+
+
+  const handleTabClick = (fileName: string) => {
+    setActiveTab(fileName);
+    // Force re-render of editor by clearing the instance for this file
+    setEditorInstances(prev => {
+      const newInstances = { ...prev };
+      delete newInstances[fileName];
+      return newInstances;
+    });
+  };
+
 
   // Helper function to get file type based on extension
   const getFileType = (fileName: string): string => {
@@ -378,9 +285,10 @@ const HTMLCSSEditor: React.FC = () => {
   };
 
   // Helper function to get current file content
-  const getCurrentFileContent = (): string => {
-    return fileContents[activeTab] || '';
-  };
+  const getCurrentFileContent = useCallback((): string => {
+    const currentActiveTab = activeTab || (questionData?.Tabs && questionData.Tabs.length > 0 ? questionData.Tabs[0].name : '');
+    return fileContents[currentActiveTab] || '';
+  }, [fileContents, activeTab, questionData?.Tabs]);
 
   // Helper function to update file content
   const updateFileContent = (fileName: string, content: string) => {
@@ -394,10 +302,14 @@ const HTMLCSSEditor: React.FC = () => {
 
   
   const onChangeFileContent = useCallback((value: string, viewUpdate: any) => {
-    updateFileContent(activeTab, value);
+    // Ensure we have an active tab, fallback to first tab if none selected
+    const currentActiveTab = activeTab || (questionData?.Tabs && questionData.Tabs.length > 0 ? questionData.Tabs[0].name : '');
     
-    // Auto-save code to session storage only if not submitted
-    if (questionData && !isSubmitted) {
+    if (!currentActiveTab) return;
+    
+    updateFileContent(currentActiveTab, value);
+    
+    if (questionData?.Qn_name && !processing && !isSubmitted) {
       // Create a dynamic object with all current file contents
       const codeToSave: {[key: string]: string} = {};
       
@@ -407,12 +319,12 @@ const HTMLCSSEditor: React.FC = () => {
       });
       
       // Update the current file content before saving
-      codeToSave[activeTab] = value;
+      codeToSave[currentActiveTab] = value;
       
       const encryptedCode = CryptoJS.AES.encrypt(JSON.stringify(codeToSave), secretKey).toString();
-      sessionStorage.setItem(`userCode_${subject}_${weekNumber}_${dayNumber}_${questionData.Qn_name}`, encryptedCode);
+      sessionStorage.setItem(`userCode_${testId}_${questionData.Qn_name}`, encryptedCode);
     }
-  }, [activeTab, fileContents, questionData, isSubmitted]);
+  }, [activeTab, fileContents, questionData?.Qn_name, questionData?.Tabs, processing, testId, isSubmitted]);
 
   // HTML Structure Validation using regex
   const validateHTMLStructure = (htmlCode: string, tag: string, attributes: any, parentTag?: string, content?: string, parentAttributes?: any): boolean => {
@@ -603,7 +515,7 @@ const HTMLCSSEditor: React.FC = () => {
 
   // Structure validation function - only checks parent-child relationships
   const validateStructure = (code: string, fileName: string, questionData: any) => {
-    const fileValidation = questionData.Code_Validation[fileName];
+    const fileValidation = questionData?.Code_Validation[fileName];
     if (!fileValidation) return [];
     
     const structure = fileValidation.structure;
@@ -651,7 +563,7 @@ const HTMLCSSEditor: React.FC = () => {
 
   // Main validation function - checks all requirements (structure + attributes)
   const validateCode = (code: string, fileName: string, questionData: any) => {
-    const fileValidation = questionData.Code_Validation[fileName];
+    const fileValidation = questionData?.Code_Validation[fileName];
     if (!fileValidation) return [];
     
     const structure = fileValidation.structure;
@@ -863,15 +775,15 @@ const HTMLCSSEditor: React.FC = () => {
       // Mark that code has been run
       setHasRunCode(true);
       
-      // Auto-save code when running (only if not submitted)
-      if (!isSubmitted) {
-        const codeToSave: {[key: string]: string} = {};
-        Object.keys(fileContents).forEach(fileName => {
-          codeToSave[fileName] = fileContents[fileName] || '';
-        });
-        
-        // Auto-save to backend
-        autoSaveHTMLCode(codeToSave, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+      // Auto-save to backend when running (not session storage)
+      const codeToSave: {[key: string]: string} = {};
+      Object.keys(fileContents).forEach(fileName => {
+        codeToSave[fileName] = fileContents[fileName] || '';
+      });
+      
+      // Auto-save to backend only if not submitted
+      if (questionData?.Qn_name && !isSubmitted) {
+        autoSaveHTMLCode(codeToSave, questionData.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
       }
       
       // Switch to test cases tab to show results
@@ -894,9 +806,18 @@ const HTMLCSSEditor: React.FC = () => {
   };
   
 
-  const renderEditor = () => {
-    const fileType = getFileType(activeTab);
-    const currentContent = getCurrentFileContent();
+  const renderEditor = useCallback(() => {
+    // Ensure we have an active tab, fallback to first tab if none selected
+    const currentActiveTab = activeTab || (questionData?.Tabs && questionData.Tabs.length > 0 ? questionData.Tabs[0].name : '');
+    
+    if (!currentActiveTab) {
+      return <div className="d-flex align-items-center justify-content-center h-100">
+        <div className="text-muted">No files available</div>
+      </div>;
+    }
+    
+    const fileType = getFileType(currentActiveTab);
+    const currentContent = fileContents[currentActiveTab] || '';
     
     let extensions: any[] = [];
     if (fileType === 'html') {
@@ -907,7 +828,7 @@ const HTMLCSSEditor: React.FC = () => {
     
         return (
           <CodeMirror
-            key={`${activeTab}-${currentQuestionIndex}`} // Unique key for each file and question
+            key={`${currentActiveTab}-${questionData?.Qn_name}`} // Stable key for each file and question
             className="text-xl text-start custom-codemirror"
             value={currentContent}
             height="100%"
@@ -928,7 +849,7 @@ const HTMLCSSEditor: React.FC = () => {
             }}
           />
         );
-  };
+  }, [activeTab, questionData?.Qn_name, questionData?.Tabs, fileContents, onChangeFileContent]);
 
   // Generate HTML preview with dynamic file processing
   const generateHTMLPreview = (files: {[key: string]: string}) => {
@@ -1053,7 +974,7 @@ const HTMLCSSEditor: React.FC = () => {
 
       const handleSubmit = async () => {
         setProcessing(true);
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/frontend/submit/`;
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/frontend/`;
         
         try {
           // Get all HTML files and their content
@@ -1108,19 +1029,23 @@ const HTMLCSSEditor: React.FC = () => {
           const questionScore = questionData?.score || "0/10";
           const maxScore = parseInt(questionScore.split('/')[1]);
           
-          // Get additional required fields from session storage
-          const encryptedBatchId = sessionStorage.getItem('BatchId');
-          const decryptedBatchId = encryptedBatchId ? 
-            CryptoJS.AES.decrypt(encryptedBatchId, secretKey).toString(CryptoJS.enc.Utf8) : 'batch4';
+          // Get additional required fields from session storage (matching Python editor pattern)
+          const decryptedBatchId = decryptData(sessionStorage.getItem("BatchId") || "");
+          const decryptedCourseId = sessionStorage.getItem('CourseId') ? 
+            CryptoJS.AES.decrypt(sessionStorage.getItem('CourseId')!, secretKey).toString(CryptoJS.enc.Utf8) : "course19";
           
-          const encryptedCourseId = sessionStorage.getItem('CourseId');
-          const decryptedCourseId = encryptedCourseId ? 
-            CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : 'course1';
+          // Use same pattern as Python editor
+          const subjectId = decryptData(sessionStorage.getItem("TestSubjectId") || "");
+          const subject = sessionStorage.getItem("TestSubject") || "";
+          
+          const weekNumber = decryptSessionValue('WeekNumber', '0');
+          const dayNumber = decryptSessionValue('DayNumber', '0');
           
           const postData = {
             student_id: studentId,
             question_id: questionData?.Qn_name,
-            question_done_at: QUESTION_STATUS.PRACTICE,
+            question_done_at: testId,
+            test_id: testId,
             subject_id: subjectId,
             batch_id: decryptedBatchId,
             course_id: decryptedCourseId,
@@ -1147,19 +1072,42 @@ const HTMLCSSEditor: React.FC = () => {
           setIsSubmitted(true);
 
           // Save submission status to session storage (like Python editor)
-          const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questionData?.Qn_name}`;
-          const encryptedSubmitStatus = CryptoJS.AES.encrypt("true", secretKey).toString();
-          sessionStorage.setItem(submitStatusKey, encryptedSubmitStatus);
+          const questionStatusKey = `coding_${questionData?.Qn_name}`;
+          const statusSessionKey = `${testId}_questionStatus`;
+          
+          // Get existing statuses
+          let statuses: {[key: string]: string} = {};
+          const existingStatus = sessionStorage.getItem(statusSessionKey);
+          if (existingStatus) {
+            try {
+              const decryptedStatuses = CryptoJS.AES.decrypt(existingStatus, secretKey).toString(CryptoJS.enc.Utf8);
+              statuses = JSON.parse(decryptedStatuses);
+            } catch (error) {
+              console.error('Error decrypting existing statuses:', error);
+            }
+          }
+          
+          // Update status for this question
+          statuses[questionStatusKey] = "Submitted";
+          
+          // Save updated statuses
+          const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
+          sessionStorage.setItem(statusSessionKey, encryptedStatuses);
 
-          // Update question status in the questions array
-          const updatedQuestions = [...questions];
-          if (updatedQuestions[currentQuestionIndex]) {
-            updatedQuestions[currentQuestionIndex].status = true;
-            setQuestions(updatedQuestions);
+          // Save the submitted code to session storage so it persists
+          const codeToSave: {[key: string]: string} = {};
+          Object.keys(fileContents).forEach(fileName => {
+            codeToSave[fileName] = fileContents[fileName] || '';
+          });
+          const encryptedCode = CryptoJS.AES.encrypt(JSON.stringify(codeToSave), secretKey).toString();
+          sessionStorage.setItem(`userCode_${testId}_${questionData?.Qn_name}`, encryptedCode);
+
+          // Call the parent callback to mark question as submitted
+          if (questionData?.Qn_name) {
+            onQuestionSubmitted(questionData?.Qn_name);
           }
 
-          // Clean up auto-saved code after successful submission
-          cleanupAutoSavedHTMLCode(questionData?.Qn_name!, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+          cleanupAutoSavedHTMLCode(questionData?.Qn_name!, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
 
           // Show success message
           setSuccessMessage("Code submitted successfully!");
@@ -1175,7 +1123,7 @@ const HTMLCSSEditor: React.FC = () => {
 
 
 
-      if (loading) {
+  if (!propQuestionData || !questionData) {
         return (
           <div className="container-fluid p-0" style={{ height: "100vh", maxWidth: "100%", overflowX: "hidden", backgroundColor: "#f2eeee" }}>
             <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
@@ -1186,34 +1134,34 @@ const HTMLCSSEditor: React.FC = () => {
       }
       
 
+  // Check if required session storage values are missing
+  if (!studentId || !testId) {
+    return (
+      <div className="container-fluid p-0" style={{ height: "100vh", maxWidth: "100%", overflowX: "hidden", backgroundColor: "#f2eeee" }}>
+        <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div className="text-center">
+            <h4 className="text-danger">Session Error</h4>
+            <p>Required session data is missing. Please refresh the page or log in again.</p>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => window.location.reload()}
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container-fluid p-0" style={{ height: 'calc(100vh - 70px)', overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
+    <div key={questionData?.Qn_name || 'default'} className="container-fluid p-0" style={{ height: 'calc(100vh - 70px)', overflowX: "hidden", overflowY: "hidden", backgroundColor: "#f2eeee" }}>
       <div className="p-0 my-0" style={{ backgroundColor: "#F2EEEE", marginRight: '10px' }}>
         <div className="container-fluid p-0 pt-2" style={{ maxWidth: "100%", overflowX: "hidden", overflowY: "auto", backgroundColor: "#f2eeee" }}>
           <div className="row g-2">
             <div className="col-12">
               <div className="" style={{ height: "100vh", overflow: "hidden", padding: '0px 0px 65px 0px' }}>
                 <div className="d-flex" style={{ height: '100%', width: '100%' }}>
-                  {/* ===== QUESTION NAVIGATION PANEL ===== */}
-                  <div className="col-1 lg-8 pb-3" style={{ width: "70px", display: "flex", flexDirection: "column", paddingRight: "15px",overflow:"auto" }}>
-                    {questions.map((_, index) => (
-                    <button
-                        key={index}
-                        className="btn rounded-2 mb-2 px-1 mx-auto"
-                        style={{
-                          width: "50px",
-                          height: "50px",
-                          backgroundColor: currentQuestionIndex === index ? "#42FF58" : "#FFFFFF",
-                          color: "#000",
-                          cursor: "pointer",
-                          boxShadow: "#888 1px 2px 5px 0px"
-                        }}
-                        onClick={() => handleQuestionChange(index)}
-                      >
-                        Q{index + 1}
-                    </button>
-                    ))}
-                  </div>
                   {/* ===== PROBLEM STATEMENT PANEL ===== */}
                   <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
                     <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533", display: "flex", flexDirection: "column" }}>
@@ -1252,17 +1200,16 @@ const HTMLCSSEditor: React.FC = () => {
                               Requirements
                             </h4>
                             <div 
-                             
-                              dangerouslySetInnerHTML={{ __html: questionData?.requirements || 'No requirements specified.' }}
+                              dangerouslySetInnerHTML={{ __html: questionData?.requirements || '' }}
                             />
                           </div>
                         </div>
                       </div>
                       
                       {/* ===== THIRD ROW - EXPECTED OUTPUT (50%) ===== */}
-                      <div style={{ height: "50%", display: "flex", flexDirection: "column" }}>
+                      <div className="px-3" style={{ height: "50%", display: "flex", flexDirection: "column" }}>
                         {/* Expected Output Header */}
-                        <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                        <div className="py-2" style={{ borderBottom: "1px solid #e9ecef" }}>
                             <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
                               Expected Output
                             </h5>
@@ -1270,7 +1217,7 @@ const HTMLCSSEditor: React.FC = () => {
 
                         {/* Output Tabs - Only show if both image and video are available */}
                         {questionData?.image_path && questionData?.video_path && (
-                          <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                          <div className="py-2" style={{ borderBottom: "1px solid #e9ecef" }}>
                             <div className="d-flex">
                               <button
                                 className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
@@ -1292,7 +1239,7 @@ const HTMLCSSEditor: React.FC = () => {
                         
                         {/* Content with Scrollbar */}
                         <div 
-                          className="flex-fill overflow-auto p-3 d-flex justify-content-center align-items-start"
+                          className="flex-fill overflow-auto py-3 d-flex justify-content-center align-items-start"
                           style={{ 
                             scrollbarWidth: "thin",
                             scrollbarColor: "#c1c1c1 #f1f1f1"
@@ -1302,6 +1249,7 @@ const HTMLCSSEditor: React.FC = () => {
                           {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'image') || 
                             (questionData?.image_path && !questionData?.video_path)) && (
                             <img 
+                              key={`image-${questionData?.Qn_name}`}
                               src={questionData.image_path} 
                               className="img-fluid" 
                               alt="Expected Output" 
@@ -1319,6 +1267,7 @@ const HTMLCSSEditor: React.FC = () => {
                           {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'video') || 
                             (!questionData?.image_path && questionData?.video_path)) && (
                             <video 
+                              key={`video-${questionData?.Qn_name}`}
                               src={questionData.video_path} 
                               className="img-fluid" 
                               controls
@@ -1335,7 +1284,7 @@ const HTMLCSSEditor: React.FC = () => {
                           {!questionData?.image_path && !questionData?.video_path && (
                             <div className="text-center text-muted" style={{ padding: "20px" }}>
                               <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
-                              <p className="mt-2">No expected output available</p>
+                              <p className="mt-2"></p>
                             </div>
                           )}
                         </div>
@@ -1364,7 +1313,7 @@ const HTMLCSSEditor: React.FC = () => {
                                maxWidth: 'calc(100% - 40px)'
                              }}
                            >
-                            {questionData?.Tabs.map((tab, index) => (
+                            {(questionData?.Tabs || []).map((tab: any, index: number) => (
                                 <div
                                     key={index}
                                     style={{
@@ -1406,7 +1355,7 @@ const HTMLCSSEditor: React.FC = () => {
                     </div>
 
                     {/* ===== PROCESSING STATUS AND ACTION BUTTONS ===== */}
-                    <div style={{ height: "6%", marginRight: '37px', backgroundColor: "#E5E5E533" }} className="d-flex flex-column justify-content-center me-4 pe-3">
+                    <div style={{ height: "6%", backgroundColor: "#E5E5E533" }} className="d-flex flex-column justify-content-center me-4 pe-1">
                       <div className="d-flex justify-content-between align-items-center h-100">
                         <div className="d-flex flex-column justify-content-center">
                           {processing ? (
@@ -1458,7 +1407,7 @@ const HTMLCSSEditor: React.FC = () => {
                           </button>
                           
                           {/* Next Button (only shown when question is completed) */}
-                          {isSubmitted &&
+                          {isSubmitted && showNextButton &&
                             <button
                               className="btn btn-sm btn-light processingDivButton"
                             style={{
@@ -1469,15 +1418,9 @@ const HTMLCSSEditor: React.FC = () => {
                                 height: "30px"
                               }}
                               disabled={processing}
-                              onClick={() => {
-                                if (currentQuestionIndex < questions.length - 1) {
-                                  handleQuestionChange(currentQuestionIndex + 1);
-                                } else {
-                                  navigate('/Subject-Roadmap', { replace: true });
-                                }
-                              }}
+                              onClick={onNext}
                             >
-                              {currentQuestionIndex < questions.length - 1 ? "NEXT" : "FINISH"}
+                              {nextButtonText}
                             </button>
                           }
                         </div>
@@ -1597,7 +1540,7 @@ const HTMLCSSEditor: React.FC = () => {
                                           fontFamily: "monospace"
                                         }}>
                                           {questionData?.Code_Validation[activeTab]?.structure?.[selectedTestCaseIndex] ? 
-                                            getExpectedDescription(questionData.Code_Validation[activeTab].structure?.[selectedTestCaseIndex], activeTab) :
+                                            getExpectedDescription(questionData?.Code_Validation[activeTab].structure?.[selectedTestCaseIndex], activeTab) :
                                             'Expected result'
                                           }
                                         </div>
@@ -1654,7 +1597,7 @@ const HTMLCSSEditor: React.FC = () => {
                   maxWidth: 'calc(100% - 200px)'
                 }}
               >
-                {questionData?.Tabs.map((tab, index) => (
+                {(questionData?.Tabs || []).map((tab: any, index: number) => (
                   <div
                     key={index}
                     style={{
@@ -1777,7 +1720,7 @@ const HTMLCSSEditor: React.FC = () => {
                         Requirements
                       </h4>
                       <div  
-                        dangerouslySetInnerHTML={{ __html: questionData?.requirements || 'No requirements specified.' }}
+                        dangerouslySetInnerHTML={{ __html: questionData?.requirements || '' }}
                       />
                     </div>
                   </div>
@@ -1828,6 +1771,7 @@ const HTMLCSSEditor: React.FC = () => {
                     {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'image') || 
                       (questionData?.image_path && !questionData?.video_path)) && (
                       <img 
+                        key={`maximized-image-${questionData?.Qn_name}`}
                         src={questionData.image_path} 
                         className="img-fluid" 
                         alt="Expected Output" 
@@ -1845,6 +1789,7 @@ const HTMLCSSEditor: React.FC = () => {
                     {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'video') || 
                       (!questionData?.image_path && questionData?.video_path)) && (
                       <video 
+                        key={`maximized-video-${questionData?.Qn_name}`}
                         src={questionData.video_path} 
                         className="img-fluid" 
                         controls
@@ -1861,7 +1806,7 @@ const HTMLCSSEditor: React.FC = () => {
                     {!questionData?.image_path && !questionData?.video_path && (
                       <div className="text-center text-muted" style={{ padding: "20px" }}>
                         <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
-                        <p className="mt-2">No expected output available</p>
+                        <p className="mt-2"></p>
                       </div>
                     )}
                   </div>

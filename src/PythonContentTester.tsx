@@ -986,30 +986,8 @@ Instructions :
                                               if (runResponseTestCases[selectedTestCaseIndex]?.actual !== undefined && runResponseTestCases[selectedTestCaseIndex]?.actual !== null) {
                                                 const value = runResponseTestCases[selectedTestCaseIndex].actual;
                                                 if (Array.isArray(value)) {
-                                                  return value.map((item: any, index: number) => {
-                                                    const itemString = String(item);
-                                                    if (itemString.includes('\\n')) {
-                                                      return itemString.split('\\n').map((line: string, lineIndex: number) => (
-                                                        <React.Fragment key={`${index}-${lineIndex}`}>
-                                                          {line}
-                                                          {lineIndex < itemString.split('\\n').length - 1 && <br />}
-                                                        </React.Fragment>
-                                                      ));
-                                                    } else if (itemString.includes('\n')) {
-                                                      return itemString.split('\n').map((line: string, lineIndex: number) => (
-                                                        <React.Fragment key={`${index}-${lineIndex}`}>
-                                                          {line}
-                                                          {lineIndex < itemString.split('\n').length - 1 && <br />}
-                                                        </React.Fragment>
-                                                      ));
-                                                    }
-                                                    return (
-                                                      <React.Fragment key={index}>
-                                                        {itemString}
-                                                        {index < value.length - 1 && <br />}
-                                                      </React.Fragment>
-                                                    );
-                                                  });
+                                                  // Display array in proper format with brackets
+                                                  return `[${value.join(', ')}]`;
                                                 } else {
                                                   const stringValue = String(value);
                                                   if (stringValue.includes('\\n')) {
