@@ -117,9 +117,14 @@ function AppContent() {
   // Check if user is on login page
   const isOnLoginPage = () => {
     const currentPath = location.pathname;
+    const showMaintenance = process.env.REACT_APP_SHOW_MAINTENANCE === 'true';
     const loginPath = process.env.REACT_APP_LOGIN_PATH;
-    const isLogin = currentPath === `/${loginPath}/login`;
-    return isLogin;
+    
+    if (showMaintenance) {
+      return currentPath === `/${loginPath}/login` || currentPath === `/`;
+    } else {
+      return currentPath === `/`;
+    }
   };
 
   const handleLogout = useCallback(
