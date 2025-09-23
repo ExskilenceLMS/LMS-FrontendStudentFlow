@@ -839,7 +839,8 @@ const HTMLCSSEditor: React.FC = () => {
             [activeTab]: []
           }));
           
-          setActiveSection('testcases');
+          // Keep current tab active - don't switch to test cases automatically
+          // setActiveSection('testcases');
           setSelectedTestCaseIndex(null);
           return; // Stop validation here if basic structure is missing
         }
@@ -874,8 +875,8 @@ const HTMLCSSEditor: React.FC = () => {
         autoSaveHTMLCode(codeToSave, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
       }
       
-      // Switch to test cases tab to show results
-      setActiveSection('testcases');
+      // Keep current tab active - don't switch to test cases automatically
+      // setActiveSection('testcases');
       setSelectedTestCaseIndex(0);
       
       // Calculate success rate
