@@ -70,6 +70,8 @@ const HTMLCSSEditor: React.FC = () => {
   const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
   const [activeOutputTab, setActiveOutputTab] = useState('image');
   const [structureErrorMessage, setStructureErrorMessage] = useState<string>('');
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState<{type: 'image' | 'video' | 'output', src: string, title: string} | null>(null);
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
@@ -1053,6 +1055,28 @@ const HTMLCSSEditor: React.FC = () => {
 
   const srcCode = generateOutputCode();
 
+  // Modal handlers
+  const openModal = (type: 'image' | 'video' | 'output', src: string, title: string) => {
+    setModalContent({ type, src, title });
+    setShowModal(true);
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setModalContent(null);
+    // Restore body scroll when modal is closed
+    document.body.style.overflow = 'unset';
+  };
+
+  // Cleanup effect to restore body scroll on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
       const handleSubmit = async () => {
         setProcessing(true);
         const url = `${process.env.REACT_APP_BACKEND_URL}api/student/frontend/submit/`;
@@ -1308,12 +1332,13 @@ const HTMLCSSEditor: React.FC = () => {
                               className="img-fluid" 
                               alt="Expected Output" 
                               style={{ 
-                                pointerEvents: 'none', 
+                                cursor: 'pointer',
                                 maxWidth: '100%',
                                 height: 'auto',
                                 borderRadius: '4px',
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                              }} 
+                              }}
+                              onClick={() => openModal('image', questionData.image_path, 'Expected Output')}
                             />
                           )}
 
@@ -1325,11 +1350,13 @@ const HTMLCSSEditor: React.FC = () => {
                               className="img-fluid" 
                               controls
                               style={{ 
+                                cursor: 'pointer',
                                 maxWidth: '100%',
                                 height: 'auto',
                                 borderRadius: '4px',
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                              }} 
+                              }}
+                              onClick={() => openModal('video', questionData.video_path, 'Expected Output Video')}
                             />
                           )}
 
@@ -1519,7 +1546,7 @@ const HTMLCSSEditor: React.FC = () => {
                             )}
                             
                             {/* Output iframe */}
-                            <div style={{ flex: 1, minHeight: 0 }}>
+                            <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
                               <iframe
                                 style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
                                 className="w-full h-full"
@@ -1529,6 +1556,20 @@ const HTMLCSSEditor: React.FC = () => {
                                 width="100%"
                                 height="100%"
                               ></iframe>
+                              {/* Overlay for click to open modal */}
+                              <div 
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  cursor: 'pointer',
+                                  backgroundColor: 'transparent'
+                                }}
+                                onClick={() => openModal('output', srcCode, 'Student Output')}
+                                title="Click to open in modal"
+                              ></div>
                             </div>
                           </div>
                         )}
@@ -1651,51 +1692,8 @@ const HTMLCSSEditor: React.FC = () => {
             flexDirection: 'column'
           }}
         >
-          {/* Header with file tabs */}
+          {/* Header with buttons */}
           <div className="bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-            <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0 }}>
-              <div 
-                className="d-flex"
-                style={{ 
-                  flexWrap: 'nowrap',
-                  overflowX: 'auto',
-                  overflowY: 'hidden',
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "#c1c1c1 #f1f1f1",
-                  flex: 1,
-                  minWidth: 0,
-                  maxWidth: 'calc(100% - 200px)'
-                }}
-              >
-                {questionData?.Tabs.map((tab, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      minWidth: 'fit-content',
-                      width: 'auto',
-                      height: '30px',
-                      borderRadius: '10px',
-                      backgroundColor: activeTab === tab.name ? "black" : "transparent",
-                      color: activeTab === tab.name ? "white" : "black",
-                      border: activeTab === tab.name ? "none" : "1px solid black",
-                      display: 'inline-block',
-                      textAlign: 'center',
-                      lineHeight: '30px',
-                      marginRight: '8px',
-                      cursor: 'pointer',
-                      padding: '0 12px',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0
-                    }}
-                    className={`tab-button me-1 ${activeTab === tab.name ? 'selected-tab' : ''}`}
-                    onClick={() => handleTabClick(tab.name)}
-                    title={tab.name}
-                  >
-                    {tab.name}
-                  </div>
-                ))}
-              </div>
-            </div>
             <div className="d-flex align-items-center">
               <button
                 className="btn btn-sm btn-light me-2"
@@ -1711,6 +1709,8 @@ const HTMLCSSEditor: React.FC = () => {
               >
                 {showRequirement ? 'HIDE REQUIREMENT' : 'REQUIREMENT'}
               </button>
+            </div>
+            <div className="d-flex align-items-center">
               <button
                 className="btn btn-sm btn-light me-2"
                 style={{
@@ -1835,12 +1835,13 @@ const HTMLCSSEditor: React.FC = () => {
                         className="img-fluid" 
                         alt="Expected Output" 
                         style={{ 
-                          pointerEvents: 'none', 
+                          cursor: 'pointer',
                           maxWidth: '100%',
                           height: 'auto',
                           borderRadius: '4px',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }} 
+                        }}
+                        onClick={() => openModal('image', questionData.image_path, 'Expected Output')}
                       />
                     )}
 
@@ -1852,11 +1853,13 @@ const HTMLCSSEditor: React.FC = () => {
                         className="img-fluid" 
                         controls
                         style={{ 
+                          cursor: 'pointer',
                           maxWidth: '100%',
                           height: 'auto',
                           borderRadius: '4px',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }} 
+                        }}
+                        onClick={() => openModal('video', questionData.video_path, 'Expected Output Video')}
                       />
                     )}
 
@@ -1874,15 +1877,124 @@ const HTMLCSSEditor: React.FC = () => {
             <div style={{ 
               width: showRequirement ? '60%' : '100%', 
               backgroundColor: 'white', 
-              borderRadius: '4px'
+              borderRadius: '4px',
+              display: 'flex',
+              flexDirection: 'column'
             }}>
-              {renderEditor()}
+              {/* Filename display on top of editor */}
+              <div className="bg-light border-bottom p-2 d-flex align-items-center">
+                <div 
+                  style={{
+                    minWidth: 'fit-content',
+                    width: 'auto',
+                    height: '30px',
+                    borderRadius: '10px',
+                    backgroundColor: "black",
+                    color: "white",
+                    border: "none",
+                    display: 'inline-block',
+                    textAlign: 'center',
+                    lineHeight: '30px',
+                    marginRight: '8px',
+                    padding: '0 12px',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
+                  }}
+                  className="tab-button"
+                >
+                  {activeTab}
+                </div>
+              </div>
+              {/* Editor area */}
+              <div style={{ flex: 1, minHeight: 0 }}>
+                {renderEditor()}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-
+      {/* ===== MODAL FOR IMAGES, VIDEOS, AND OUTPUT ===== */}
+      {showModal && modalContent && (
+        <div 
+          className="modal fade show" 
+          style={{ 
+            display: 'block', 
+            backgroundColor: 'rgba(0,0,0,0.5)', 
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 10000
+          }} 
+          tabIndex={-1}
+        >
+          <div className="modal-dialog modal-xl modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">{modalContent.title}</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={closeModal}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="modal-body p-0" style={{ maxHeight: '80vh', overflow: 'auto' }}>
+                {modalContent.type === 'image' && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'flex-start',
+                    minHeight: '100%',
+                    padding: '10px'
+                  }}>
+                    <img 
+                      src={modalContent.src} 
+                      className="img-fluid" 
+                      alt={modalContent.title}
+                      style={{ 
+                        maxWidth: '100%', 
+                        height: 'auto',
+                        objectFit: 'contain',
+                        display: 'block'
+                      }}
+                    />
+                  </div>
+                )}
+                {modalContent.type === 'video' && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'flex-start',
+                    minHeight: '100%',
+                    padding: '10px'
+                  }}>
+                    <video 
+                      src={modalContent.src} 
+                      controls
+                      style={{ 
+                        maxWidth: '100%', 
+                        height: 'auto',
+                        display: 'block'
+                      }}
+                    />
+                  </div>
+                )}
+                {modalContent.type === 'output' && (
+                  <iframe
+                    srcDoc={modalContent.src}
+                    style={{ width: '100%', height: '80vh', border: 'none' }}
+                    sandbox="allow-scripts"
+                    title={modalContent.title}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
