@@ -1,50 +1,33 @@
-import React, { useState, useEffect,  useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import CodeMirror from "@uiw/react-codemirror";
-import { html } from '@codemirror/lang-html';
-import { css } from '@codemirror/lang-css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExpand } from '@fortawesome/free-solid-svg-icons';
 import { getApiClient } from "./utils/apiAuth";
 import { useNavigate } from "react-router-dom";
-import SkeletonCode from "./Components/EditorSkeletonCode"
+import SkeletonCode from "./Components/EditorSkeletonCode";
 import { secretKey } from "./constants";
 import { QUESTION_STATUS } from "./constants/constants";
-import { autoSaveHTMLCode, getAutoSavedHTMLCode, cleanupAutoSavedHTMLCode } from "./utils/autoSaveUtils";
-import { validateBasicHTMLStructure } from "./utils/htmlStructureValidation";
+import { getExpectedDescription } from "./utils/htmlCssValidationUtils";
+import { useHtmlCssEditorState } from "./utils/useHtmlCssEditorState";
+import { Modal, TabNavigation, ExpectedOutput, ExpectedOutputContent } from "./utils/htmlCssEditorComponents";
+import { getCodeMirrorExtensions, getCodeMirrorBasicSetup, getCodeMirrorStyle } from "./utils/codeMirrorConfig";
+import { getFileType, updateFileContent, handleTabClick, saveCodeToSession } from "./utils/htmlCssFileUtils";
+import { 
+  QuestionData, 
+  decryptSessionValue, 
+  encryptSessionValue,
+  loadAutoSavedCode,
+  validateCodeWithStructure,
+  calculateSuccessRate,
+  setValidationMessages,
+  createTabClickWithClear,
+  autoSaveCode,
+  generateOutputCode,
+  cleanupAfterSubmission,
+  isSuccessMessage
+} from "./utils/htmlCssEditorUtils";
 import CryptoJS from "crypto-js";
 
-interface Tab {
-  name: string;
-  type: string;
-}
-
-interface CodeValidation {
-  [key: string]: {
-    template: string;
-    structure?: any[];
-  };
-}
-
-interface QuestionData {
-  Qn_name: string;
-  Page_Name: string;
-  level: string;
-  subtopic_id: string;
-  type: string;
-  Tabs: Tab[];
-  Qn: string;
-  requirements: string;
-  Code_Validation: CodeValidation;
-  defaulttemplate: string;
-  image_path: string;
-  video_path: string;
-  CreatedBy: string;
-  CreatedOn: string;
-  LastUpdated: string;
-  status?: boolean;
-  score?: string;
-  entered_ans?: {[key: string]: string};
-}
 
 
 const HTMLCSSEditor: React.FC = () => {
@@ -52,45 +35,63 @@ const HTMLCSSEditor: React.FC = () => {
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [questionData, setQuestionData] = useState<QuestionData | null>(null);
-  const [fileContents, setFileContents] = useState<{[key: string]: string}>({});
-  const [activeTab, setActiveTab] = useState('');
   const [loading, setLoading] = useState(true);
   const [submittedFiles, setSubmittedFiles] = useState<{[key: string]: boolean}>({});
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
-  const [hasRunCode, setHasRunCode] = useState<boolean>(false);
-  const [processing, setProcessing] = useState<boolean>(false);
-  const [successMessage, setSuccessMessage] = useState<string>('');
-  const [additionalMessage, setAdditionalMessage] = useState<string>('');
-  const [isMaximized, setIsMaximized] = useState(false);
-  const [showRequirement, setShowRequirement] = useState(false);
-  const [activeSection, setActiveSection] = useState<'output' | 'testcases'>('output');
-  const [editorInstances, setEditorInstances] = useState<{[key: string]: any}>({});
-  const [testResults, setTestResults] = useState<{[key: string]: boolean[]}>({});
-  const [structureResults, setStructureResults] = useState<{[key: string]: boolean[]}>({});
-  const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
-  const [activeOutputTab, setActiveOutputTab] = useState('image');
-  const [structureErrorMessage, setStructureErrorMessage] = useState<string>('');
-  const [showModal, setShowModal] = useState(false);
-  const [modalContent, setModalContent] = useState<{type: 'image' | 'video' | 'output', src: string, title: string} | null>(null);
-  const encryptedStudentId = sessionStorage.getItem('StudentId');
-  const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const studentId = decryptedStudentId;
   
-  const encryptedSubjectId = sessionStorage.getItem('SubjectId');
-  const decryptedSubjectId = CryptoJS.AES.decrypt(encryptedSubjectId!, secretKey).toString(CryptoJS.enc.Utf8);
-  const subjectId = decryptedSubjectId;
-  
-  const encryptedSubject = sessionStorage.getItem('Subject');
-  const decryptedSubject = CryptoJS.AES.decrypt(encryptedSubject!, secretKey).toString(CryptoJS.enc.Utf8);
-  const subject = decryptedSubject;
-  
-  const encryptedWeekNumber = sessionStorage.getItem('WeekNumber');
-  const decryptedWeekNumber = CryptoJS.AES.decrypt(encryptedWeekNumber!, secretKey).toString(CryptoJS.enc.Utf8);
-  const weekNumber = decryptedWeekNumber;
-  
-  const encryptedDayNumber = sessionStorage.getItem('DayNumber');
-  const decryptedDayNumber = CryptoJS.AES.decrypt(encryptedDayNumber!, secretKey).toString(CryptoJS.enc.Utf8);
-  const dayNumber = decryptedDayNumber;
+  // Use custom hook for editor state
+  const {
+    fileContents,
+    setFileContents,
+    activeTab,
+    setActiveTab,
+    editorInstances,
+    setEditorInstances,
+    isMaximized,
+    setIsMaximized,
+    showRequirement,
+    setShowRequirement,
+    activeSection,
+    setActiveSection,
+    activeOutputTab,
+    setActiveOutputTab,
+    processing,
+    setProcessing,
+    hasRunCode,
+    setHasRunCode,
+    isSubmitted,
+    setIsSubmitted,
+    successMessage,
+    setSuccessMessage,
+    additionalMessage,
+    setAdditionalMessage,
+    structureErrorMessage,
+    setStructureErrorMessage,
+    testResults,
+    setTestResults,
+    structureResults,
+    setStructureResults,
+    selectedTestCaseIndex,
+    setSelectedTestCaseIndex,
+    showModal,
+    setShowModal,
+    modalContent,
+    setModalContent,
+    hasLoadedAutoSavedCode,
+    getFileType,
+    getCurrentFileContent,
+    updateFileContent,
+    handleTabClick,
+    openModal,
+    closeModal,
+    resetMessages,
+    resetTestResults,
+    resetEditorState,
+  } = useHtmlCssEditorState();
+  const studentId = decryptSessionValue('StudentId');
+  const subjectId = decryptSessionValue('SubjectId');
+  const subject = decryptSessionValue('Subject');
+  const weekNumber = decryptSessionValue('WeekNumber');
+  const dayNumber = decryptSessionValue('DayNumber');
   
  
  
@@ -224,15 +225,13 @@ const HTMLCSSEditor: React.FC = () => {
           } else if (!currentQuestion.status && !isSubmittedStatus) {
             // Only fetch from backend if no session storage data AND question is not submitted
             try {
-              const autoSavedCode = await getAutoSavedHTMLCode(currentQuestion.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
-              if (autoSavedCode) {
+              const autoSavedCode = await loadAutoSavedCode(currentQuestion, sessionKey, studentId, QUESTION_STATUS.PRACTICE, false);
                 // Merge auto-saved code with current file contents
                 Object.keys(autoSavedCode).forEach(fileName => {
                   if (fileContents.hasOwnProperty(fileName)) {
                     fileContents[fileName] = autoSavedCode[fileName];
                   }
                 });
-              }
             } catch (error) {
               console.error('Error loading auto-saved code from backend:', error);
             }
@@ -257,15 +256,6 @@ const HTMLCSSEditor: React.FC = () => {
   }, [studentId, subject, subjectId, dayNumber, weekNumber]);
 
 
-  const handleTabClick = (fileName: string) => {
-    setActiveTab(fileName);
-    // Force re-render of editor by clearing the instance for this file
-    setEditorInstances(prev => {
-      const newInstances = { ...prev };
-      delete newInstances[fileName];
-      return newInstances;
-    });
-  };
 
   const handleQuestionChange = async (index: number) => {
     if (index >= 0 && index < questions.length) {
@@ -279,66 +269,17 @@ const HTMLCSSEditor: React.FC = () => {
       // Save current question index to session storage
       sessionStorage.setItem("currentQuestionIndex", index.toString());
       
-      // Initialize file contents from Code_Validation
-      const fileContents: {[key: string]: string} = {};
-      
-      // Process each file in Code_Validation
-      Object.keys(question.Code_Validation).forEach(fileName => {
-        // Check if question is submitted and has entered_ans
-        if (question.status === true && question.entered_ans && question.entered_ans[fileName]) {
-          fileContents[fileName] = question.entered_ans[fileName];
-        } else if (fileName === 'index.html') {
-          // Use defaulttemplate for index.html if not submitted
-          fileContents[fileName] = question.defaulttemplate || '';
-        } else {
-          // Other files start empty if not submitted
-          fileContents[fileName] = '';
-        }
-      });
-      
-      // Check session storage first for auto-saved code
-      const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
-      const encryptedSessionCode = sessionStorage.getItem(sessionKey);
-      
-      if (encryptedSessionCode && !question.status) {
-        // Load from session storage if available and question is not submitted
-        try {
-          const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
-          const sessionCode = JSON.parse(decryptedCode);
-          
-          // Merge session code with current file contents
-          Object.keys(sessionCode).forEach(fileName => {
-            if (fileContents.hasOwnProperty(fileName)) {
-              fileContents[fileName] = sessionCode[fileName];
-            }
-          });
-        } catch (error) {
-          console.error('Error loading session storage code:', error);
-        }
-      } else if (!question.status) {
-        // Check if question is already submitted before fetching auto-save
+      // Check if question is already submitted
         const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
         const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
         const isSubmittedStatus = encryptedSubmitStatus ? 
           CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
         
-        // Only fetch from backend if no session storage data AND question is not submitted
-        if (!question.status && !isSubmittedStatus) {
-          try {
-            const autoSavedCode = await getAutoSavedHTMLCode(question.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
-            if (autoSavedCode) {
-              // Merge auto-saved code with current file contents
-              Object.keys(autoSavedCode).forEach(fileName => {
-                if (fileContents.hasOwnProperty(fileName)) {
-                  fileContents[fileName] = autoSavedCode[fileName];
-                }
-              });
-            }
-          } catch (error) {
-            console.error('Error loading auto-saved code from backend:', error);
-          }
-        }
-      }
+      const isSubmitted = question.status === true || isSubmittedStatus;
+      
+      // Load file contents using shared utility
+      const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+      const fileContents = await loadAutoSavedCode(question, sessionKey, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
       
       setFileContents(fileContents);
       
@@ -347,17 +288,11 @@ const HTMLCSSEditor: React.FC = () => {
         setActiveTab(question.Tabs[0].name);
       }
       
-       // Check if question is already submitted (like Python editor)
-       const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
-       const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
-       const isSubmittedStatus = encryptedSubmitStatus ? 
-         CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
-       
-       if (question.status === true || isSubmittedStatus) {
+      // Set submission status
+      if (isSubmitted) {
          setIsSubmitted(true);
          setHasRunCode(true);
        } else {
-         // Reset submission status only if not already submitted
          setSubmittedFiles({});
          setIsSubmitted(false);
          setHasRunCode(false);
@@ -379,24 +314,6 @@ const HTMLCSSEditor: React.FC = () => {
      }
    };
 
-  // Helper function to get file type based on extension
-  const getFileType = (fileName: string): string => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    return extension || 'text';
-  };
-
-  // Helper function to get current file content
-  const getCurrentFileContent = (): string => {
-    return fileContents[activeTab] || '';
-  };
-
-  // Helper function to update file content
-  const updateFileContent = (fileName: string, content: string) => {
-    setFileContents(prev => ({
-      ...prev,
-      [fileName]: content
-    }));
-  };
 
 
 
@@ -417,399 +334,24 @@ const HTMLCSSEditor: React.FC = () => {
       // Update the current file content before saving
       codeToSave[activeTab] = value;
       
-      const encryptedCode = CryptoJS.AES.encrypt(JSON.stringify(codeToSave), secretKey).toString();
-      sessionStorage.setItem(`userCode_${subject}_${weekNumber}_${dayNumber}_${questionData.Qn_name}`, encryptedCode);
+      const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${questionData.Qn_name}`;
+      saveCodeToSession(codeToSave, sessionKey);
     }
-  }, [activeTab, fileContents, questionData, isSubmitted]);
+  }, [activeTab, fileContents, questionData, isSubmitted, subject, weekNumber, dayNumber]);
 
-  // HTML Structure Validation using regex
-  const validateHTMLStructure = (htmlCode: string, tag: string, attributes: any, parentTag?: string, content?: string, parentAttributes?: any): boolean => {
-    // Special handling for DOCTYPE declarations
-    if (tag === '!DOCTYPE') {
-      const doctypePattern = /<!DOCTYPE\s+html\s*>/i;
-      return doctypePattern.test(htmlCode);
-    }
-    
-    // Remove DOCTYPE and normalize whitespace
-    const cleanHTML = htmlCode.replace(/<!DOCTYPE[^>]*>/gi, '').replace(/\s+/g, ' ').trim();
-    
-    // Find the parent tag boundaries if specified
-    if (parentTag) {
-      // Build regex pattern for parent tag with attributes
-      let parentPattern = `<${parentTag}\\b`;
-      if (parentAttributes) {
-        for (const [key, value] of Object.entries(parentAttributes)) {
-          if (Array.isArray(value)) {
-            parentPattern += `[^>]*${key}=["']${value[0]}["']`;
-          } else if (value === true) {
-            parentPattern += `[^>]*${key}(?:\\s|>|$)`;
-          } else {
-            parentPattern += `[^>]*${key}=["']${value}["']`;
-          }
-        }
-      }
-      parentPattern += `[^>]*>`;
-      
-      const parentStartRegex = new RegExp(parentPattern, 'g');
-      const parentEndRegex = new RegExp(`</${parentTag}>`, 'g');
-      
-      const parentStartMatch = parentStartRegex.exec(cleanHTML);
-      if (!parentStartMatch) return false; // Parent not found
-      
-      const parentStartIndex = parentStartMatch.index + parentStartMatch[0].length;
-      
-      // Find the closing tag
-      parentEndRegex.lastIndex = parentStartIndex;
-      const parentEndMatch = parentEndRegex.exec(cleanHTML);
-      if (!parentEndMatch) return false; // Parent not properly closed
-      
-      const parentEndIndex = parentEndMatch.index;
-      const parentContent = cleanHTML.substring(parentStartIndex, parentEndIndex);
-      
-      // Check if the tag exists within the parent content with correct content
-      return checkTagInContent(parentContent, tag, attributes, content);
-    } else {
-      // Check if tag exists anywhere in the HTML with correct content
-      return checkTagInContent(cleanHTML, tag, attributes, content);
-    }
-  };
-
-  // Helper function to check if a tag with attributes and content exists
-  const checkTagInContent = (content: string, tag: string, attributes: any, expectedContent?: string): boolean => {
-    // Build regex pattern for the tag
-    let pattern = `<${tag}\\b`;
-    
-    if (attributes) {
-      for (const [key, value] of Object.entries(attributes)) {
-        if (Array.isArray(value)) {
-          // Escape special regex characters in the value
-          const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          pattern += `[^>]*${key}=["']${escapedValue}["']`;
-        } else if (value === true) {
-          // Handle boolean attributes (like readonly, disabled, etc.)
-          pattern += `[^>]*${key}(?:\\s|>|$)`;
-        } else {
-          // Escape special regex characters in the value
-          const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          pattern += `[^>]*${key}=["']${escapedValue}["']`;
-        }
-      }
-    }
-    
-    // If content is expected, include it in the pattern
-    if (expectedContent) {
-      // Escape special regex characters in content
-      const escapedContent = expectedContent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      pattern += `[^>]*>\\s*${escapedContent}\\s*</${tag}>`;
-    } else {
-      pattern += `[^>]*/?>`;
-    }
-    
-    const regex = new RegExp(pattern, 'g');
-    const result = regex.test(content);
-    
-    return result;
-  };
-
-  // CSS Parser
-  const parseCSS = (cssCode: string) => {
-    try {
-      const result: any = {};
-      
-      // Extract CSS rules using regex
-      const rules = cssCode.match(/([^{}]+)\s*\{([^{}]*)\}/g);
-      
-      if (rules) {
-        rules.forEach(rule => {
-          const [selectorPart, properties] = rule.split('{');
-          const cleanProperties = properties.replace('}', '').trim();
-          
-          // Handle multiple selectors (comma-separated)
-          const selectors = selectorPart.split(',').map(s => s.trim());
-          
-          // Parse properties
-          const props: any = {};
-          const propPairs = cleanProperties.split(';');
-          
-          propPairs.forEach(prop => {
-            const [key, value] = prop.split(':');
-            if (key && value) {
-              props[key.trim()] = value.trim();
-            }
-          });
-          
-          // Apply properties to all selectors
-          selectors.forEach(selector => {
-            if (!result[selector]) {
-              result[selector] = {};
-            }
-            // Merge properties (later rules override earlier ones)
-            Object.assign(result[selector], props);
-          });
-        });
-      }
-      
-      return result;
-    } catch (error) {
-      return null;
-    }
-  };
-
-  // CSS Validation
-  const validateCSSRequirement = (cssCode: string, requirementIndex: number, cssStructure: any[]) => {
-    const parsed = parseCSS(cssCode);
-    if (!parsed) return false;
-    
-    // Get the requirement from the structure
-    const requirement = cssStructure[requirementIndex];
-    if (!requirement) return false;
-    
-    const { selector, properties } = requirement;
-    
-    // Check if selector exists in CSS
-    const selectorRules = parsed[selector];
-    if (!selectorRules) {
-      return false;
-    }
-    
-    // Check if all required properties exist with correct values
-    let allPropertiesValid = true;
-    for (const prop of properties) {
-      const { property, value } = prop;
-      if (selectorRules[property] !== value) {
-        allPropertiesValid = false;
-      }
-    }
-    
-    return allPropertiesValid;
-  };
-
-  // HTML Validation
-  const validateHTMLRequirement = (htmlCode: string, requirementIndex: number, htmlStructure: any[]) => {
-    // Get the requirement from the structure
-    const requirement = htmlStructure[requirementIndex];
-    if (!requirement) return false;
-    
-    const { tag, attributes, parent, content } = requirement;
-    
-    // Find parent tag name and attributes if specified
-    let parentTag: string | undefined = undefined;
-    let parentAttributes: any = undefined;
-    if (parent) {
-      const parentRequirement = htmlStructure.find((item: any) => item.id === parent);
-      if (parentRequirement) {
-        parentTag = parentRequirement.tag;
-        parentAttributes = parentRequirement.attributes;
-      }
-    }
-    
-    // Use raw HTML string validation instead of DOM parsing
-    const result = validateHTMLStructure(htmlCode, tag, attributes, parentTag, content, parentAttributes);
-    
-    return result;
-  };
-
-  // Structure validation function - only checks parent-child relationships
-  const validateStructure = (code: string, fileName: string, questionData: any) => {
-    const fileValidation = questionData.Code_Validation[fileName];
-    if (!fileValidation) return [];
-    
-    const structure = fileValidation.structure;
-    const type = fileName.endsWith('.html') ? 'HTML' : fileName.endsWith('.css') ? 'CSS' : 'JS';
-    
-    if (type === 'HTML') {
-      // For HTML, check only parent-child relationships
-      return structure.map((requirement: any) => {
-        const { tag, parent } = requirement;
-        
-        if (!parent) {
-          // Root element - just check if it exists
-          return code.includes(`<${tag}`);
-        } else {
-          // Child element - check if it's inside its parent
-          const parentRequirement = structure.find((item: any) => item.id === parent);
-          if (!parentRequirement) {
-            // Parent ID not found in structure list - skip parent-child validation
-            // Just check if the tag exists in the code
-            return code.includes(`<${tag}`);
-          }
-          
-          const parentTag = parentRequirement.tag;
-          // Check if the child tag exists inside the parent tag
-          // Use case-insensitive matching and handle self-closing tags
-          const parentRegex = new RegExp(`<${parentTag}[^>]*>([\\s\\S]*?)</${parentTag}>`, 'gi');
-          const parentMatches = [...code.matchAll(parentRegex)];
-          
-          for (const match of parentMatches) {
-            if (match[1] && match[1].includes(`<${tag}`)) {
-              return true;
-            }
-          }
-          return false;
-        }
-      });
-    }
-    
-    // For CSS, structure validation is the same as regular validation
-    return structure.map((_: any, index: number) => {
-      return validateCSSRequirement(code, index, structure);
-    });
-  };
+  // Custom handleTabClick that clears status messages
+  const handleTabClickWithClear = createTabClickWithClear(
+    handleTabClick,
+    setSuccessMessage,
+    setAdditionalMessage,
+    setStructureErrorMessage
+  );
 
 
-  // Main validation function - checks all requirements (structure + attributes)
-  const validateCode = (code: string, fileName: string, questionData: any) => {
-    const fileValidation = questionData.Code_Validation[fileName];
-    if (!fileValidation) return [];
-    
-    const structure = fileValidation.structure;
-    const type = fileName.endsWith('.html') ? 'HTML' : fileName.endsWith('.css') ? 'CSS' : 'JS';
-    
-    // For HTML files, first check basic structure
-    if (type === 'HTML') {
-      const basicStructureCheck = validateBasicHTMLStructure(code);
-      if (!basicStructureCheck.isValid) {
-        // Return all false results if basic structure is missing
-        return structure.map(() => false);
-      }
-    }
-    
-    // Get structure validation results
-    const structureResults = validateStructure(code, fileName, questionData);
-    
-    const results = structure.map((_: any, index: number) => {
-      if (type === 'HTML') {
-        // For HTML: both structure AND attributes must pass
-        const structurePass = structureResults[index];
-        const attributesPass = validateHTMLRequirement(code, index, structure);
-        return structurePass && attributesPass;
-      } else if (type === 'CSS') {
-        // For CSS: structure validation is the same as regular validation
-        return validateCSSRequirement(code, index, structure);
-      }
-      return false;
-    });
-    
-    return results;
-  };
 
 
-  // Helper function to generate expected description
-  const getExpectedDescription = (requirement: any, fileType: string) => {
-    if (fileType.endsWith('.html')) {
-      // For HTML, show only the clean structure without parent references
-      if (Array.isArray(requirement)) {
-        return buildCleanHTMLStructure(requirement);
-      } else {
-        // Single element without children
-        const { tag, attributes, content } = requirement;
-        let expected = `<${tag}`;
-        
-        if (attributes && Object.keys(attributes).length > 0) {
-          Object.entries(attributes).forEach(([key, value]) => {
-            if (Array.isArray(value)) {
-              expected += ` ${key}="${value[0]}"`;
-            } else if (value === true) {
-              expected += ` ${key}`;
-            } else {
-              expected += ` ${key}="${value}"`;
-            }
-          });
-        }
-        
-        // Special handling for DOCTYPE declarations
-        if (tag === '!DOCTYPE') {
-          expected += `>`;
-          return expected;
-        }
-        
-        if (content) {
-          expected += `>${content}</${tag}>`;
-        } else {
-          expected += `></${tag}>`;
-        }
-        
-        return expected;
-      }
-    } else if (fileType.endsWith('.css')) {
-      const { selector, properties } = requirement;
-      const propList = properties.map((prop: any) => `  ${prop.property}: ${prop.value};`).join('\n');
-      return `${selector} {\n${propList}\n}`;
-    }
-    
-    return 'Expected result';
-  };
 
-  const buildCleanHTMLStructure = (structure: any[]): string => {
-    // Build a tree structure from the flat array
-    const elementMap = new Map();
-    const rootElements: any[] = [];
-    
-    // First pass: create all elements
-    structure.forEach(element => {
-      elementMap.set(element.id, { ...element, children: [] });
-    });
-    
-    // Second pass: build parent-child relationships
-    structure.forEach(element => {
-      const elementObj = elementMap.get(element.id);
-      if (element.parent) {
-        const parent = elementMap.get(element.parent);
-        if (parent) {
-          parent.children.push(elementObj);
-        }
-      } else {
-        rootElements.push(elementObj);
-      }
-    });
-    
-    // Build clean HTML from tree structure (only show elements that should be visible)
-    return rootElements.map(element => buildCleanElementHTML(element, 0)).join('\n');
-  };
-
-  const buildCleanElementHTML = (element: any, indent: number): string => {
-    const spaces = '  '.repeat(indent);
-    const { tag, attributes, content, children } = element;
-    
-    let html = `${spaces}<${tag}`;
-    
-    // Add attributes
-    if (attributes && Object.keys(attributes).length > 0) {
-      Object.entries(attributes).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          html += ` ${key}="${value[0]}"`;
-        } else if (value === true) {
-          html += ` ${key}`;
-        } else {
-          html += ` ${key}="${value}"`;
-        }
-      });
-    }
-    
-    // Special handling for DOCTYPE declarations
-    if (tag === '!DOCTYPE') {
-      html += `>`;
-      return html;
-    }
-    
-    // Handle content and children
-    if (children && children.length > 0) {
-      html += '>\n';
-      children.forEach((child: any) => {
-        html += buildCleanElementHTML(child, indent + 1) + '\n';
-      });
-      html += `${spaces}</${tag}>`;
-    } else if (content) {
-      html += `>${content}</${tag}>`;
-    } else {
-      html += `></${tag}>`;
-    }
-    
-    return html;
-  };
-
-
-  const handleCheckCode = () => {
+  const handleCheckCode = async () => {
     // If maximized, return to normal view when RUN is clicked
     if (isMaximized) {
       setIsMaximized(false);
@@ -819,86 +361,30 @@ const HTMLCSSEditor: React.FC = () => {
     if (questionData && activeTab) {
       const currentCode = getCurrentFileContent();
       
-      // First check basic HTML structure for HTML files
-      if (activeTab.endsWith('.html')) {
-        const basicStructureCheck = validateBasicHTMLStructure(currentCode);
-        if (!basicStructureCheck.isValid) {
-          let errorMessage = '';
-          
-          if (basicStructureCheck.missingElements.length > 0) {
-            errorMessage += `Missing elements: ${basicStructureCheck.missingElements.join(', ')}. `;
-          }
-          
-          if (basicStructureCheck.structureErrors.length > 0) {
-            errorMessage += `Structure errors: ${basicStructureCheck.structureErrors.join(', ')}.`;
-          }
-          
-          setSuccessMessage("Wrong Answer");
-          setAdditionalMessage("You have not passed all the test cases.");
-          setStructureErrorMessage(errorMessage);
-          setHasRunCode(true);
-          
-          // Clear test results when structure validation fails
-          setTestResults(prev => ({
-            ...prev,
-            [activeTab]: []
-          }));
-          setStructureResults(prev => ({
-            ...prev,
-            [activeTab]: []
-          }));
-          
-          setSelectedTestCaseIndex(null);
-          return; // Stop validation here if basic structure is missing
-        }
-      }
+      // Use shared validation utility
+      const { results } = await validateCodeWithStructure(
+        currentCode,
+        activeTab,
+        questionData,
+        setSuccessMessage,
+        setAdditionalMessage,
+        setStructureErrorMessage,
+        setHasRunCode,
+        setTestResults,
+        setStructureResults,
+        setSelectedTestCaseIndex
+      );
       
-      const results = validateCode(currentCode, activeTab, questionData);
-      const structureValidationResults = validateStructure(currentCode, activeTab, questionData);
+      if (results.length === 0) return; // Validation failed
       
-      // Update test results for current file
-      setTestResults(prev => ({
-        ...prev,
-        [activeTab]: results
-      }));
-      
-      // Update structure results for current file
-      setStructureResults(prev => ({
-        ...prev,
-        [activeTab]: structureValidationResults
-      }));
-      
-      // Mark that code has been run
-      setHasRunCode(true);
-      
-      // Clear structure error message for successful validation
-      setStructureErrorMessage('');
-      
-      // Auto-save code when running (only if not submitted)
-      if (!isSubmitted) {
-        const codeToSave: {[key: string]: string} = {};
-        Object.keys(fileContents).forEach(fileName => {
-          codeToSave[fileName] = fileContents[fileName] || '';
-        });
-        
-        // Auto-save to backend
-        autoSaveHTMLCode(codeToSave, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
-      }
+      // Auto-save code when running
+      await autoSaveCode(fileContents, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
       
       setSelectedTestCaseIndex(0);
       
-      // Calculate success rate
-      const passedTests = results.filter((result: boolean) => result).length;
-      const totalTests = results.length;
-      const successRate = totalTests > 0 ? (passedTests / totalTests) * 100 : 0;
-      
-      if (successRate === 100) {
-        setSuccessMessage("Congratulations!");
-        setAdditionalMessage("You have passed all the test cases. Click the submit code button.");
-      } else {
-        setSuccessMessage("Wrong Answer");
-        setAdditionalMessage("You have not passed all the test cases.");
-      }
+      // Calculate success rate and set messages
+      const successRate = calculateSuccessRate(results);
+      setValidationMessages(successRate, setSuccessMessage, setAdditionalMessage);
     }
   };
   
@@ -906,13 +392,7 @@ const HTMLCSSEditor: React.FC = () => {
   const renderEditor = () => {
     const fileType = getFileType(activeTab);
     const currentContent = getCurrentFileContent();
-    
-    let extensions: any[] = [];
-    if (fileType === 'html') {
-      extensions = [html()];
-    } else if (fileType === 'css') {
-      extensions = [css()];
-    }
+    const extensions = getCodeMirrorExtensions(fileType);
     
         return (
           <CodeMirror
@@ -922,158 +402,15 @@ const HTMLCSSEditor: React.FC = () => {
             height="100%"
             extensions={extensions}
             onChange={onChangeFileContent}
-            style={{ backgroundColor: 'white', overflow: 'auto' }}
-            basicSetup={{
-              history: true, // Each instance has its own history
-              lineNumbers: true,
-              foldGutter: true,
-              dropCursor: false,
-              allowMultipleSelections: false,
-              indentOnInput: true,
-              bracketMatching: true,
-              closeBrackets: true,
-              autocompletion: true,
-              highlightSelectionMatches: true
-            }}
+        style={getCodeMirrorStyle()}
+        basicSetup={getCodeMirrorBasicSetup()}
           />
         );
   };
 
-  // Generate HTML preview with dynamic file processing
-  const generateHTMLPreview = (files: {[key: string]: string}) => {
-    // Get the main HTML file (prefer index.html, fallback to first HTML file)
-    const htmlFileNames = Object.keys(files).filter(name => name.endsWith('.html'));
-    const mainHtmlFile = htmlFileNames.find(name => name === 'index.html') || htmlFileNames[0];
-    
-    if (!mainHtmlFile) {
-      return '';
-    }
 
-    let htmlContent = files[mainHtmlFile] || '';
+  const srcCode = generateOutputCode(fileContents);
 
-    // If no HTML content, return empty
-    if (!htmlContent.trim()) {
-      return '';
-    }
-
-    // Don't auto-fix missing HTML structure - let validation handle this
-    // The preview should show the actual student code as-is
-
-    let htmlWithDataUrl = htmlContent;
-    
-    // Process all file references dynamically
-    const processFileReferences = (pattern: RegExp, fileType: string, dataUrlPrefix: string, attributeName: string | null = null) => {
-      const matches = htmlWithDataUrl.match(pattern);
-      if (matches) {
-        matches.forEach(match => {
-          // Extract filename from various attribute patterns
-          const srcMatch = match.match(/src=["']([^"']+)["']|href=["']([^"']+)["']|data-src=["']([^"']+)["']|include=["']([^"']+)["']|data=["']([^"']+)["']/i);
-          if (srcMatch) {
-            const fileName = srcMatch[1] || srcMatch[2] || srcMatch[3] || srcMatch[4] || srcMatch[5];
-            // Find the corresponding file content
-            const referencedFile = Object.keys(files).find(f => f === fileName && f.endsWith(fileType === 'CSS' ? '.css' : '.html'));
-            if (referencedFile) {
-              const fileContent = files[referencedFile] || '';
-              const fileDataUrl = `${dataUrlPrefix}${encodeURIComponent(fileContent)}`;
-              
-              // Determine which attribute to replace
-              let attribute = attributeName;
-              if (!attribute) {
-                if (srcMatch[1]) attribute = 'src';
-                else if (srcMatch[2]) attribute = 'href';
-                else if (srcMatch[3]) attribute = 'data-src';
-                else if (srcMatch[4]) attribute = 'include';
-                else if (srcMatch[5]) attribute = 'data';
-              }
-              
-              // Replace the reference
-              htmlWithDataUrl = htmlWithDataUrl.replace(
-                new RegExp(`${attribute}=["']${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`, 'gi'),
-                `${attribute}="${fileDataUrl}"`
-              );
-            }
-          }
-        });
-      }
-    };
-
-    // Simple HTML file reference processor
-    const processHTMLFileReferences = () => {
-      // Find all HTML files in the files object
-      const htmlFiles = Object.keys(files).filter(f => f.endsWith('.html'));
-      
-      htmlFiles.forEach(htmlFileName => {
-        const fileContent = files[htmlFileName] || '';
-        const fileDataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(fileContent)}`;
-        
-        // Simple replacements - replace with actual content
-        htmlWithDataUrl = htmlWithDataUrl.replace(
-          new RegExp(`<div[^>]*include=["']${htmlFileName}["'][^>]*></div>`, 'gi'),
-          `<div>${fileContent}</div>`
-        );
-        
-        htmlWithDataUrl = htmlWithDataUrl.replace(
-          new RegExp(`<div[^>]*data-src=["']${htmlFileName}["'][^>]*></div>`, 'gi'),
-          `<div>${fileContent}</div>`
-        );
-        
-        htmlWithDataUrl = htmlWithDataUrl.replace(
-          new RegExp(`<link[^>]*rel=["']import["'][^>]*href=["']${htmlFileName}["'][^>]*>`, 'gi'),
-          `<div>${fileContent}</div>`
-        );
-        
-        // For iframe, object, embed - replace with data URLs
-        htmlWithDataUrl = htmlWithDataUrl.replace(
-          new RegExp(`<iframe[^>]*src=["']${htmlFileName}["'][^>]*>`, 'gi'),
-          `<iframe src="${fileDataUrl}"`
-        );
-        
-        htmlWithDataUrl = htmlWithDataUrl.replace(
-          new RegExp(`<object[^>]*data=["']${htmlFileName}["'][^>]*>`, 'gi'),
-          `<object data="${fileDataUrl}"`
-        );
-        
-        htmlWithDataUrl = htmlWithDataUrl.replace(
-          new RegExp(`<embed[^>]*src=["']${htmlFileName}["'][^>]*>`, 'gi'),
-          `<embed src="${fileDataUrl}"`
-        );
-      });
-    };
-
-    // Process CSS files linked via <link> tags
-    processFileReferences(
-      /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
-      'CSS',
-      'data:text/css;charset=utf-8,'
-    );
-
-    // Process HTML file references
-    processHTMLFileReferences();
-
-    return htmlWithDataUrl;
-  };
-
-  // Generate output code using the improved preview generation
-  const generateOutputCode = () => {
-    return generateHTMLPreview(fileContents);
-  };
-
-  const srcCode = generateOutputCode();
-
-  // Modal handlers
-  const openModal = (type: 'image' | 'video' | 'output', src: string, title: string) => {
-    setModalContent({ type, src, title });
-    setShowModal(true);
-    // Prevent body scroll when modal is open
-    document.body.style.overflow = 'hidden';
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setModalContent(null);
-    // Restore body scroll when modal is closed
-    document.body.style.overflow = 'unset';
-  };
 
   // Cleanup effect to restore body scroll on unmount
   useEffect(() => {
@@ -1190,10 +527,11 @@ const HTMLCSSEditor: React.FC = () => {
           }
 
           // Clean up auto-saved code after successful submission
-          cleanupAutoSavedHTMLCode(questionData?.Qn_name!, studentId, QUESTION_STATUS.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+          await cleanupAfterSubmission(questionData?.Qn_name!, studentId, QUESTION_STATUS.PRACTICE);
 
           // Show success message
           setSuccessMessage("Code submitted successfully!");
+          setAdditionalMessage("");
      
         } catch (error) {
           console.error("Error submitting code:", error);
@@ -1293,83 +631,21 @@ const HTMLCSSEditor: React.FC = () => {
                       {/* ===== THIRD ROW - EXPECTED OUTPUT (50%) ===== */}
                       <div style={{ height: "50%", display: "flex", flexDirection: "column" }}>
                         {/* Expected Output Header */}
-                        <div className="p-2 d-flex justify-content-between align-items-center" style={{ borderBottom: "1px solid #e9ecef" }}>
-                            <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
-                              Expected Output
-                            </h5>
-                            {/* Image and Video buttons - only show if both are available */}
-                            {questionData?.image_path && questionData?.video_path && (
-                              <div className="d-flex">
-                                <button
-                                  className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
-                                  onClick={() => setActiveOutputTab('image')}
-                                  style={{ fontSize: "12px", padding: "4px 8px" }}
-                                >
-                                  Image
-                                </button>
-                                <button
-                                  className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
-                                  onClick={() => setActiveOutputTab('video')}
-                                  style={{ fontSize: "12px", padding: "4px 8px" }}
-                                >
-                                  Video
-                                </button>
-                              </div>
-                            )}
-                        </div>
+                        <ExpectedOutput
+                          questionData={questionData}
+                          activeOutputTab={activeOutputTab}
+                          onOutputTabChange={(tab) => setActiveOutputTab(tab)}
+                          onImageClick={(src, title) => openModal('image', src, title)}
+                          onVideoClick={(src, title) => openModal('video', src, title)}
+                        />
                         
                         {/* Content with Scrollbar */}
-                        <div 
-                          className="flex-fill overflow-auto p-3 d-flex justify-content-center align-items-start"
-                          style={{ 
-                            scrollbarWidth: "thin",
-                            scrollbarColor: "#c1c1c1 #f1f1f1"
-                          }}
-                        >
-                          {/* Show image if it's the active tab or if no video is available */}
-                          {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'image') || 
-                            (questionData?.image_path && !questionData?.video_path)) && (
-                            <img 
-                              src={questionData.image_path} 
-                              className="img-fluid" 
-                              alt="Expected Output" 
-                              style={{ 
-                                cursor: 'pointer',
-                                maxWidth: '100%',
-                                height: 'auto',
-                                borderRadius: '4px',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                              }}
-                              onClick={() => openModal('image', questionData.image_path, 'Expected Output')}
-                            />
-                          )}
-
-                          {/* Show video if it's the active tab or if no image is available */}
-                          {((questionData?.image_path && questionData?.video_path && activeOutputTab === 'video') || 
-                            (!questionData?.image_path && questionData?.video_path)) && (
-                            <video 
-                              src={questionData.video_path} 
-                              className="img-fluid" 
-                              controls
-                              style={{ 
-                                cursor: 'pointer',
-                                maxWidth: '100%',
-                                height: 'auto',
-                                borderRadius: '4px',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                              }}
-                              onClick={() => openModal('video', questionData.video_path, 'Expected Output Video')}
-                            />
-                          )}
-
-                          {/* Show message if neither image nor video is available */}
-                          {!questionData?.image_path && !questionData?.video_path && (
-                            <div className="text-center text-muted" style={{ padding: "20px" }}>
-                              <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
-                              <p className="mt-2">No expected output available</p>
-                            </div>
-                          )}
-                        </div>
+                        <ExpectedOutputContent
+                          questionData={questionData}
+                          activeOutputTab={activeOutputTab}
+                          onImageClick={(src, title) => openModal('image', src, title)}
+                          onVideoClick={(src, title) => openModal('video', src, title)}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1381,44 +657,13 @@ const HTMLCSSEditor: React.FC = () => {
                     {/* ===== CODE EDITOR ===== */}
                     <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
                     <div className="border-bottom border-dark p-2 d-flex justify-content-between align-items-center">
-                         <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0 }}>
-                           <div 
-                             className="d-flex"
-                             style={{ 
-                               flexWrap: 'nowrap',
-                               overflowX: 'auto',
-                               overflowY: 'hidden',
-                               scrollbarWidth: "thin",
-                               scrollbarColor: "#c1c1c1 #f1f1f1",
-                               flex: 1,
-                               minWidth: 0,
-                               maxWidth: 'calc(100% - 40px)'
-                             }}
-                           >
-                            {questionData?.Tabs.map((tab, index) => (
-                                <button
-                                    key={index}
-                                    className={`btn me-2 ${activeTab === tab.name ? 'btn-primary' : 'btn-outline-primary'}`}
-                                    onClick={() => handleTabClick(tab.name)}
-                                    style={{ 
-                                      fontSize: "12px", 
-                                      padding: "4px 8px",
-                                      whiteSpace: 'nowrap',
-                                      flexShrink: 0
-                                    }}
-                                    title={tab.name} // Show full filename on hover
-                                >
-                                   {tab.name}
-                                </button>
-                            ))}
-                           </div>
-                           <FontAwesomeIcon 
-                             icon={faExpand} 
-                             className='text-dark ms-2 me-2' 
-                             onClick={() => setIsMaximized(true)} 
-                             style={{ cursor: 'pointer', fontSize: "16px", flexShrink: 0 }} 
-                           />
-                        </div>
+                      <TabNavigation
+                        tabs={questionData?.Tabs || []}
+                        activeTab={activeTab}
+                        onTabClick={handleTabClickWithClear}
+                        showExpandButton={true}
+                        onExpandClick={() => setIsMaximized(true)}
+                      />
                     </div>
                     <div className="col top" style={{ height: `calc(100% - 60px)`, overflowY: 'auto', marginBottom: '10px' }}>
                         {renderEditor()}
@@ -1433,8 +678,8 @@ const HTMLCSSEditor: React.FC = () => {
                             <h5 className="m-0 processingDivHeadingTag">Processing...</h5>
                           ) : (
                             <>
-                              {successMessage && <h5 className={`m-0 ps-1 ${successMessage === "Congratulations!" ? 'text-success' : 'text-danger'}`} style={{ fontSize: '14px' }}>{successMessage}</h5>}
-                              {additionalMessage && <p className={`processingDivParaTag m-0 ps-1 ${successMessage === "Congratulations!" ? 'text-success' : 'text-danger'}`} style={{ fontSize: "10px" }}>{additionalMessage}</p>}
+                              {successMessage && <h5 className={`m-0 ps-1 ${isSuccessMessage(successMessage) ? 'text-success' : 'text-danger'}`} style={{ fontSize: '14px' }}>{successMessage}</h5>}
+                              {additionalMessage && <p className={`processingDivParaTag m-0 ps-1 ${isSuccessMessage(successMessage) ? 'text-success' : 'text-danger'}`} style={{ fontSize: "10px" }}>{additionalMessage}</p>}
                             </>
                           )}
                         </div>
@@ -1573,18 +818,48 @@ const HTMLCSSEditor: React.FC = () => {
                         
                         {/* ===== TEST CASES SECTION ===== */}
                         {activeSection === 'testcases' && (
-                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
+                          <div style={{ flex: 1, maxHeight: "90%", overflow: "hidden" }}>
                             {testResults[activeTab] && testResults[activeTab].length > 0 ? (
+                              <div style={{ height: "100%" }}>
+                                
                               <div className="d-flex" style={{ height: "100%" }}>
                                 {/* Left Column - Test Case List (30%) */}
                                 <div className="border-end" style={{ 
                                   width: "30%", 
+                                    height: "100%",
                                   overflowY: "auto", 
                                   padding: "10px",
                                   scrollbarWidth: "thin",
                                   scrollbarColor: "#c1c1c1 #f1f1f1"
                                 }}>
-                                  {testResults[activeTab].map((result, index) => (
+                                    {testResults[activeTab].map((result, index) => {
+                                      // Handle different result types
+                                      let displayText = '';
+                                      let isPassed = false;
+                                      
+                                      if (typeof result === 'boolean') {
+                                        displayText = `Test Case ${index + 1}`;
+                                        isPassed = result;
+                                      } else if (typeof result === 'object' && result !== null && 'passed' in result) {
+                                        const objResult = result as any;
+                                        isPassed = objResult.passed;
+                                        
+                                        if (objResult.isGrouped && objResult.elementType === 'function') {
+                                          // For grouped function test cases, show count
+                                          displayText = `Test Case ${index + 1}`;
+                                        } else if (objResult.elementType === 'variable') {
+                                          displayText = `Test Case ${index + 1}`;
+                                        } else if (objResult.elementType === 'function') {
+                                          displayText = `Test Case ${index + 1}`;
+                                        } else {
+                                          displayText = `Test Case ${index + 1}`;
+                                        }
+                                      } else {
+                                        displayText = `Test Case ${index + 1}`;
+                                        isPassed = false;
+                                      }
+                                      
+                                      return (
                                     <div
                                       key={index}
                                       className={`p-2 border-bottom cursor-pointer ${
@@ -1606,35 +881,182 @@ const HTMLCSSEditor: React.FC = () => {
                                       }}
                                       onClick={() => setSelectedTestCaseIndex(index)}
                                     >
-                                      <span>Test Case {index + 1}</span>
-                                      {result ? (
-                                        <span className="text-success">✓</span>
-                                      ) : (
-                                        <span className="text-danger">✗</span>
-                                      )}
-                </div>
-                                  ))}
+                                          <span style={{ fontSize: "11px", lineHeight: "1.3" }}>{displayText}</span>
+                                          {isPassed ? (
+                                            <span className="text-success">✓</span>
+                                          ) : (
+                                            <span className="text-danger">✗</span>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                   </div>
                                 
                                 {/* Right Column - Test Case Details (70%) */}
-                                <div className="px-4 pt-3 pb-3" style={{ width: "70%", overflowY: "auto" }}>
-                                  {selectedTestCaseIndex !== null && testResults[activeTab][selectedTestCaseIndex] !== undefined && (
+                                <div className="px-4 pt-3 pb-3" style={{ 
+                                  width: "70%", 
+                                  height: "100%",
+                                  overflowY: "auto",
+                                  scrollbarWidth: "thin",
+                                  scrollbarColor: "#c1c1c1 #f1f1f1"
+                                }}>
+                                  {selectedTestCaseIndex !== null && testResults[activeTab][selectedTestCaseIndex] !== undefined && (() => {
+                                    const result = testResults[activeTab][selectedTestCaseIndex];
+                                    const isJSFile = activeTab.endsWith('.js');
+                                    
+                                    return (
                                     <div>
                                       {/* Test Case Status */}
                                       <div className="mb-3">
                                         <strong>Status: </strong>
-                                        <span className={testResults[activeTab][selectedTestCaseIndex] ? "text-success" : "text-danger"}>
-                                          {testResults[activeTab][selectedTestCaseIndex] ? "Pass" : "Failed"}
+                                        <span className={(() => {
+                                          if (typeof result === 'boolean') {
+                                            return result ? "text-success" : "text-danger";
+                                          } else if (typeof result === 'object' && result !== null && 'passed' in result) {
+                                            return (result as any).passed ? "text-success" : "text-danger";
+                                          }
+                                          return "text-danger";
+                                        })()}>
+                                          {(() => {
+                                            if (typeof result === 'boolean') {
+                                              return result ? "Pass" : "Failed";
+                                            } else if (typeof result === 'object' && result !== null && 'passed' in result) {
+                                              return (result as any).passed ? "Pass" : "Failed";
+                                            }
+                                            return "Failed";
+                                          })()}
                                         </span>
                 </div>
                                       
-                                      {/* Structure */}
+                                        
+                                        {/* For JavaScript files, show test case information */}
+                                        {isJSFile && typeof result === 'object' && result !== null && 'elementType' in result && (() => {
+                                          const jsResult = result as any;
+                                          
+                                          // If it's a grouped function result, show nested test cases
+                                          if (jsResult.isGrouped && jsResult.elementType === 'function') {
+                                            return (
+                                              <>
+                                                {/* Function Information */}
+                                                <div className="mb-3">
+                                                  <strong>Function: </strong>
+                                                  <span className="text-info">{jsResult.elementName}</span>
+                                                  <span className="text-muted ms-2">({jsResult.passedCount}/{jsResult.totalCount} passed)</span>
+                                                </div>
+                                                
+                                                {/* Nested Test Cases */}
+                                                <div className="mb-3">
+                                                  <strong>Test Cases:</strong>
+                                                  <div className="mt-2">
+                                                    {jsResult.testCases.map((testCase: any, tcIndex: number) => (
+                                                      <div key={tcIndex} className="mb-2 p-2 border rounded" style={{ backgroundColor: testCase.passed ? '#f8f9fa' : '#fff5f5' }}>
+                                                        <div className="d-flex justify-content-between align-items-center">
+                                                          <span className="fw-bold">Test Case {tcIndex + 1}</span>
+                                                          {testCase.passed && (
+                                                            <span className="text-success">✓</span>
+                                                          )}
+                                                        </div>
+                                                        
+                                                        {/* Show description only for failed test cases */}
+                                                        {!testCase.passed && testCase.testCaseDescription && (
+                                                          <div className="mt-2">
+                                                            <strong>Description: </strong>
+                                                            <span className="text-warning">{testCase.testCaseDescription}</span>
+                                                          </div>
+                                                        )}
+                                                        
+                                                        {/* Show input and expected output for failed test cases */}
+                                                        {!testCase.passed && (
+                                                          <>
+                                                            {testCase.input && (
+                                                              <div className="mt-1">
+                                                                <strong>Input: </strong>
+                                                                <code>[{testCase.input.join(', ')}]</code>
+                                                              </div>
+                                                            )}
+                                                            {testCase.expectedOutput && (
+                                                              <div className="mt-1">
+                                                                <strong>Expected: </strong>
+                                                                <code>{testCase.expectedOutput}</code>
+                                                              </div>
+                                                            )}
+                                                          </>
+                                                        )}
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              </>
+                                            );
+                                          } else {
+                                            // Individual elements (variables, etc.)
+                                            return (
+                                              <>
+                                                {/* Show Element Information only for functions */}
+                                                {jsResult.elementType === 'function' && (
+                                                  <div className="mb-3">
+                                                    <strong>Element: </strong>
+                                                    <span className="text-info">{jsResult.elementName}</span>
+                                                    <span className="text-muted ms-2">({jsResult.elementType})</span>
+                                                  </div>
+                                                )}
+                                                
+                                                {/* Test Case Description (only show if failed) */}
+                                                {!jsResult.passed && jsResult.testCaseDescription && (
+                                                  <div className="mb-3">
+                                                    <strong>Description: </strong>
+                                                    <span className="text-warning">{jsResult.testCaseDescription}</span>
+                                                  </div>
+                                                )}
+                                                
+                                                {/* Expected Value for Variables */}
+                                                {jsResult.elementType === 'variable' && jsResult.expectedValue && (
+                                                  <div className="mb-3">
+                                                    <strong>Expected Value: </strong>
+                                                    <div className="mt-1 p-2" style={{ 
+                                                      backgroundColor: "#d4edda", 
+                                                      border: "1px solid #c3e6cb", 
+                                                      borderRadius: "4px",
+                                                      fontSize: "12px",
+                                                      fontFamily: "monospace"
+                                                    }}>
+                                                      {jsResult.expectedValue}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </>
+                                            );
+                                          }
+                                        })()}
+                                        
+                                        {/* For non-JavaScript files, show structure and expected */}
+                                        {!isJSFile && (
+                                          <>
+                                            {/* Structure - only for HTML files */}
+                                            {activeTab.endsWith('.html') && (
                                       <div className="mb-3">
                                         <strong>Structure: </strong>
-                                        <span className={structureResults[activeTab] && structureResults[activeTab][selectedTestCaseIndex] ? "text-success" : "text-danger"}>
-                                          {structureResults[activeTab] && structureResults[activeTab][selectedTestCaseIndex] ? "Pass" : "Failed"}
+                                        <span className={(() => {
+                                                  const structureResult = structureResults[activeTab] && structureResults[activeTab][selectedTestCaseIndex];
+                                                  if (typeof structureResult === 'boolean') {
+                                                    return structureResult ? "text-success" : "text-danger";
+                                                  } else if (typeof structureResult === 'object' && structureResult !== null && 'passed' in structureResult) {
+                                                    return (structureResult as any).passed ? "text-success" : "text-danger";
+                                          }
+                                          return "text-danger";
+                                        })()}>
+                                          {(() => {
+                                                    const structureResult = structureResults[activeTab] && structureResults[activeTab][selectedTestCaseIndex];
+                                                    if (typeof structureResult === 'boolean') {
+                                                      return structureResult ? "Pass" : "Failed";
+                                                    } else if (typeof structureResult === 'object' && structureResult !== null && 'passed' in structureResult) {
+                                                      return (structureResult as any).passed ? "Pass" : "Failed";
+                                            }
+                                            return "Failed";
+                                          })()}
                                         </span>
               </div>
+                                            )}
                                       
                                       {/* Expected */}
                                       <div className="mb-3">
@@ -1653,8 +1075,12 @@ const HTMLCSSEditor: React.FC = () => {
                                           }
                                         </div>
                                       </div>
-                                    </div>
+                                          </>
                                   )}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
                                 </div>
                               </div>
                             ) : (
@@ -1894,7 +1320,7 @@ const HTMLCSSEditor: React.FC = () => {
                     <button
                       key={index}
                       className={`btn me-2 ${activeTab === tab.name ? 'btn-primary' : 'btn-outline-primary'}`}
-                      onClick={() => handleTabClick(tab.name)}
+                      onClick={() => handleTabClickWithClear(tab.name)}
                       style={{ 
                         fontSize: "12px", 
                         padding: "4px 8px",
@@ -1918,102 +1344,11 @@ const HTMLCSSEditor: React.FC = () => {
       )}
 
       {/* ===== MODAL FOR IMAGES, VIDEOS, AND OUTPUT ===== */}
-      {showModal && modalContent && (
-        <div 
-          className="modal fade show" 
-          style={{ 
-            display: 'block', 
-            backgroundColor: 'rgba(0,0,0,0.5)', 
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            zIndex: 10000
-          }} 
-          tabIndex={-1}
-        >
-          <div className="modal-dialog modal-xl modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">{modalContent.title}</h5>
-                <button 
-                  type="button" 
-                  className="btn-close" 
-                  onClick={closeModal}
-                  aria-label="Close"
-                ></button>
-              </div>
-              <div className="modal-body p-0" style={{ maxHeight: '80vh' }}>
-                {modalContent.type === 'image' && (
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'flex-start',
-                    minHeight: '100%',
-                    padding: '10px',
-                    maxHeight: '80vh',
-                    overflow: 'auto'
-                  }}>
-                    <img 
-                      src={modalContent.src} 
-                      className="img-fluid" 
-                      alt={modalContent.title}
-                      style={{ 
-                        maxWidth: '100%', 
-                        height: 'auto',
-                        objectFit: 'contain',
-                        display: 'block'
-                      }}
-                    />
-                  </div>
-                )}
-                {modalContent.type === 'video' && (
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'flex-start',
-                    minHeight: '100%',
-                    padding: '10px',
-                    maxHeight: '80vh',
-                    overflow: 'auto'
-                  }}>
-                    <video 
-                      src={modalContent.src} 
-                      controls
-                      style={{ 
-                        maxWidth: '100%', 
-                        height: 'auto',
-                        display: 'block'
-                      }}
-                    />
-                  </div>
-                )}
-                {modalContent.type === 'output' && (
-                  <div style={{ 
-                    maxHeight: '80vh', 
-                    overflow: 'auto',
-                    padding: '10px'
-                  }}>
-                    <iframe
-                      srcDoc={modalContent.src}
-                      style={{ 
-                        width: '100%', 
-                        height: '80vh', 
-                        border: 'none',
-                        overflow: 'auto'
-                      }}
-                      sandbox="allow-scripts allow-same-origin"
-                      scrolling="yes"
-                      title={modalContent.title}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        showModal={showModal}
+        modalContent={modalContent}
+        onClose={closeModal}
+      />
 
     </div>
   );
