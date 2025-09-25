@@ -84,6 +84,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
   const [structureResults, setStructureResults] = useState<{[key: string]: boolean[]}>({});
   const [selectedTestCaseIndex, setSelectedTestCaseIndex] = useState<number | null>(null);
   const [activeOutputTab, setActiveOutputTab] = useState('image');
+  const [structureErrorMessage, setStructureErrorMessage] = useState<string>('');
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState<{type: 'image' | 'video' | 'output', src: string, title: string} | null>(null);
   const hasLoadedAutoSavedCode = useRef(false);
   // Helper function to safely decrypt session storage values
   const decryptSessionValue = (key: string, defaultValue: string = ''): string => {
@@ -161,8 +164,11 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     setSelectedTestCaseIndex(null);
     setSuccessMessage('');
     setAdditionalMessage('');
+    setStructureErrorMessage('');
     setHasRunCode(false);
     setIsSubmitted(false);
+    setActiveSection('output');
+    setActiveOutputTab('image');
     
     // Initialize file contents from Code_Validation - exactly like practice editor
     const fileContents: {[key: string]: string} = {};
@@ -737,8 +743,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             errorMessage += `Structure errors: ${basicStructureCheck.structureErrors.join(', ')}.`;
           }
           
-          setSuccessMessage("Fix HTML Structure");
-          setAdditionalMessage(errorMessage);
+          setSuccessMessage("Wrong Answer");
+          setAdditionalMessage("You have not passed all the test cases.");
+          setStructureErrorMessage(errorMessage);
           setHasRunCode(true);
           
           // Clear test results when structure validation fails
@@ -751,7 +758,6 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             [activeTab]: []
           }));
           
-          setActiveSection('testcases');
           setSelectedTestCaseIndex(null);
           return; // Stop validation here if basic structure is missing
         }
@@ -775,6 +781,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
       // Mark that code has been run
       setHasRunCode(true);
       
+      // Clear structure error message for successful validation
+      setStructureErrorMessage('');
+      
       // Auto-save to backend when running (not session storage)
       const codeToSave: {[key: string]: string} = {};
       Object.keys(fileContents).forEach(fileName => {
@@ -786,8 +795,6 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
         autoSaveHTMLCode(codeToSave, questionData.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
       }
       
-      // Switch to test cases tab to show results
-      setActiveSection('testcases');
       setSelectedTestCaseIndex(0);
       
       // Calculate success rate
@@ -971,6 +978,28 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
   };
 
   const srcCode = generateOutputCode();
+
+  // Modal handlers
+  const openModal = (type: 'image' | 'video' | 'output', src: string, title: string) => {
+    setModalContent({ type, src, title });
+    setShowModal(true);
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setModalContent(null);
+    // Restore body scroll when modal is closed
+    document.body.style.overflow = 'unset';
+  };
+
+  // Cleanup effect to restore body scroll on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
       const handleSubmit = async () => {
         setProcessing(true);
@@ -1163,7 +1192,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
               <div className="" style={{ height: "100vh", overflow: "hidden", padding: '0px 0px 65px 0px' }}>
                 <div className="d-flex" style={{ height: '100%', width: '100%' }}>
                   {/* ===== PROBLEM STATEMENT PANEL ===== */}
-                  <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px", marginRight: "10px" }}>
+                  <div className="col-5 lg-8 bg-white" style={{ height: "100%", display: "flex", flexDirection: "column", marginLeft: "-10px",  borderRight: "2px solid #dee2e6" }}>
                     <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533", display: "flex", flexDirection: "column" }}>
                       
                       {/* ===== FIRST ROW - PROBLEM STATEMENT & REQUIREMENTS (50%) ===== */}
@@ -1209,33 +1238,30 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                       {/* ===== THIRD ROW - EXPECTED OUTPUT (50%) ===== */}
                       <div className="px-3" style={{ height: "50%", display: "flex", flexDirection: "column" }}>
                         {/* Expected Output Header */}
-                        <div className="py-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                        <div className="py-2 d-flex justify-content-between align-items-center" style={{ borderBottom: "1px solid #e9ecef" }}>
                             <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
                               Expected Output
                             </h5>
+                            {/* Image and Video buttons - only show if both are available */}
+                            {questionData?.image_path && questionData?.video_path && (
+                              <div className="d-flex">
+                                <button
+                                  className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                  onClick={() => setActiveOutputTab('image')}
+                                  style={{ fontSize: "12px", padding: "4px 8px" }}
+                                >
+                                  Image
+                                </button>
+                                <button
+                                  className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
+                                  onClick={() => setActiveOutputTab('video')}
+                                  style={{ fontSize: "12px", padding: "4px 8px" }}
+                                >
+                                  Video
+                                </button>
+                              </div>
+                            )}
                         </div>
-
-                        {/* Output Tabs - Only show if both image and video are available */}
-                        {questionData?.image_path && questionData?.video_path && (
-                          <div className="py-2" style={{ borderBottom: "1px solid #e9ecef" }}>
-                            <div className="d-flex">
-                              <button
-                                className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
-                                onClick={() => setActiveOutputTab('image')}
-                                style={{ fontSize: "12px", padding: "4px 8px" }}
-                              >
-                                Image
-                              </button>
-                              <button
-                                className={`btn ${activeOutputTab === 'video' ? 'btn-primary' : 'btn-outline-primary'}`}
-                                onClick={() => setActiveOutputTab('video')}
-                                style={{ fontSize: "12px", padding: "4px 8px" }}
-                              >
-                                Video
-                              </button>
-                            </div>
-                          </div>
-                        )}
                         
                         {/* Content with Scrollbar */}
                         <div 
@@ -1254,12 +1280,13 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                               className="img-fluid" 
                               alt="Expected Output" 
                               style={{ 
-                                pointerEvents: 'none', 
+                                cursor: 'pointer',
                                 maxWidth: '100%',
                                 height: 'auto',
                                 borderRadius: '4px',
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                              }} 
+                              }}
+                              onClick={() => openModal('image', questionData.image_path, 'Expected Output')}
                             />
                           )}
 
@@ -1272,11 +1299,13 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                               className="img-fluid" 
                               controls
                               style={{ 
+                                cursor: 'pointer',
                                 maxWidth: '100%',
                                 height: 'auto',
                                 borderRadius: '4px',
                                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                              }} 
+                              }}
+                              onClick={() => openModal('video', questionData.video_path, 'Expected Output Video')}
                             />
                           )}
 
@@ -1298,7 +1327,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                     
                     {/* ===== CODE EDITOR ===== */}
                     <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
-                    <div className="border-bottom border-dark p-3 d-flex justify-content-between align-items-center">
+                    <div className="border-bottom border-dark p-1 d-flex justify-content-between align-items-center">
                          <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0 }}>
                            <div 
                              className="d-flex"
@@ -1314,36 +1343,25 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                              }}
                            >
                             {(questionData?.Tabs || []).map((tab: any, index: number) => (
-                                <div
+                                <button
                                     key={index}
-                                    style={{
-                                     minWidth: 'fit-content',
-                                     width: 'auto',
-                                        height: '30px',
-                                        borderRadius: '10px',
-                                     backgroundColor: activeTab === tab.name ? "black" : "transparent",
-                                     color: activeTab === tab.name ? "white" : "black",
-                                     border: activeTab === tab.name ? "none" : "1px solid black",
-                                        display: 'inline-block',
-                                        textAlign: 'center',
-                                        lineHeight: '30px',
-                                        marginRight: '8px',
-                                     cursor: 'pointer',
-                                     padding: '0 12px',
-                                     whiteSpace: 'nowrap',
-                                     flexShrink: 0
+                                    className={`btn me-2 ${activeTab === tab.name ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={() => handleTabClick(tab.name)}
+                                    style={{ 
+                                      fontSize: "12px", 
+                                      padding: "4px 8px",
+                                      whiteSpace: 'nowrap',
+                                      flexShrink: 0
                                     }}
-                                   className={`tab-button me-1 ${activeTab === tab.name ? 'selected-tab' : ''}`}
-                                   onClick={() => handleTabClick(tab.name)}
-                                   title={tab.name} // Show full filename on hover
+                                    title={tab.name} // Show full filename on hover
                                 >
                                    {tab.name}
-                                </div>
+                                </button>
                             ))}
                            </div>
                            <FontAwesomeIcon 
                              icon={faExpand} 
-                             className='text-dark ms-2 me-1' 
+                             className='text-dark ms-2 me-2' 
                              onClick={() => setIsMaximized(true)} 
                              style={{ cursor: 'pointer', fontSize: "16px", flexShrink: 0 }} 
                            />
@@ -1362,8 +1380,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                             <h5 className="m-0 processingDivHeadingTag">Processing...</h5>
                           ) : (
                             <>
-                              {successMessage && <h5 className="m-0 ps-1" style={{ fontSize: '14px' }}>{successMessage}</h5>}
-                              {additionalMessage && <p className="processingDivParaTag m-0 ps-1" style={{ fontSize: "10px" }}>{additionalMessage}</p>}
+                              {successMessage && <h5 className={`m-0 ps-1 ${successMessage === "Congratulations!" ? 'text-success' : 'text-danger'}`} style={{ fontSize: '14px' }}>{successMessage}</h5>}
+                              {additionalMessage && <p className={`processingDivParaTag m-0 ps-1 ${successMessage === "Congratulations!" ? 'text-success' : 'text-danger'}`} style={{ fontSize: "10px" }}>{additionalMessage}</p>}
                             </>
                           )}
                         </div>
@@ -1450,17 +1468,48 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
 
                         {/* ===== HTML/CSS OUTPUT ===== */}
                         {activeSection === 'output' && (
-                          <div style={{ flex: 1, maxHeight: "90%", overflow: "auto" }}>
-                    <iframe
-                    style={{ width: '100%', height: '100%', backgroundColor: '', color: 'black', borderColor: 'white', outline: 'none', resize: 'none' }}
-                    className="w-full h-full"
-                    srcDoc={srcCode}
-                    title="output"
-                    sandbox="allow-scripts"
-                    width="100%"
-                    height="100%"
-                    ></iframe>
-                </div>
+                          <div style={{ flex: 1, maxHeight: "90%", display: "flex", flexDirection: "column" }}>
+                            {/* Structure Error Display */}
+                            {hasRunCode && activeTab.endsWith('.html') && testResults[activeTab] && testResults[activeTab].length === 0 && structureErrorMessage && (
+                              <div className="alert alert-warning m-0 me-3 align-self-center" style={{ fontSize: "12px", padding: "8px 12px", margin: "0 0 10px 0" }}>
+                                <strong>HTML Structure Error:</strong>
+                                {structureErrorMessage}
+                              </div>
+                            )}
+                            
+                            {/* Output iframe */}
+                            <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+                              {srcCode ? (
+                                <>
+                                  <iframe
+                                    style={{ 
+                                      width: '100%', 
+                                      height: '100%', 
+                                      backgroundColor: 'white', 
+                                      color: 'black', 
+                                      border: 'none',
+                                      outline: 'none',
+                                      overflow: 'auto'
+                                    }}
+                                    className="w-full h-full"
+                                    srcDoc={srcCode}
+                                    title="Output"
+                                    sandbox="allow-scripts allow-same-origin"
+                                    width="100%"
+                                    height="100%"
+                                    scrolling="yes"
+                                  ></iframe>
+                                </>
+                              ) : (
+                                <div className="d-flex align-items-center justify-content-center h-100" style={{ backgroundColor: '#f8f9fa' }}>
+                                  <div className="text-center text-muted">
+                                    <FontAwesomeIcon icon={faExpand} style={{ fontSize: "48px", opacity: 0.3 }} />
+                                    <p className="mt-2">Click RUN to see output</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
                         
                         {/* ===== TEST CASES SECTION ===== */}
@@ -1581,51 +1630,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             flexDirection: 'column'
           }}
         >
-          {/* Header with file tabs */}
+          {/* Header with buttons */}
           <div className="bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
-            <div className="d-flex align-items-center" style={{ flex: 1, minWidth: 0 }}>
-              <div 
-                className="d-flex"
-                style={{ 
-                  flexWrap: 'nowrap',
-                  overflowX: 'auto',
-                  overflowY: 'hidden',
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "#c1c1c1 #f1f1f1",
-                  flex: 1,
-                  minWidth: 0,
-                  maxWidth: 'calc(100% - 200px)'
-                }}
-              >
-                {(questionData?.Tabs || []).map((tab: any, index: number) => (
-                  <div
-                    key={index}
-                    style={{
-                      minWidth: 'fit-content',
-                      width: 'auto',
-                      height: '30px',
-                      borderRadius: '10px',
-                      backgroundColor: activeTab === tab.name ? "black" : "transparent",
-                      color: activeTab === tab.name ? "white" : "black",
-                      border: activeTab === tab.name ? "none" : "1px solid black",
-                      display: 'inline-block',
-                      textAlign: 'center',
-                      lineHeight: '30px',
-                      marginRight: '8px',
-                      cursor: 'pointer',
-                      padding: '0 12px',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0
-                    }}
-                    className={`tab-button me-1 ${activeTab === tab.name ? 'selected-tab' : ''}`}
-                    onClick={() => handleTabClick(tab.name)}
-                    title={tab.name}
-                  >
-                    {tab.name}
-                  </div>
-                ))}
-              </div>
-            </div>
             <div className="d-flex align-items-center">
               <button
                 className="btn btn-sm btn-light me-2"
@@ -1641,6 +1647,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
               >
                 {showRequirement ? 'HIDE REQUIREMENT' : 'REQUIREMENT'}
               </button>
+            </div>
+            <div className="d-flex align-items-center">
               <button
                 className="btn btn-sm btn-light me-2"
                 style={{
@@ -1661,16 +1669,6 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
           {/* Main content area */}
           <div style={{ flex: 1, display: 'flex', margin: '10px', gap: '10px' }}>
             {/* Editor area */}
-            <div style={{ 
-              width: showRequirement ? '60%' : '100%', 
-              backgroundColor: 'white', 
-              borderRadius: '4px',
-              transition: 'width 0.3s ease'
-            }}>
-              {renderEditor()}
-            </div>
-            
-            {/* Requirement panel - only shown when showRequirement is true */}
             {showRequirement && (
               <div style={{ 
                 width: '40%',
@@ -1732,15 +1730,12 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                   display: 'flex', 
                   flexDirection: 'column'
                 }}>
-                  <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                  <div className="p-2 d-flex justify-content-between align-items-center" style={{ borderBottom: "1px solid #e9ecef" }}>
                     <h5 className="m-0" style={{ fontSize: "16px", fontWeight: "600" }}>
                     Expected Output
                   </h5>
-                  </div>
-
-                  {/* Output Tabs - Only show if both image and video are available */}
-                  {questionData?.image_path && questionData?.video_path && (
-                    <div className="p-2" style={{ borderBottom: "1px solid #e9ecef" }}>
+                    {/* Image and Video buttons - only show if both are available */}
+                    {questionData?.image_path && questionData?.video_path && (
                       <div className="d-flex">
                         <button
                           className={`btn me-2 ${activeOutputTab === 'image' ? 'btn-primary' : 'btn-outline-primary'}`}
@@ -1757,8 +1752,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                           Video
                         </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <div 
                     className="flex-fill overflow-auto p-3 d-flex justify-content-center align-items-start"
@@ -1776,12 +1771,13 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                         className="img-fluid" 
                         alt="Expected Output" 
                         style={{ 
-                          pointerEvents: 'none', 
+                          cursor: 'pointer',
                           maxWidth: '100%',
                           height: 'auto',
                           borderRadius: '4px',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }} 
+                        }}
+                        onClick={() => openModal('image', questionData.image_path, 'Expected Output')}
                       />
                     )}
 
@@ -1794,11 +1790,13 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                         className="img-fluid" 
                         controls
                         style={{ 
+                          cursor: 'pointer',
                           maxWidth: '100%',
                           height: 'auto',
                           borderRadius: '4px',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }} 
+                        }}
+                        onClick={() => openModal('video', questionData.video_path, 'Expected Output Video')}
                       />
                     )}
 
@@ -1813,11 +1811,152 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                 </div>
               </div>
             )}
+            <div style={{ 
+              width: showRequirement ? '60%' : '100%', 
+              backgroundColor: 'white', 
+              borderRadius: '4px',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              {/* File tabs on top of editor */}
+              <div className="bg-light border-bottom p-2 d-flex align-items-center">
+                <div 
+                  className="d-flex"
+                  style={{ 
+                    flexWrap: 'nowrap',
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#c1c1c1 #f1f1f1",
+                    flex: 1,
+                    minWidth: 0,
+                    maxWidth: '100%'
+                  }}
+                >
+                  {(questionData?.Tabs || []).map((tab: any, index: number) => (
+                    <button
+                      key={index}
+                      className={`btn me-2 ${activeTab === tab.name ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => handleTabClick(tab.name)}
+                      style={{ 
+                        fontSize: "12px", 
+                        padding: "4px 8px",
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                      title={tab.name}
+                    >
+                      {tab.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Editor area */}
+              <div style={{ flex: 1, minHeight: 0 }}>
+                {renderEditor()}
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-
+      {/* ===== MODAL FOR IMAGES, VIDEOS, AND OUTPUT ===== */}
+      {showModal && modalContent && (
+        <div 
+          className="modal fade show" 
+          style={{ 
+            display: 'block', 
+            backgroundColor: 'rgba(0,0,0,0.5)', 
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            zIndex: 10000
+          }} 
+          tabIndex={-1}
+        >
+          <div className="modal-dialog modal-xl modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">{modalContent.title}</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={closeModal}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="modal-body p-0" style={{ maxHeight: '80vh' }}>
+                {modalContent.type === 'image' && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'flex-start',
+                    minHeight: '100%',
+                    padding: '10px',
+                    maxHeight: '80vh',
+                    overflow: 'auto'
+                  }}>
+                    <img 
+                      src={modalContent.src} 
+                      className="img-fluid" 
+                      alt={modalContent.title}
+                      style={{ 
+                        maxWidth: '100%', 
+                        height: 'auto',
+                        objectFit: 'contain',
+                        display: 'block'
+                      }}
+                    />
+                  </div>
+                )}
+                {modalContent.type === 'video' && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'flex-start',
+                    minHeight: '100%',
+                    padding: '10px',
+                    maxHeight: '80vh',
+                    overflow: 'auto'
+                  }}>
+                    <video 
+                      src={modalContent.src} 
+                      controls
+                      style={{ 
+                        maxWidth: '100%', 
+                        height: 'auto',
+                        display: 'block'
+                      }}
+                    />
+                  </div>
+                )}
+                {modalContent.type === 'output' && (
+                  <div style={{ 
+                    maxHeight: '80vh', 
+                    overflow: 'auto',
+                    padding: '10px'
+                  }}>
+                    <iframe
+                      srcDoc={modalContent.src}
+                      style={{ 
+                        width: '100%', 
+                        height: '80vh', 
+                        border: 'none',
+                        overflow: 'auto'
+                      }}
+                      sandbox="allow-scripts allow-same-origin"
+                      scrolling="yes"
+                      title={modalContent.title}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
