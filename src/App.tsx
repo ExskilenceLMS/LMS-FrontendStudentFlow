@@ -5,7 +5,6 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
-import { Detector } from "react-detect-offline";
 import apiClient from "./utils/apiAuth";
 import { getApiClient } from "./utils/apiAuth";
 
@@ -18,7 +17,6 @@ import CryptoJS from "crypto-js";
 import AppRoutes from "./AppRoutes";
 import { performLogout } from "./utils/apiAuth";
 import Layout from "./Components/Layout";
-import InternetInfo from "./Components/InternetInfo";
 
 // Extend Window interface to include our custom property
 declare global {
@@ -29,42 +27,9 @@ declare global {
 
 function App() {
   return (
-    <Detector
-      polling={{
-        url: "/internet_info",
-        enabled: true,
-        timeout: 2000,
-        interval: 10000,
-      }}
-      render={({ online }) =>
-        online ? (
-          <Router>
-            <AppContent />
-          </Router>
-        ) : (
-          <Router>
-            <Routes>
-              <Route
-                path="/InternetInfo"
-                element={
-                  <Layout>
-                    <InternetInfo />
-                  </Layout>
-                }
-              />
-              <Route
-                path="*"
-                element={
-                  <Layout>
-                    <InternetInfo />
-                  </Layout>
-                }
-              />
-            </Routes>
-          </Router>
-        )
-      }
-    />
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 
