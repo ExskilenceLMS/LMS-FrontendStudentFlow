@@ -14,7 +14,9 @@ const InternetInfo: React.FC = () => {
     
     try {
       const controller = new AbortController()
-      timeoutRef.current = setTimeout(() => controller.abort(), 5000)
+      timeoutRef.current = setTimeout(() => {
+        controller.abort()
+      }, 5000)
       
       const response = await fetch('/robots.txt', {
         method: 'GET',
@@ -28,8 +30,14 @@ const InternetInfo: React.FC = () => {
       }
       
       setIsOnline(response.ok && response.status >= 200 && response.status < 300)
-    } catch (error) {
-      setIsOnline(false)
+    } catch (error: any) {
+      // Only set offline for actual network errors, not timeout aborts
+      if (error && (error.name === 'AbortError' || error.message === 'Timeout')) {
+        // Silent abort: just re-check next interval
+        console.log('Internet check timeout - will retry on next interval');
+      } else {
+        setIsOnline(false)
+      }
     } finally {
       setIsChecking(false)
     }

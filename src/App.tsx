@@ -40,6 +40,33 @@ function AppContent() {
   const sessionValidationFlagRef = useRef(false);
   const validationInProgressRef = useRef(false);
 
+  // Global error handler for timeout errors
+  useEffect(() => {
+    const handleGlobalError = (event: ErrorEvent) => {
+      if (event.error && (event.error.message === 'Timeout' || event.error.name === 'Timeout')) {
+        console.warn('Timeout error caught and handled:', event.error);
+        event.preventDefault(); // Prevent the error from showing in console
+        return false;
+      }
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason && (event.reason.message === 'Timeout' || event.reason.name === 'Timeout')) {
+        console.warn('Timeout promise rejection caught and handled:', event.reason);
+        event.preventDefault(); // Prevent the error from showing in console
+        return false;
+      }
+    };
+
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
 
 
   // Timer references
