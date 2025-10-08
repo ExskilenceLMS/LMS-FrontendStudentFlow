@@ -33,18 +33,36 @@ export const navigationRules: NavigationRule[] = [
 
 export const getPreviousPath = (currentPath: string): string => {
   const normalizedPath = currentPath.toLowerCase();
+  
+  // Handle dynamic routes with subject_id parameters
+  if (normalizedPath.startsWith('/testing/coding/')) {
+    return '/Dashboard';
+  }
+  
   const rule = navigationRules.find(rule => rule.currentPath.toLowerCase() === normalizedPath);
   return rule ? rule.previousPath : '/Dashboard';
 };
 
 export const isBackNavigationAllowed = (currentPath: string): boolean => {
   const normalizedPath = currentPath.toLowerCase();
+  
+  // Handle dynamic routes with subject_id parameters
+  if (normalizedPath.startsWith('/testing/coding/')) {
+    return true;
+  }
+  
   const rule = navigationRules.find(rule => rule.currentPath.toLowerCase() === normalizedPath);
   return rule ? rule.allowBack : true;
 };
 
 export const getNavigationDescription = (currentPath: string): string => {
   const normalizedPath = currentPath.toLowerCase();
+  
+  // Handle dynamic routes with subject_id parameters
+  if (normalizedPath.startsWith('/testing/coding/')) {
+    return 'Coding Editor -> Dashboard';
+  }
+  
   const rule = navigationRules.find(rule => rule.currentPath.toLowerCase() === normalizedPath);
   return rule ? rule.description : 'Default navigation';
 };
@@ -67,6 +85,11 @@ export const getBackNavigationPath = (currentPath: string): string => {
   const specialCase = handleSpecialCases(currentPath);
   if (specialCase) {
     return specialCase;
+  }
+  
+  // Handle dynamic routes with subject_id parameters
+  if (normalizedPath.startsWith('/testing/coding/')) {
+    return '/Dashboard';
   }
   
   // Find matching rule

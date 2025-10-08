@@ -93,6 +93,9 @@ const HTMLCSSEditor: React.FC = () => {
   const weekNumber = decryptSessionValue('WeekNumber');
   const dayNumber = decryptSessionValue('DayNumber');
   
+  // Check if we're in testing context
+  const isTestingContext = window.location.pathname.includes('/testing/coding/');
+  
  
  
 
@@ -101,7 +104,59 @@ const HTMLCSSEditor: React.FC = () => {
       try {
         setLoading(true);
         
-        // Construct API URL with all necessary parameters
+        // Check if we're in testing context (from SubjectBasedCodingEditor)
+        const isTestingContext = window.location.pathname.includes('/testing/coding/');
+        
+        if (isTestingContext) {
+          // In testing mode, load questions from session storage set by SubjectBasedCodingEditor
+          const storedQuestions = sessionStorage.getItem('codingQuestions');
+          if (storedQuestions) {
+            try {
+              const questions = JSON.parse(storedQuestions);
+              setQuestions(questions);
+              
+              // Set initial question index from session storage or default to 0
+              const storedIndex = sessionStorage.getItem("currentQuestionIndex");
+              const initialIndex = storedIndex ? 
+                Math.max(0, Math.min(parseInt(storedIndex) || 0, questions.length - 1)) : 0;
+              
+              setCurrentQuestionIndex(initialIndex);
+              
+              // Set current question based on stored index
+              if (questions.length > 0) {
+                const currentQuestion = questions[initialIndex];
+                setQuestionData(currentQuestion);
+                
+                // Initialize file contents from Code_Validation
+                const fileContents: {[key: string]: string} = {};
+                
+                // Process each file in Code_Validation
+                Object.keys(currentQuestion.Code_Validation).forEach(fileName => {
+                  if (fileName === 'index.html') {
+                    // Use defaulttemplate for index.html
+                    fileContents[fileName] = currentQuestion.defaulttemplate || '';
+                  } else {
+                    // Other files start empty
+                    fileContents[fileName] = '';
+                  }
+                });
+                
+                setFileContents(fileContents);
+                
+                // Set active tab to the first file
+                if (currentQuestion.Tabs.length > 0) {
+                  setActiveTab(currentQuestion.Tabs[0].name);
+                }
+              }
+            } catch (error) {
+              console.error('Error loading questions from session storage:', error);
+            }
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Only fetch from practice coding API in non-testing mode
         const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/` +
           `${studentId}/` +
           `${subject}/` +
@@ -222,8 +277,8 @@ const HTMLCSSEditor: React.FC = () => {
             } catch (error) {
               console.error('Error loading session storage code:', error);
             }
-          } else if (!currentQuestion.status && !isSubmittedStatus) {
-            // Only fetch from backend if no session storage data AND question is not submitted
+          } else if (!currentQuestion.status && !isSubmittedStatus && !isTestingContext) {
+            // Only fetch from backend if no session storage data AND question is not submitted AND not in testing mode
             try {
               const autoSavedCode = await loadAutoSavedCode(currentQuestion, sessionKey, studentId, QUESTION_STATUS.PRACTICE, false);
                 // Merge auto-saved code with current file contents
@@ -253,7 +308,7 @@ const HTMLCSSEditor: React.FC = () => {
     };
 
     fetchQuestions();
-  }, [studentId, subject, subjectId, dayNumber, weekNumber]);
+  }, [studentId, subject, subjectId, dayNumber, weekNumber, isTestingContext]);
 
 
 
@@ -279,7 +334,21 @@ const HTMLCSSEditor: React.FC = () => {
       
       // Load file contents using shared utility
       const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
-      const fileContents = await loadAutoSavedCode(question, sessionKey, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
+      let fileContents: {[key: string]: string} = {};
+      
+      if (isTestingContext) {
+        // In testing mode, initialize file contents without API calls
+        Object.keys(question.Code_Validation).forEach(fileName => {
+          if (fileName === 'index.html') {
+            fileContents[fileName] = question.defaulttemplate || '';
+          } else {
+            fileContents[fileName] = '';
+          }
+        });
+      } else {
+        // In practice mode, use the normal loadAutoSavedCode function
+        fileContents = await loadAutoSavedCode(question, sessionKey, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
+      }
       
       setFileContents(fileContents);
       
@@ -377,8 +446,10 @@ const HTMLCSSEditor: React.FC = () => {
       
       if (results.length === 0) return; // Validation failed
       
-      // Auto-save code when running
-      await autoSaveCode(fileContents, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
+      // Auto-save code when running (only in practice mode)
+      if (!isTestingContext) {
+        await autoSaveCode(fileContents, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
+      }
       
       setSelectedTestCaseIndex(0);
       
@@ -705,25 +776,27 @@ const HTMLCSSEditor: React.FC = () => {
                             RUN
                           </button>
                           
-                          {/* Submit Code Button */}
-                          <button
-                            className="btn btn-sm btn-light me-2 processingDivButton"
-                            style={{
-                              backgroundColor: "#FBEFA5DB",
-                              whiteSpace: "nowrap",
-                              fontSize: "12px",
-                              minWidth: "70px",
-                              boxShadow: "#888 1px 2px 5px 0px",
-                              height: "30px"
-                            }}
-                            onClick={handleSubmit}
-                            disabled={processing || isSubmitted || !hasRunCode}
-                          >
-                            {processing ? "PROCESSING..." : isSubmitted ? "SUBMITTED" : "SUBMIT"}
-                          </button>
+                          {/* Submit Code Button - only show if not in testing context */}
+                          {!isTestingContext && (
+                            <button
+                              className="btn btn-sm btn-light me-2 processingDivButton"
+                              style={{
+                                backgroundColor: "#FBEFA5DB",
+                                whiteSpace: "nowrap",
+                                fontSize: "12px",
+                                minWidth: "70px",
+                                boxShadow: "#888 1px 2px 5px 0px",
+                                height: "30px"
+                              }}
+                              onClick={handleSubmit}
+                              disabled={processing || isSubmitted || !hasRunCode}
+                            >
+                              {processing ? "PROCESSING..." : isSubmitted ? "SUBMITTED" : "SUBMIT"}
+                            </button>
+                          )}
                           
-                          {/* Next Button (only shown when question is completed) */}
-                          {isSubmitted &&
+                          {/* Next Button - show after submit in practice mode, or after run in testing mode */}
+                          {((!isTestingContext && isSubmitted) || (isTestingContext && hasRunCode)) &&
                             <button
                               className="btn btn-sm btn-light processingDivButton"
                             style={{
