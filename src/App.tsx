@@ -5,7 +5,6 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
-import { Detector } from "react-detect-offline";
 import apiClient from "./utils/apiAuth";
 import { getApiClient } from "./utils/apiAuth";
 
@@ -18,7 +17,6 @@ import CryptoJS from "crypto-js";
 import AppRoutes from "./AppRoutes";
 import { performLogout } from "./utils/apiAuth";
 import Layout from "./Components/Layout";
-import InternetInfo from "./Components/InternetInfo";
 
 // Extend Window interface to include our custom property
 declare global {
@@ -29,42 +27,9 @@ declare global {
 
 function App() {
   return (
-    <Detector
-      polling={{
-        url: "/internet_info",
-        enabled: true,
-        timeout: 2000,
-        interval: 10000,
-      }}
-      render={({ online }) =>
-        online ? (
-          <Router>
-            <AppContent />
-          </Router>
-        ) : (
-          <Router>
-            <Routes>
-              <Route
-                path="/InternetInfo"
-                element={
-                  <Layout>
-                    <InternetInfo />
-                  </Layout>
-                }
-              />
-              <Route
-                path="*"
-                element={
-                  <Layout>
-                    <InternetInfo />
-                  </Layout>
-                }
-              />
-            </Routes>
-          </Router>
-        )
-      }
-    />
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 
@@ -74,6 +39,33 @@ function AppContent() {
   const [countdown, setCountdown] = useState(60);
   const sessionValidationFlagRef = useRef(false);
   const validationInProgressRef = useRef(false);
+
+  // Global error handler for timeout errors
+  useEffect(() => {
+    const handleGlobalError = (event: ErrorEvent) => {
+      if (event.error && (event.error.message === 'Timeout' || event.error.name === 'Timeout')) {
+        console.warn('Timeout error caught and handled:', event.error);
+        event.preventDefault(); // Prevent the error from showing in console
+        return false;
+      }
+    };
+
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason && (event.reason.message === 'Timeout' || event.reason.name === 'Timeout')) {
+        console.warn('Timeout promise rejection caught and handled:', event.reason);
+        event.preventDefault(); // Prevent the error from showing in console
+        return false;
+      }
+    };
+
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
 
 
 

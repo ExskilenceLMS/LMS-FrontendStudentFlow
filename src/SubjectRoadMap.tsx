@@ -558,15 +558,12 @@ const SubjectRoadMap: React.FC = () => {
       return "/sql-editor";
     } else if (
       subject.toLowerCase().includes("html") ||
-      subject.toLowerCase().includes("css")
+      subject.toLowerCase().includes("css") ||
+      subject.toLowerCase().includes("javascript") ||
+      subject.toLowerCase().includes("js")
     ) {
       return "/html-css-editor";
-    } else if (
-      subject.toLowerCase().includes("java_script") ||
-      subject.toLowerCase().includes("javascript")
-    ) {
-      return "/js-editor";
-    }
+    } 
     return "/html-css-editor";
   };
 

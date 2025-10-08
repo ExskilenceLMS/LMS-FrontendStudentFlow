@@ -48,24 +48,20 @@ const Login: React.FC = () => {
   // reCAPTCHA v2 callback functions
   const onRecaptchaChange = (token: string | null): void => {
     if (token) {
-      // console.log('reCAPTCHA token received:', token);
       setRecaptchaToken(token);
       setRecaptchaVerified(true);
     } else {
-      // console.log('reCAPTCHA expired or reset');
       setRecaptchaToken('');
       setRecaptchaVerified(false);
     }
   };
 
   const onRecaptchaExpired = (): void => {
-    // console.log('reCAPTCHA expired');
     setRecaptchaToken('');
     setRecaptchaVerified(false);
   };
 
   const onRecaptchaError = (): void => {
-    // console.log('reCAPTCHA error');
     setRecaptchaToken('');
     setRecaptchaVerified(false);
     setAlertMessage('reCAPTCHA verification failed. Please try again.');
