@@ -27,6 +27,7 @@ import TestSQLCoding from './TestSQLCoding';
 import TestingMCQS from './Components/TestingMCQS';
 import PythonContentTester from './PythonContentTester';
 import DynamicCodingEditorWrapper from './Components/DynamicCodingEditorWrapper';
+import SubjectBasedCodingEditor from './Components/SubjectBasedCodingEditor';
 
 const AppRoutes = () => {
   const showMaintenance = process.env.REACT_APP_SHOW_MAINTENANCE === 'true';
@@ -61,6 +62,7 @@ const AppRoutes = () => {
         <Route path="/dynamic-coding-editor" element={<Layout><DynamicCodingEditorWrapper /></Layout>} />
         <Route path="/EditProfile" element={<Layout><EditProfile /></Layout>} />
         <Route path="/SQL-MCQ-Testing" element={<Layout><TestingMCQS /></Layout>} />
+        <Route path="/testing/coding/:subject_id" element={<Layout><SubjectBasedCodingEditor /></Layout>} />
       </Route>
     </Routes>
   );
