@@ -28,39 +28,61 @@ export const validateHTMLStructure = (htmlCode: string, tag: string, attributes:
   
   // Find the parent tag boundaries if specified
   if (parentTag) {
-    // Build regex pattern for parent tag with attributes
-    let parentPattern = `<${parentTag}\\b`;
-    if (parentAttributes) {
-      for (const [key, value] of Object.entries(parentAttributes)) {
-        if (Array.isArray(value)) {
-          parentPattern += `[^>]*${key}=["']${value[0]}["']`;
-        } else if (value === true) {
-          parentPattern += `[^>]*${key}(?:\\s|>|$)`;
-        } else {
-          parentPattern += `[^>]*${key}=["']${value}["']`;
+    // Find parent tag with flexible attribute ordering
+    const parentTagRegex = new RegExp(`<${parentTag}\\b[^>]*>`, 'gi');
+    const parentMatches = cleanHTML.match(parentTagRegex);
+    
+    if (!parentMatches) return false; // Parent not found
+    
+    // Check each parent tag instance to see if it has all required attributes
+    for (const parentMatch of parentMatches) {
+      let hasAllParentAttributes = true;
+      
+      if (parentAttributes) {
+        for (const [key, value] of Object.entries(parentAttributes)) {
+          let attributeFound = false;
+          
+          if (Array.isArray(value)) {
+            const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const attributeRegex = new RegExp(`${key}=["']${escapedValue}["']`, 'i');
+            attributeFound = attributeRegex.test(parentMatch);
+          } else if (value === true) {
+            const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
+            attributeFound = attributeRegex.test(parentMatch);
+          } else {
+            const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const attributeRegex = new RegExp(`${key}=["']${escapedValue}["']`, 'i');
+            attributeFound = attributeRegex.test(parentMatch);
+          }
+          
+          if (!attributeFound) {
+            hasAllParentAttributes = false;
+            break;
+          }
+        }
+      }
+      
+      if (hasAllParentAttributes) {
+        // Found a parent tag with all required attributes, now find its content
+        const parentStartIndex = cleanHTML.indexOf(parentMatch);
+        const parentEndRegex = new RegExp(`</${parentTag}>`, 'gi');
+        parentEndRegex.lastIndex = parentStartIndex;
+        const parentEndMatch = parentEndRegex.exec(cleanHTML);
+        
+        if (parentEndMatch) {
+          const parentStartContentIndex = parentStartIndex + parentMatch.length;
+          const parentEndIndex = parentEndMatch.index;
+          const parentContent = cleanHTML.substring(parentStartContentIndex, parentEndIndex);
+          
+          // Check if the tag exists within the parent content with correct content
+          if (checkTagInContent(parentContent, tag, attributes, content)) {
+            return true;
+          }
         }
       }
     }
-    parentPattern += `[^>]*>`;
     
-    const parentStartRegex = new RegExp(parentPattern, 'g');
-    const parentEndRegex = new RegExp(`</${parentTag}>`, 'g');
-    
-    const parentStartMatch = parentStartRegex.exec(cleanHTML);
-    if (!parentStartMatch) return false; // Parent not found
-    
-    const parentStartIndex = parentStartMatch.index + parentStartMatch[0].length;
-    
-    // Find the closing tag
-    parentEndRegex.lastIndex = parentStartIndex;
-    const parentEndMatch = parentEndRegex.exec(cleanHTML);
-    if (!parentEndMatch) return false; // Parent not properly closed
-    
-    const parentEndIndex = parentEndMatch.index;
-    const parentContent = cleanHTML.substring(parentStartIndex, parentEndIndex);
-    
-    // Check if the tag exists within the parent content with correct content
-    return checkTagInContent(parentContent, tag, attributes, content);
+    return false; // No valid parent found
   } else {
     // Check if tag exists anywhere in the HTML with correct content
     return checkTagInContent(cleanHTML, tag, attributes, content);
@@ -69,52 +91,69 @@ export const validateHTMLStructure = (htmlCode: string, tag: string, attributes:
 
 // Helper function to check if a tag with attributes and content exists
 export const checkTagInContent = (content: string, tag: string, attributes: any, expectedContent?: string): boolean => {
-  // Build regex pattern for the tag
-  let pattern = `<${tag}\\b`;
+  // First, find all instances of the tag
+  const tagRegex = new RegExp(`<${tag}\\b[^>]*>`, 'gi');
+  const tagMatches = content.match(tagRegex);
   
-  if (attributes) {
-    for (const [key, value] of Object.entries(attributes)) {
-      if (Array.isArray(value)) {
-        // Escape special regex characters in the value
-        const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        pattern += `[^>]*${key}=["']${escapedValue}["']`;
-      } else if (value === true) {
-        // Handle boolean attributes (like readonly, disabled, etc.)
-        pattern += `[^>]*${key}(?:\\s|>|$)`;
+  if (!tagMatches) return false;
+  
+  // Check each tag instance to see if it has all required attributes
+  for (const tagMatch of tagMatches) {
+    let hasAllAttributes = true;
+    
+    if (attributes) {
+      for (const [key, value] of Object.entries(attributes)) {
+        let attributeFound = false;
+        
+        if (Array.isArray(value)) {
+          // Check for attribute with specific value
+          const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const attributeRegex = new RegExp(`${key}=["']${escapedValue}["']`, 'i');
+          attributeFound = attributeRegex.test(tagMatch);
+        } else if (value === true) {
+          // Handle boolean attributes (like readonly, disabled, etc.)
+          const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
+          attributeFound = attributeRegex.test(tagMatch);
+        } else {
+          // Check for attribute with specific value
+          const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const attributeRegex = new RegExp(`${key}=["']${escapedValue}["']`, 'i');
+          attributeFound = attributeRegex.test(tagMatch);
+        }
+        
+        if (!attributeFound) {
+          hasAllAttributes = false;
+          break;
+        }
+      }
+    }
+    
+    if (hasAllAttributes) {
+      // Check if this is a self-closing tag
+      const isSelfClosing = tagMatch.endsWith('/>') || isSelfClosingTag(tag);
+      
+      if (expectedContent) {
+        if (isSelfClosing) {
+          // Self-closing tags cannot have content
+          return false;
+        } else {
+          // Find the content between opening and closing tags
+          const tagStartIndex = content.indexOf(tagMatch);
+          const tagEndIndex = content.indexOf(`</${tag}>`, tagStartIndex);
+          if (tagEndIndex !== -1) {
+            const tagContent = content.substring(tagStartIndex + tagMatch.length, tagEndIndex);
+            if (tagContent.includes(expectedContent)) {
+              return true;
+            }
+          }
+        }
       } else {
-        // Escape special regex characters in the value
-        const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        pattern += `[^>]*${key}=["']${escapedValue}["']`;
+        return true;
       }
     }
   }
   
-  // Handle self-closing tags vs regular tags
-  if (isSelfClosingTag(tag)) {
-    // Self-closing tags should not have content and should end with />
-    if (expectedContent) {
-      // Self-closing tags with content is invalid - return false
-      return false;
-    } else {
-      // Self-closing tag should end with /> or just >
-      pattern += `[^>]*/?>`;
-    }
-  } else {
-    // Regular tags
-    if (expectedContent) {
-      // Escape special regex characters in content
-      const escapedContent = expectedContent.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      pattern += `[^>]*>\\s*${escapedContent}\\s*</${tag}>`;
-    } else {
-      // Regular tag without content - can be self-closing or have closing tag
-      pattern += `[^>]*/?>`;
-    }
-  }
-  
-  const regex = new RegExp(pattern, 'g');
-  const result = regex.test(content);
-  
-  return result;
+  return false;
 };
 
 // CSS Parser
