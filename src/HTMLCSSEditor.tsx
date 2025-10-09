@@ -259,7 +259,9 @@ const HTMLCSSEditor: React.FC = () => {
           });
           
           // Check session storage first for auto-saved code
-          const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${currentQuestion.Qn_name}`;
+          const sessionKey = isTestingContext 
+            ? `testing_userCode_${currentQuestion.Qn_name}` 
+            : `userCode_${subject}_${weekNumber}_${dayNumber}_${currentQuestion.Qn_name}`;
           const encryptedSessionCode = sessionStorage.getItem(sessionKey);
           
           if (encryptedSessionCode && !currentQuestion.status && !isSubmittedStatus) {
@@ -333,7 +335,9 @@ const HTMLCSSEditor: React.FC = () => {
       const isSubmitted = question.status === true || isSubmittedStatus;
       
       // Load file contents using shared utility
-      const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+      const sessionKey = isTestingContext 
+        ? `testing_userCode_${question.Qn_name}` 
+        : `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
       let fileContents: {[key: string]: string} = {};
       
       if (isTestingContext) {
@@ -345,6 +349,24 @@ const HTMLCSSEditor: React.FC = () => {
             fileContents[fileName] = '';
           }
         });
+        
+        // Check session storage for auto-saved code in testing mode
+        const encryptedSessionCode = sessionStorage.getItem(sessionKey);
+        if (encryptedSessionCode && !isSubmitted) {
+          try {
+            const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
+            const sessionCode = JSON.parse(decryptedCode);
+            
+            // Merge session code with current file contents
+            Object.keys(sessionCode).forEach(fileName => {
+              if (fileContents.hasOwnProperty(fileName)) {
+                fileContents[fileName] = sessionCode[fileName];
+              }
+            });
+          } catch (error) {
+            console.error('Error loading testing session storage code:', error);
+          }
+        }
       } else {
         // In practice mode, use the normal loadAutoSavedCode function
         fileContents = await loadAutoSavedCode(question, sessionKey, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
@@ -403,7 +425,11 @@ const HTMLCSSEditor: React.FC = () => {
       // Update the current file content before saving
       codeToSave[activeTab] = value;
       
-      const sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${questionData.Qn_name}`;
+      // Check if we're in testing context and use appropriate session key format
+      const isTestingContext = window.location.pathname.includes('/testing/coding/');
+      const sessionKey = isTestingContext 
+        ? `testing_userCode_${questionData.Qn_name}` 
+        : `userCode_${subject}_${weekNumber}_${dayNumber}_${questionData.Qn_name}`;
       saveCodeToSession(codeToSave, sessionKey);
     }
   }, [activeTab, fileContents, questionData, isSubmitted, subject, weekNumber, dayNumber]);
