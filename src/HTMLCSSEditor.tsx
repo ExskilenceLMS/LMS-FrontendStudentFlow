@@ -489,7 +489,7 @@ const HTMLCSSEditor: React.FC = () => {
   const renderEditor = () => {
     const fileType = getFileType(activeTab);
     const currentContent = getCurrentFileContent();
-    const extensions = getCodeMirrorExtensions(fileType);
+    const extensions = getCodeMirrorExtensions(fileType, 'Write your code here');
     
         return (
           <CodeMirror

@@ -20,6 +20,7 @@ interface GoogleUserInfo {
   name: string;
   email: string;
   picture: string;
+  id: string;
 }
 
 interface LoginResponse {
@@ -81,6 +82,19 @@ const Login: React.FC = () => {
     setRecaptchaVerified(false);
   };
 
+  // Function to update student people_id
+  const updateStudentPeopleId = async (studentId: string, peopleId: string): Promise<void> => {
+    try {
+      const axiosWithTracking = createAxiosWithActivityTracking();
+      await axiosWithTracking.post(`${process.env.REACT_APP_BACKEND_URL}api/update-student-people-id`, {
+        student_id: studentId,
+        people_id: peopleId
+      });
+    } catch (error: any) {
+      console.error('Failed to update student people_id:', error);
+    }
+  };
+
   const handleLogin = useGoogleLogin({
     onSuccess: (codeResponse: UserData) => setUser(codeResponse),
     onError: (error: any) => {
@@ -107,7 +121,7 @@ const Login: React.FC = () => {
         );
 
 
-        const { name, email, picture } = data;
+        const { name, email, picture, id: peopleId } = data;
 
         const encryptedName = CryptoJS.AES.encrypt(name, secretKey).toString();
         const encryptedEmail = CryptoJS.AES.encrypt(email, secretKey).toString();
@@ -158,6 +172,8 @@ const Login: React.FC = () => {
 
           // Check if login was successful by checking if we have the required data
           if (response.data.student_id && response.data.course_id && response.data.batch_id) {
+            // Update student people_id
+            updateStudentPeopleId(response.data.student_id, peopleId);
             navigate("/Dashboard", { replace: true });
           } else {
             setAlertMessage("User not found");
