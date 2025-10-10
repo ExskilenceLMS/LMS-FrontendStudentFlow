@@ -310,7 +310,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     
     const fileType = getFileType(currentActiveTab);
     const currentContent = fileContents[currentActiveTab] || '';
-    const extensions = getCodeMirrorExtensions(fileType);
+    const extensions = getCodeMirrorExtensions(fileType, 'Write your code here');
     
         return (
           <CodeMirror
