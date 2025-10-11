@@ -81,7 +81,6 @@ const Header: React.FC = () => {
     
     // Check if back navigation is allowed for current path
     if (!isBackNavigationAllowed(currentPath)) {
-      console.log('Back navigation not allowed for:', currentPath);
       return;
     }
     
