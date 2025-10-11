@@ -345,8 +345,6 @@ const PythonContentTester: React.FC = () => {
       try {
         const response = await fetch(API_BASE_URL);
         const data = await response.json();
-        // const data = newQuestions;
-        // console.log(data);
         
         // Process the questions and handle mixed test case formats
         const questionsWithProcessedTestCases = data.questions.map((q: any) => {
@@ -427,12 +425,9 @@ const PythonContentTester: React.FC = () => {
       if (result.result.success) {
         setOutput(result.result.actual_output);
         
-        // Debug: Log the parsed results to see the structure
-        console.log('Parsed results:', result.result.parsed_results);
         
         if (Array.isArray(result.result.parsed_results)) {
           const testCaseResults = result.result.parsed_results.map((testCase, index) => {
-            console.log(`Test case ${index}:`, testCase); // Debug each test case
             
             return {
               id: `TestCase${index + 1}`,
@@ -452,7 +447,6 @@ const PythonContentTester: React.FC = () => {
           };
           
           const finalTestCases = [...testCaseResults, finalResult];
-          console.log('Final test cases array:', finalTestCases); // Debug the final array
           
           setRunResponseTestCases(finalTestCases);
           
@@ -976,12 +970,6 @@ Instructions :
                                           <strong>Actual Output:</strong>
                                           <div className="mt-1 p-2 bg-light rounded" style={{ fontSize: "11px", fontFamily: "monospace" }}>
                                             {(() => {
-                                              // Debug: Log the selected test case data
-                                              console.log('Selected test case:', runResponseTestCases[selectedTestCaseIndex]);
-                                              console.log('Actual output value:', runResponseTestCases[selectedTestCaseIndex]?.actual);
-                                              console.log('Actual output type:', typeof runResponseTestCases[selectedTestCaseIndex]?.actual);
-                                              console.log('Actual output === 0:', runResponseTestCases[selectedTestCaseIndex]?.actual === 0);
-                                              
                                               // For this component, we'll show the actual output from the API response
                                               if (runResponseTestCases[selectedTestCaseIndex]?.actual !== undefined && runResponseTestCases[selectedTestCaseIndex]?.actual !== null) {
                                                 const value = runResponseTestCases[selectedTestCaseIndex].actual;

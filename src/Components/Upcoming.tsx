@@ -5,7 +5,7 @@ import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
 import Skeleton from "react-loading-skeleton";
 import { useApiLoading } from "../Dashboard";
-
+import { useNavigate } from "react-router-dom";
 interface Discussion {
   title: string;
   week: string;
@@ -39,7 +39,7 @@ const Upcoming: React.FC = () => {
   const encryptedBatchId = sessionStorage.getItem('BatchId');
   const decryptedBatchId = CryptoJS.AES.decrypt(encryptedBatchId!, secretKey).toString(CryptoJS.enc.Utf8);
   const batchId = decryptedBatchId;
-
+  const navigate = useNavigate();
   // Use SWR for upcomming sessions API with 1-hour cache - only call after courses API is loaded
   const { data: sessionsData, error: sessionsError } = useAPISWR<SessionsResponse>(
     isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/sessions/${studentId}` : null
@@ -112,6 +112,9 @@ const Upcoming: React.FC = () => {
                 <div
                   key={index}
                   className="d-flex justify-content-between align-items-center"
+                  onClick={() => {
+                    navigate(`/Online-Session`);
+                  }}
                 >
                   <span>{discussion.title}</span>
                   <span>{`${discussion.date} - ${discussion.time}`}</span>
