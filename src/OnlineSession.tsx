@@ -127,7 +127,7 @@ const OnlineSession: React.FC = () => {
 
   return (
     <>
-      <div className="container-fluid p-0 me-2 my-2" style={{ height: "calc(100vh - 90px)", overflowY: "scroll"  }}>
+      <div className="container-fluid p-0 me-2 my-2 bg-white" style={{ height: "calc(100vh - 90px)", overflowY: "scroll"  }}>
           <div
             className="container-fluid bg-white border rounded-1"
           >
