@@ -112,9 +112,6 @@ const Upcoming: React.FC = () => {
                 <div
                   key={index}
                   className="d-flex justify-content-between align-items-center"
-                  onClick={() => {
-                    navigate(`/Online-Session`);
-                  }}
                 >
                   <span>{discussion.title}</span>
                   <span>{`${discussion.date} - ${discussion.time}`}</span>
