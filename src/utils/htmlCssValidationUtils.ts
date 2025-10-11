@@ -142,8 +142,13 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
           const tagEndIndex = content.indexOf(`</${tag}>`, tagStartIndex);
           if (tagEndIndex !== -1) {
             const tagContent = content.substring(tagStartIndex + tagMatch.length, tagEndIndex);
-            if (tagContent.includes(expectedContent)) {
-              return true;
+            // Special handling for style tags
+            if (tag === 'style') {
+              return validateStyleContent(tagContent, expectedContent);
+            } else {
+              if (tagContent.includes(expectedContent)) {
+                return true;
+              }
             }
           }
         }
@@ -154,6 +159,40 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
   }
   
   return false;
+};
+
+// Helper function to validate style tag content with CSS normalization
+export const validateStyleContent = (actualContent: string, expectedContent: string): boolean => {
+  // Simple check: ensure CSS has balanced braces
+  if (!hasBalancedBraces(actualContent)) {
+    return false;
+  }  
+  const normalizeCSS = (css: string) => {
+    return css
+      .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
+      .replace(/\s*{\s*/g, '{') // Remove spaces around opening braces
+      .replace(/\s*}\s*/g, '}') // Remove spaces around closing braces
+      .replace(/\s*;\s*/g, ';') // Remove spaces around semicolons
+      .replace(/\s*:\s*/g, ':') // Remove spaces around colons
+      .trim(); // Remove leading/trailing whitespace
+  };
+  const normalizedActual = normalizeCSS(actualContent);
+  const normalizedExpected = normalizeCSS(expectedContent);
+  return normalizedActual.includes(normalizedExpected);
+};
+export const hasBalancedBraces = (css: string): boolean => {
+  let braceCount = 0;
+  for (const char of css) {
+    if (char === '{') {
+      braceCount++;
+    } else if (char === '}') {
+      braceCount--;
+      if (braceCount < 0) {
+        return false; 
+      }
+    }
+  }
+  return braceCount === 0;
 };
 
 // CSS Parser
