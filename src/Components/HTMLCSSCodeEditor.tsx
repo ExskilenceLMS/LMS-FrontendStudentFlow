@@ -126,7 +126,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
       Qn: questionData.Qn || testSectionQuestion.Qn,
       requirements: questionData.requirements,
       Code_Validation: questionData.Code_Validation,
-      defaulttemplate: questionData.defaulttemplate,
+      defaulttemplate: questionData.defaulttemplate || testSectionQuestion.defaulttemplate || testSectionQuestion.Template,
       image_path: questionData.image_path,
       video_path: questionData.video_path,
       CreatedBy: questionData.CreatedBy,
