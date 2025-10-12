@@ -441,50 +441,55 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     
           const responseData = response.data;
           
-          // Mark as submitted
-          setIsSubmitted(true);
-
-          // Save submission status to session storage (like Python editor)
-          const questionStatusKey = `coding_${questionData?.Qn_name}`;
-          const statusSessionKey = `${testId}_questionStatus`;
-          
-          // Get existing statuses
-          let statuses: {[key: string]: string} = {};
-          const existingStatus = sessionStorage.getItem(statusSessionKey);
-          if (existingStatus) {
-            try {
-              const decryptedStatuses = CryptoJS.AES.decrypt(existingStatus, secretKey).toString(CryptoJS.enc.Utf8);
-              statuses = JSON.parse(decryptedStatuses);
-            } catch (error) {
-              console.error('Error decrypting existing statuses:', error);
+          // Check if submission was successful based on API response status
+          if (responseData.status === true) {
+            // Mark as submitted only if API confirms success
+            setIsSubmitted(true);
+            const questionStatusKey = `coding_${questionData?.Qn_name}`;
+            const statusSessionKey = `${testId}_questionStatus`;
+            
+            // Get existing statuses
+            let statuses: {[key: string]: string} = {};
+            const existingStatus = sessionStorage.getItem(statusSessionKey);
+            if (existingStatus) {
+              try {
+                const decryptedStatuses = CryptoJS.AES.decrypt(existingStatus, secretKey).toString(CryptoJS.enc.Utf8);
+                statuses = JSON.parse(decryptedStatuses);
+              } catch (error) {
+                console.error('Error decrypting existing statuses:', error);
+              }
             }
+            
+            // Update status for this question
+            statuses[questionStatusKey] = "Submitted";
+            
+            // Save updated statuses
+            const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
+            sessionStorage.setItem(statusSessionKey, encryptedStatuses);
+
+            // Save the submitted code to session storage so it persists
+            const codeToSave: {[key: string]: string} = {};
+            Object.keys(fileContents).forEach(fileName => {
+              codeToSave[fileName] = fileContents[fileName] || '';
+            });
+            const encryptedCode = CryptoJS.AES.encrypt(JSON.stringify(codeToSave), secretKey).toString();
+            sessionStorage.setItem(`userCode_${testId}_${questionData?.Qn_name}`, encryptedCode);
+
+            // Call the parent callback to mark question as submitted
+            if (questionData?.Qn_name) {
+              onQuestionSubmitted(questionData?.Qn_name);
+            }
+
+            await cleanupAfterSubmission(questionData?.Qn_name!, studentId, testId);
+
+            // Show success message
+            setSuccessMessage("Code submitted successfully!");
+            setAdditionalMessage("");
+          } else {
+            // Show error message if API returns false status
+            setSuccessMessage("Submission failed");
+            setAdditionalMessage("Could not submit your answer please try again");
           }
-          
-          // Update status for this question
-          statuses[questionStatusKey] = "Submitted";
-          
-          // Save updated statuses
-          const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
-          sessionStorage.setItem(statusSessionKey, encryptedStatuses);
-
-          // Save the submitted code to session storage so it persists
-          const codeToSave: {[key: string]: string} = {};
-          Object.keys(fileContents).forEach(fileName => {
-            codeToSave[fileName] = fileContents[fileName] || '';
-          });
-          const encryptedCode = CryptoJS.AES.encrypt(JSON.stringify(codeToSave), secretKey).toString();
-          sessionStorage.setItem(`userCode_${testId}_${questionData?.Qn_name}`, encryptedCode);
-
-          // Call the parent callback to mark question as submitted
-          if (questionData?.Qn_name) {
-            onQuestionSubmitted(questionData?.Qn_name);
-          }
-
-          await cleanupAfterSubmission(questionData?.Qn_name!, studentId, testId);
-
-          // Show success message
-          setSuccessMessage("Code submitted successfully!");
-          setAdditionalMessage("");
      
         } catch (error) {
           console.error("Error submitting code:", error);
@@ -1195,7 +1200,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
               backgroundColor: 'white', 
               borderRadius: '4px',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              height: 'calc(100vh - 80px)'
             }}>
               {/* File tabs on top of editor */}
               <div className="bg-light border-bottom p-2 d-flex align-items-center">
