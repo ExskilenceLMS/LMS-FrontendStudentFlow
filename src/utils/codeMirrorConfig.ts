@@ -30,5 +30,7 @@ export const getCodeMirrorBasicSetup = () => ({
 
 export const getCodeMirrorStyle = () => ({
   backgroundColor: 'white',
-  overflow: 'auto'
+  overflow: 'auto',
+  height: '100%',
+  maxHeight: '100%'
 });

@@ -533,7 +533,9 @@ const HTMLCSSEditor: React.FC = () => {
             // Calculate score for HTML file based on test results
             const testResultsForFile = testResults[fileName] || [];
             const passedTests = testResultsForFile.filter(result => result).length;
-            const totalTests = testResultsForFile.length;
+            // Use actual test case count from question data if no tests have been run
+            const totalTests = testResultsForFile.length > 0 ? testResultsForFile.length : 
+              (questionData?.Code_Validation[fileName]?.structure?.length || 0);
             htmlResult[fileName] = `${passedTests}/${totalTests}`;
           });
           
@@ -549,7 +551,9 @@ const HTMLCSSEditor: React.FC = () => {
             // Calculate score for CSS file based on test results
             const testResultsForFile = testResults[fileName] || [];
             const passedTests = testResultsForFile.filter(result => result).length;
-            const totalTests = testResultsForFile.length;
+            // Use actual test case count from question data if no tests have been run
+            const totalTests = testResultsForFile.length > 0 ? testResultsForFile.length : 
+              (questionData?.Code_Validation[fileName]?.structure?.length || 0);
             cssResult[fileName] = `${passedTests}/${totalTests}`;
           });
           
@@ -565,7 +569,9 @@ const HTMLCSSEditor: React.FC = () => {
             // Calculate score for JS file based on test results
             const testResultsForFile = testResults[fileName] || [];
             const passedTests = testResultsForFile.filter(result => result).length;
-            const totalTests = testResultsForFile.length;
+            // Use actual test case count from question data if no tests have been run
+            const totalTests = testResultsForFile.length > 0 ? testResultsForFile.length : 
+              (questionData?.Code_Validation[fileName]?.structure?.length || 0);
             jsResult[fileName] = `${passedTests}/${totalTests}`;
           });
           
@@ -608,27 +614,32 @@ const HTMLCSSEditor: React.FC = () => {
     
           const responseData = response.data;
           
-          // Mark as submitted
-          setIsSubmitted(true);
+          // Check if submission was successful based on API response status
+          if (responseData.status === true) {
+            // Mark as submitted only if API confirms success
+            setIsSubmitted(true);
+            const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questionData?.Qn_name}`;
+            const encryptedSubmitStatus = CryptoJS.AES.encrypt("true", secretKey).toString();
+            sessionStorage.setItem(submitStatusKey, encryptedSubmitStatus);
 
-          // Save submission status to session storage (like Python editor)
-          const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questionData?.Qn_name}`;
-          const encryptedSubmitStatus = CryptoJS.AES.encrypt("true", secretKey).toString();
-          sessionStorage.setItem(submitStatusKey, encryptedSubmitStatus);
+            // Update question status in the questions array
+            const updatedQuestions = [...questions];
+            if (updatedQuestions[currentQuestionIndex]) {
+              updatedQuestions[currentQuestionIndex].status = true;
+              setQuestions(updatedQuestions);
+            }
 
-          // Update question status in the questions array
-          const updatedQuestions = [...questions];
-          if (updatedQuestions[currentQuestionIndex]) {
-            updatedQuestions[currentQuestionIndex].status = true;
-            setQuestions(updatedQuestions);
+            // Clean up auto-saved code after successful submission
+            await cleanupAfterSubmission(questionData?.Qn_name!, studentId, QUESTION_STATUS.PRACTICE);
+
+            // Show success message
+            setSuccessMessage("Code submitted successfully!");
+            setAdditionalMessage("");
+          } else {
+            // Show error message if API returns false status
+            setSuccessMessage("Submission failed");
+            setAdditionalMessage("Could not submit your answer please try again");
           }
-
-          // Clean up auto-saved code after successful submission
-          await cleanupAfterSubmission(questionData?.Qn_name!, studentId, QUESTION_STATUS.PRACTICE);
-
-          // Show success message
-          setSuccessMessage("Code submitted successfully!");
-          setAdditionalMessage("");
      
         } catch (error) {
           console.error("Error submitting code:", error);
@@ -1398,7 +1409,8 @@ const HTMLCSSEditor: React.FC = () => {
               backgroundColor: 'white', 
               borderRadius: '4px',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              height: 'calc(100vh - 80px)'
             }}>
               {/* File tabs on top of editor */}
               <div className="bg-light border-bottom p-2 d-flex align-items-center">
