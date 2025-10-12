@@ -133,14 +133,13 @@ const HTMLCSSEditor: React.FC = () => {
                 // Process each file in Code_Validation
                 Object.keys(currentQuestion.Code_Validation).forEach(fileName => {
                   if (fileName === 'index.html') {
-                    // Use defaulttemplate for index.html
-                    fileContents[fileName] = currentQuestion.defaulttemplate || '';
+                    const defaultTemplate = currentQuestion.Template || currentQuestion.defaulttemplate || '';
+                    fileContents[fileName] = defaultTemplate;
                   } else {
                     // Other files start empty
                     fileContents[fileName] = '';
                   }
                 });
-                
                 setFileContents(fileContents);
                 
                 // Set active tab to the first file
@@ -250,8 +249,8 @@ const HTMLCSSEditor: React.FC = () => {
             if (currentQuestion.status === true && currentQuestion.entered_ans && currentQuestion.entered_ans[fileName]) {
               fileContents[fileName] = currentQuestion.entered_ans[fileName];
             } else if (fileName === 'index.html') {
-              // Use defaulttemplate for index.html if not submitted
-              fileContents[fileName] = currentQuestion.defaulttemplate || '';
+              const defaultTemplate = currentQuestion.Template || currentQuestion.defaulttemplate || '';
+              fileContents[fileName] = defaultTemplate;
             } else {
               // Other files start empty if not submitted
               fileContents[fileName] = '';
@@ -344,7 +343,8 @@ const HTMLCSSEditor: React.FC = () => {
         // In testing mode, initialize file contents without API calls
         Object.keys(question.Code_Validation).forEach(fileName => {
           if (fileName === 'index.html') {
-            fileContents[fileName] = question.defaulttemplate || '';
+              const defaultTemplate = question.Template || question.defaulttemplate || '';
+              fileContents[fileName] = defaultTemplate;
           } else {
             fileContents[fileName] = '';
           }

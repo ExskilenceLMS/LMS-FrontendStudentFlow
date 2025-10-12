@@ -35,7 +35,8 @@ export interface QuestionData {
   Qn: string;
   requirements: string;
   Code_Validation: CodeValidation;
-  defaulttemplate: string;
+  defaulttemplate?: string;
+  Template?: string;        
   image_path: string;
   video_path: string;
   CreatedBy: string;
