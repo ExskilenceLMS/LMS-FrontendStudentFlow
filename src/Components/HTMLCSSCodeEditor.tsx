@@ -362,7 +362,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             // Calculate score for HTML file based on test results
             const testResultsForFile = testResults[fileName] || [];
             const passedTests = testResultsForFile.filter(result => result).length;
-            const totalTests = testResultsForFile.length;
+            // Use actual test case count from question data if no tests have been run
+            const totalTests = testResultsForFile.length > 0 ? testResultsForFile.length : 
+              (questionData?.Code_Validation[fileName]?.structure?.length || 0);
             htmlResult[fileName] = `${passedTests}/${totalTests}`;
           });
           
@@ -378,7 +380,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             // Calculate score for CSS file based on test results
             const testResultsForFile = testResults[fileName] || [];
             const passedTests = testResultsForFile.filter(result => result).length;
-            const totalTests = testResultsForFile.length;
+            // Use actual test case count from question data if no tests have been run
+            const totalTests = testResultsForFile.length > 0 ? testResultsForFile.length : 
+              (questionData?.Code_Validation[fileName]?.structure?.length || 0);
             cssResult[fileName] = `${passedTests}/${totalTests}`;
           });
           
@@ -394,7 +398,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
             // Calculate score for JS file based on test results
             const testResultsForFile = testResults[fileName] || [];
             const passedTests = testResultsForFile.filter(result => result).length;
-            const totalTests = testResultsForFile.length;
+            // Use actual test case count from question data if no tests have been run
+            const totalTests = testResultsForFile.length > 0 ? testResultsForFile.length : 
+              (questionData?.Code_Validation[fileName]?.structure?.length || 0);
             jsResult[fileName] = `${passedTests}/${totalTests}`;
           });
           
