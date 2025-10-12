@@ -1016,6 +1016,38 @@ const HTMLCSSEditor: React.FC = () => {
                                     
                                     return (
                                     <div>
+                                        {/* Show element name based on file type */}
+                                        {(() => {
+                                          const structure = questionData?.Code_Validation[activeTab]?.structure;
+                                          const currentStructure = structure && structure[selectedTestCaseIndex];
+                                          
+                                          if (activeTab.endsWith('.html') && currentStructure) {
+                                            return (
+                                              <div className="mb-3">
+                                                <strong>Tag: </strong>
+                                                <span className="text-dark">{currentStructure.tag}</span>
+                                              </div>
+                                            );
+                                          } else if (activeTab.endsWith('.css') && currentStructure) {
+                                            return (
+                                              <div className="mb-3">
+                                                <strong>Selector: </strong>
+                                                <span className="text-dark">{currentStructure.selector}</span>
+                                              </div>
+                                            );
+                                          } else if (isJSFile && typeof result === 'object' && result !== null && 'elementType' in result) {
+                                            const jsResult = result as any;
+                                            return (
+                                              <div className="mb-3">
+                                                <strong>Element: </strong>
+                                                <span className="text-dark">{jsResult.elementName}</span>
+                                                <span className="text-muted ms-2">({jsResult.elementType})</span>
+                                              </div>
+                                            );
+                                          }
+                                          return null;
+                                        })()}
+
                                       {/* Test Case Status */}
                                       <div className="mb-3">
                                         <strong>Status: </strong>
@@ -1036,10 +1068,9 @@ const HTMLCSSEditor: React.FC = () => {
                                             return "Failed";
                                           })()}
                                         </span>
-                </div>
-                                      
-                                        
-                                        {/* For JavaScript files, show test case information */}
+                                      </div>
+
+                                        {/* For JavaScript files, show simplified test case information */}
                                         {isJSFile && typeof result === 'object' && result !== null && 'elementType' in result && (() => {
                                           const jsResult = result as any;
                                           
@@ -1062,131 +1093,52 @@ const HTMLCSSEditor: React.FC = () => {
                                                       <div key={tcIndex} className="mb-2 p-2 border rounded" style={{ backgroundColor: testCase.passed ? '#f8f9fa' : '#fff5f5' }}>
                                                         <div className="d-flex justify-content-between align-items-center">
                                                           <span className="fw-bold">Test Case {tcIndex + 1}</span>
-                                                          {testCase.passed && (
+                                                          {testCase.passed ? (
                                                             <span className="text-success">✓</span>
+                                                          ) : (
+                                                            <span className="text-danger">✗</span>
                                                           )}
                                                         </div>
-                                                        
-                                                        {/* Show description only for failed test cases */}
-                                                        {!testCase.passed && testCase.testCaseDescription && (
-                                                          <div className="mt-2">
-                                                            <strong>Description: </strong>
-                                                            <span className="text-warning">{testCase.testCaseDescription}</span>
-                                                          </div>
-                                                        )}
-                                                        
-                                                        {/* Show input and expected output for failed test cases */}
-                                                        {!testCase.passed && (
-                                                          <>
-                                                            {testCase.input && (
-                                                              <div className="mt-1">
-                                                                <strong>Input: </strong>
-                                                                <code>[{testCase.input.join(', ')}]</code>
-                                                              </div>
-                                                            )}
-                                                            {testCase.expectedOutput && (
-                                                              <div className="mt-1">
-                                                                <strong>Expected: </strong>
-                                                                <code>{testCase.expectedOutput}</code>
-                                                              </div>
-                                                            )}
-                                                          </>
-                                                        )}
                                                       </div>
                                                     ))}
                                                   </div>
                                                 </div>
                                               </>
                                             );
-                                          } else {
-                                            // Individual elements (variables, etc.)
-                                            return (
-                                              <>
-                                                {/* Show Element Information only for functions */}
-                                                {jsResult.elementType === 'function' && (
-                                                  <div className="mb-3">
-                                                    <strong>Element: </strong>
-                                                    <span className="text-info">{jsResult.elementName}</span>
-                                                    <span className="text-muted ms-2">({jsResult.elementType})</span>
-                                                  </div>
-                                                )}
-                                                
-                                                {/* Test Case Description (only show if failed) */}
-                                                {!jsResult.passed && jsResult.testCaseDescription && (
-                                                  <div className="mb-3">
-                                                    <strong>Description: </strong>
-                                                    <span className="text-warning">{jsResult.testCaseDescription}</span>
-                                                  </div>
-                                                )}
-                                                
-                                                {/* Expected Value for Variables */}
-                                                {jsResult.elementType === 'variable' && jsResult.expectedValue && (
-                                                  <div className="mb-3">
-                                                    <strong>Expected Value: </strong>
-                                                    <div className="mt-1 p-2" style={{ 
-                                                      backgroundColor: "#d4edda", 
-                                                      border: "1px solid #c3e6cb", 
-                                                      borderRadius: "4px",
-                                                      fontSize: "12px",
-                                                      fontFamily: "monospace"
-                                                    }}>
-                                                      {jsResult.expectedValue}
-                                                    </div>
-                                                  </div>
-                                                )}
-                                              </>
-                                            );
                                           }
+                                          return null;
                                         })()}
                                         
-                                        {/* For non-JavaScript files, show structure and expected */}
+                                        {/* For non-JavaScript files, show structure information */}
                                         {!isJSFile && (
                                           <>
                                             {/* Structure - only for HTML files */}
                                             {activeTab.endsWith('.html') && (
-                                      <div className="mb-3">
-                                        <strong>Structure: </strong>
-                                        <span className={(() => {
+                                              <div className="mb-3">
+                                                <strong>Structure: </strong>
+                                                <span className={(() => {
                                                   const structureResult = structureResults[activeTab] && structureResults[activeTab][selectedTestCaseIndex];
                                                   if (typeof structureResult === 'boolean') {
                                                     return structureResult ? "text-success" : "text-danger";
                                                   } else if (typeof structureResult === 'object' && structureResult !== null && 'passed' in structureResult) {
                                                     return (structureResult as any).passed ? "text-success" : "text-danger";
-                                          }
-                                          return "text-danger";
-                                        })()}>
-                                          {(() => {
+                                                  }
+                                                  return "text-danger";
+                                                })()}>
+                                                  {(() => {
                                                     const structureResult = structureResults[activeTab] && structureResults[activeTab][selectedTestCaseIndex];
                                                     if (typeof structureResult === 'boolean') {
                                                       return structureResult ? "Pass" : "Failed";
                                                     } else if (typeof structureResult === 'object' && structureResult !== null && 'passed' in structureResult) {
                                                       return (structureResult as any).passed ? "Pass" : "Failed";
-                                            }
-                                            return "Failed";
-                                          })()}
-                                        </span>
-              </div>
+                                                    }
+                                                    return "Failed";
+                                                  })()}
+                                                </span>
+                                              </div>
                                             )}
-                                      
-                                      {/* Expected */}
-                                      <div className="mb-3">
-                                        <strong>Expected: </strong>
-                                        <div className="mt-2 p-2" style={{ 
-                                          backgroundColor: "#f8f9fa", 
-                                          border: "1px solid #e9ecef", 
-                                          borderRadius: "4px",
-                                          fontSize: "13px",
-                                          whiteSpace: "pre",
-                                          fontFamily: "monospace"
-                                        }}>
-                                          {questionData?.Code_Validation[activeTab]?.structure?.[selectedTestCaseIndex] ? 
-                                            getExpectedDescription(questionData.Code_Validation[activeTab].structure?.[selectedTestCaseIndex], activeTab) :
-                                            'Expected result'
-                                          }
-                                        </div>
-                                      </div>
                                           </>
-                                  )}
+                                        )}
                                       </div>
                                     );
                                   })()}
