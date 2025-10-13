@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import TestHeader from '../TestHeader';
+import InternetInfo from './InternetInfo';
 import { useLocation } from 'react-router-dom';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -27,6 +28,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   return (
     <div style={{ backgroundColor: "#f0f0f0", minHeight: "100vh" }}>
+      <InternetInfo />
       {!shouldHideSidebar && (
         <Sidebar show={showSidebar} toggleSidebar={toggleSidebar} />
       )}

@@ -1,160 +1,321 @@
 import React, { useState, useEffect } from "react";
 import Sidebar from "./Components/Sidebar";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Footer from "./Components/Footer";
 import apiClient from "./utils/apiAuth";
 import Skeleton from "react-loading-skeleton";
 import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
+import { getBackNavigationPath, isBackNavigationAllowed } from "./utils/navigationRules";
+import { FaArrowLeft } from "react-icons/fa";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Button,
+  Typography,
+  Box,
+  Chip,
+  CircularProgress
+} from '@mui/material';
+import { OpenInNew, PlayArrow, ArrowUpward, ArrowDownward } from '@mui/icons-material';
 
-interface Sessions {
-  id: string;
-  name: string;
+interface Session {
+  session_id: number;
+  session_name: string;
   date: string;
   time: string;
-  meet_link: string;
-  attendance: string;
-  video_link: string;
-  ended: boolean;
+  link: string;
+  attended: number;
+  video: string;
   status: string;
+  session_duration: number;
+  attended_duration: number;
 }
 
-interface ApiSession {
-  name: string;
-  date: string;
-  time: string;
-  meet_link: string;
-  attendance: number;
-  video_link: string;
-  ended: boolean;
-  status: string;
+interface SessionsResponse {
+  sessions: Session[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 const OnlineSession: React.FC = () => {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<Sessions[]>([]);
+  const location = useLocation();
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortField, setSortField] = useState<string>('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const encryptedStudentId = sessionStorage.getItem('StudentId') || "";
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
+
+  // Navigation handler
+  const handleBackNavigation = () => {
+    const targetPath = getBackNavigationPath(location.pathname);
+    navigate(targetPath, { replace: true });
+  };
+
+  const canGoBack = isBackNavigationAllowed(location.pathname);
+
+  // Sorting handler
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort sessions based on current sort field and direction
+  const sortedSessions = [...sessions].sort((a, b) => {
+    if (!sortField) return 0;
+    
+    let aValue: any = a[sortField as keyof Session];
+    let bValue: any = b[sortField as keyof Session];
+    
+    // Handle different data types
+    if (sortField === 'attended' || sortField === 'session_duration' || sortField === 'attended_duration') {
+      aValue = Number(aValue) || 0;
+      bValue = Number(bValue) || 0;
+    } else if (sortField === 'date') {
+      aValue = new Date(aValue);
+      bValue = new Date(bValue);
+    } else {
+      aValue = String(aValue).toLowerCase();
+      bValue = String(bValue).toLowerCase();
+    }
+    
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
  
   useEffect(() => {
     const fetchSessions = async () => {
-      const url= `${process.env.REACT_APP_BACKEND_URL}api/student/sessions/${studentId}/`
       try {
-        const response = await apiClient.get(
-         url
-        );
-        const apiSessions = response.data as ApiSession[];
-
-        const formattedSessions = apiSessions.map((session, index) => ({
-          id: (index + 1).toString(),
-          name: session.name,
-          date: session.date,
-          time: session.time,
-          meet_link: session.meet_link,
-          attendance: session.attendance.toString() + "%",
-          video_link: session.video_link,
-          ended: session.ended,
-          status: session.status,
-        }));
-
-        setSessions(formattedSessions);
+        setLoading(true);
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/live-sessions/${studentId}/1/10`;
+        const response = await apiClient.get(url);
+        
+        if (response.data && response.data.sessions) {
+          setSessions(response.data.sessions);
+        } else {
+          setSessions([]);
+        }
+      } catch (error: any) {
+        console.error("Error fetching sessions data:", error);
+        setSessions([]);
+      } finally {
         setLoading(false);
-      } catch (innerError: any) {
-            setLoading(false);console.error("Error fetching Online sessions data:", innerError);
-            }
+      }
     };
 
-    fetchSessions();
-  }, []);
+    if (studentId) {
+      fetchSessions();
+    }
+  }, [studentId]);
 
   return (
     <>
-      <div style={{ backgroundColor: "#F2EEEE"}}>
-        <div className="p-0 my-0 me-2" style={{ backgroundColor: "#F2EEEE" }}>
+      <div className="container-fluid p-0 me-2 my-2 bg-white" style={{ height: "calc(100vh - 90px)", overflowY: "scroll"  }}>
           <div
-            className="container-fluid bg-white mt-2 border rounded-1"
-            style={{
-              height: `calc(100vh - 70px)` ,
-              overflowY: "auto",
-              backgroundColor: "white",
-            }}
+            className="container-fluid bg-white border rounded-1"
           >
             {loading ? (
-              <div className="table-container py-3">
-                <Skeleton height={50} />
-                <Skeleton height={5} />
-                <Skeleton count={15} height={25} />
-              </div>
+              <Box display="flex" justifyContent="center" alignItems="center" height="400px">
+                <CircularProgress />
+              </Box>
             ) : (
-              <div className="table-container py-3">
-                {/* Table Headers Always Visible */}
-                <div className="table-header d-flex p-0 pb-3 border-bottom border-black fs-5 fw-normal">
-                  <div className="col">Sl No</div>
-                  <div className="col">Session Name</div>
-                  <div className="col">Date</div>
-                  <div className="col">Time</div>
-                  <div className="col">Link</div>
-                  <div className="col">Time Attended</div>
-                  <div className="col">Video</div>
-                  <div className="col">Status</div>
-                </div>
-
-                <div className="table-body">
-                  {sessions.length > 0 ? (
-                    sessions.map((session) => (
-                      <div key={session.id} className="table-row d-flex p-2">
-                        <div className="col">{session.id}</div>
-                        <div className="col">{session.name}</div>
-                        <div className="col">{session.date}</div>
-                        <div className="col">{session.time}</div>
-                        <div className="col">
-                          {session.ended ? (
-                            "Expired"
-                          ) : (
-                            <a
-                              href={session.meet_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
+              <Box sx={{ p: 2 }}>
+                <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid #e0e0e0' }}>
+                  <Table sx={{ minWidth: 650 }} aria-label="sessions table">
+                    <TableHead>
+                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '14px' }}>Sl No</TableCell>
+                        <TableCell 
+                          sx={{ 
+                            fontWeight: 'bold', 
+                            fontSize: '14px', 
+                            cursor: 'pointer',
+                            '&:hover': { backgroundColor: '#e0e0e0' }
+                          }}
+                          onClick={() => handleSort('session_name')}
+                        >
+                          <Box display="flex" alignItems="center" gap={1}>
+                            Session Name
+                            {sortField === 'session_name' && (
+                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell 
+                          sx={{ 
+                            fontWeight: 'bold', 
+                            fontSize: '14px', 
+                            cursor: 'pointer',
+                            '&:hover': { backgroundColor: '#e0e0e0' }
+                          }}
+                          onClick={() => handleSort('date')}
+                        >
+                          <Box display="flex" alignItems="center" gap={1}>
+                            Date
+                            {sortField === 'date' && (
+                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell 
+                          sx={{ 
+                            fontWeight: 'bold', 
+                            fontSize: '14px', 
+                            cursor: 'pointer',
+                            '&:hover': { backgroundColor: '#e0e0e0' }
+                          }}
+                          onClick={() => handleSort('time')}
+                        >
+                          <Box display="flex" alignItems="center" gap={1}>
+                            Time
+                            {sortField === 'time' && (
+                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '14px' }}>Link</TableCell>
+                        <TableCell 
+                          sx={{ 
+                            fontWeight: 'bold', 
+                            fontSize: '14px', 
+                            cursor: 'pointer',
+                            '&:hover': { backgroundColor: '#e0e0e0' }
+                          }}
+                          onClick={() => handleSort('attended')}
+                        >
+                          <Box display="flex" alignItems="center" gap={1}>
+                            Time Attended
+                            {sortField === 'attended' && (
+                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '14px' }}>Video</TableCell>
+                        <TableCell 
+                          sx={{ 
+                            fontWeight: 'bold', 
+                            fontSize: '14px', 
+                            cursor: 'pointer',
+                            '&:hover': { backgroundColor: '#e0e0e0' }
+                          }}
+                          onClick={() => handleSort('status')}
+                        >
+                          <Box display="flex" alignItems="center" gap={1}>
+                            Status
+                            {sortField === 'status' && (
+                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
+                            )}
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {sortedSessions.length > 0 ? (
+                        sortedSessions.map((session, index) => (
+                          <TableRow 
+                            key={session.session_id} 
+                            sx={{ 
+                              '&:last-child td, &:last-child th': { border: 0 },
+                              '&:hover': { backgroundColor: '#f9f9f9' }
+                            }}
+                          >
+                            <TableCell component="th" scope="row" sx={{ fontSize: '14px' }}>
+                              {index + 1}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '14px', fontWeight: 'medium' }}>
+                              {session.session_name}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '14px' }}>
+                              {session.date}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '14px' }}>
+                              {session.time}
+                            </TableCell>
+                            <TableCell>
+                              {session.status === "ended" ? (
+                                <Typography variant="body2" color="text.secondary">
+                                  Expired
+                                </Typography>
+                              ) : (
+                                <Button
+                                  variant="text"
+                                  color="primary"
+                                  size="small"
+                                  startIcon={<OpenInNew />}
+                                  onClick={() => window.open(session.link, '_blank')}
+                                  sx={{ 
+                                    textTransform: 'none',
+                                    fontSize: '14px',
+                                    fontWeight: 'medium'
+                                  }}
                             >
                               Join
-                            </a>
-                          )}
-                        </div>
-                        <div className="col">
-                          {session.attendance ? session.attendance : "--"}
-                        </div>
-                        <div className="col">
-                          {session.video_link ? (
-                            <a
-                              href={session.video_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                                </Button>
+                              )}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '14px' }}>
+                              {session.attended > 0 ? `${session.attended}%` : "--"}
+                            </TableCell>
+                            <TableCell>
+                              {session.video ? (
+                                <Button
+                                  variant="text"
+                                  color="primary"
+                                  size="small"
+                                  startIcon={<PlayArrow />}
+                                  onClick={() => window.open(session.video, '_blank')}
+                                  sx={{ 
+                                    textTransform: 'none',
+                                    fontSize: '14px',
+                                    fontWeight: 'medium'
+                                  }}
                             >
                               Watch
-                            </a>
-                          ) : (
-                            "N/A"
-                          )}
-                        </div>
-                        <div className="col">{session.status}</div>
-                      </div>
+                                </Button>
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  N/A
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell sx={{ fontSize: '14px' }}>
+                              {session.status === "ended" ? "Completed" : session.status}
+                            </TableCell>
+                          </TableRow>
                     ))
                   ) : (
-                    <div className="text-center py-4">No sessions found.</div>
-                  )}
-                </div>
-              </div>
+                        <TableRow>
+                          <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                            <Typography variant="body1" color="text.secondary">
+                              No sessions found.
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
             )}
           </div>
-        </div>
-        {/* <div style={{ cursor: "pointer" }}>
-          <Footer />
-        </div> */}
+        
       </div>
     </>
   );

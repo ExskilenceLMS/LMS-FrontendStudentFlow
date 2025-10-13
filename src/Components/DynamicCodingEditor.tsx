@@ -338,6 +338,7 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
   const markQuestionAsSubmitted = (questionName: string) => {
     const questionKey = `coding_${questionName}`;
     setSubmittedQuestions(prev => new Set([...prev, questionKey]));
+    updateQuestionStatus(questionKey, "Submitted");
   };
 
   /**
