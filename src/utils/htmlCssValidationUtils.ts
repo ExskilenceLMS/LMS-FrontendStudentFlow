@@ -98,10 +98,11 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
   if (!tagMatches) return false;
   
   // Check each tag instance to see if it has all required attributes
-  for (const tagMatch of tagMatches) {
+  for (let i = 0; i < tagMatches.length; i++) {
+    const tagMatch = tagMatches[i];
     let hasAllAttributes = true;
     
-    if (attributes) {
+    if (attributes && Object.keys(attributes).length > 0) {
       for (const [key, value] of Object.entries(attributes)) {
         let attributeFound = false;
         
@@ -135,16 +136,29 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
       if (expectedContent) {
         if (isSelfClosing) {
           // Self-closing tags cannot have content
-          return false;
+          continue; // Try next tag instance
         } else {
-          // Find the content between opening and closing tags
-          const tagStartIndex = content.indexOf(tagMatch);
+          // Find the content between opening and closing tags for THIS specific tag instance
+          let searchStartIndex = 0;
+          for (let j = 0; j < i; j++) {
+            // Find where the previous tag ended
+            const prevTagMatch = tagMatches[j];
+            const prevTagStartIndex = content.indexOf(prevTagMatch, searchStartIndex);
+            const prevTagEndIndex = content.indexOf(`</${tag}>`, prevTagStartIndex);
+            if (prevTagEndIndex !== -1) {
+              searchStartIndex = prevTagEndIndex + `</${tag}>`.length;
+            }
+          }
+          
+          const tagStartIndex = content.indexOf(tagMatch, searchStartIndex);
           const tagEndIndex = content.indexOf(`</${tag}>`, tagStartIndex);
           if (tagEndIndex !== -1) {
             const tagContent = content.substring(tagStartIndex + tagMatch.length, tagEndIndex);
             // Special handling for style tags
             if (tag === 'style') {
-              return validateStyleContent(tagContent, expectedContent);
+              if (validateStyleContent(tagContent, expectedContent)) {
+                return true;
+              }
             } else {
               if (tagContent.includes(expectedContent)) {
                 return true;
