@@ -265,6 +265,7 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     if (isMaximized) {
       setIsMaximized(false);
     }
+    setActiveSection('output');
     
     // Validate only the current active file
     if (questionData && activeTab) {
@@ -871,17 +872,37 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
                                           const currentStructure = structure && structure[selectedTestCaseIndex];
                                           
                                           if (activeTab.endsWith('.html') && currentStructure) {
+                                            // Check if test case passed or failed
+                                            const isPassed = typeof result === 'boolean' ? result : 
+                                              (typeof result === 'object' && result !== null && 'passed' in result ? (result as any).passed : false);
+                                            
                                             return (
                                               <div className="mb-3">
-                                                <strong>Tag: </strong>
-                                                <span className="text-dark">{currentStructure.tag}</span>
+                                                {isPassed ? (
+                                                  <>
+                                                    <strong>Tag: </strong>
+                                                    <span className="text-dark">{currentStructure.tag}</span>
+                                                  </>
+                                                ) : (
+                                                  <span className="text-danger">Error with {currentStructure.tag} tag</span>
+                                                )}
                                               </div>
                                             );
                                           } else if (activeTab.endsWith('.css') && currentStructure) {
+                                            // Check if test case passed or failed
+                                            const isPassed = typeof result === 'boolean' ? result : 
+                                              (typeof result === 'object' && result !== null && 'passed' in result ? (result as any).passed : false);
+                                            
                                             return (
                                               <div className="mb-3">
-                                                <strong>Selector: </strong>
-                                                <span className="text-dark">{currentStructure.selector}</span>
+                                                {isPassed ? (
+                                                  <>
+                                                    <strong>Selector: </strong>
+                                                    <span className="text-dark">{currentStructure.selector}</span>
+                                                  </>
+                                                ) : (
+                                                  <span className="text-danger">Error with {currentStructure.selector} selector</span>
+                                                )}
                                               </div>
                                             );
                                           } else if (isJSFile && typeof result === 'object' && result !== null && 'elementType' in result) {
