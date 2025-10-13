@@ -44,14 +44,14 @@ export const validateHTMLStructure = (htmlCode: string, tag: string, attributes:
           
           if (Array.isArray(value)) {
             const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const attributeRegex = new RegExp(`${key}=["']${escapedValue}["']`, 'i');
+            const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
             attributeFound = attributeRegex.test(parentMatch);
           } else if (value === true) {
             const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
             attributeFound = attributeRegex.test(parentMatch);
           } else {
             const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const attributeRegex = new RegExp(`${key}=["']${escapedValue}["']`, 'i');
+            const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
             attributeFound = attributeRegex.test(parentMatch);
           }
           
@@ -108,7 +108,7 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
         if (Array.isArray(value)) {
           // Check for attribute with specific value
           const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const attributeRegex = new RegExp(`${key}=["']${escapedValue}["']`, 'i');
+          const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
           attributeFound = attributeRegex.test(tagMatch);
         } else if (value === true) {
           // Handle boolean attributes (like readonly, disabled, etc.)
@@ -117,7 +117,7 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
         } else {
           // Check for attribute with specific value
           const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const attributeRegex = new RegExp(`${key}=["']${escapedValue}["']`, 'i');
+          const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
           attributeFound = attributeRegex.test(tagMatch);
         }
         
@@ -801,7 +801,7 @@ export const buildCleanElementHTML = (element: any, indent: number): string => {
 };
 
 // Generate HTML preview with dynamic file processing
-export const generateHTMLPreview = (files: {[key: string]: string}) => {
+export const generateHTMLPreview = (files: {[key: string]: string}, imageUrls?: Array<{actualUrl: string, expectedUrl: string}>) => {
   // Get the main HTML file (prefer index.html, fallback to first HTML file)
   const htmlFileNames = Object.keys(files).filter(name => name.endsWith('.html'));
   const mainHtmlFile = htmlFileNames.find(name => name === 'index.html') || htmlFileNames[0];
@@ -853,7 +853,7 @@ export const generateHTMLPreview = (files: {[key: string]: string}) => {
             
             // Replace the reference
             htmlWithDataUrl = htmlWithDataUrl.replace(
-              new RegExp(`${attribute}=["']${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`, 'gi'),
+              new RegExp(`${attribute}\\s*=\\s*["']${fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`, 'gi'),
               `${attribute}="${fileDataUrl}"`
             );
           }
@@ -873,33 +873,33 @@ export const generateHTMLPreview = (files: {[key: string]: string}) => {
       
       // Simple replacements - replace with actual content
       htmlWithDataUrl = htmlWithDataUrl.replace(
-        new RegExp(`<div[^>]*include=["']${htmlFileName}["'][^>]*></div>`, 'gi'),
+        new RegExp(`<div[^>]*include\\s*=\\s*["']${htmlFileName}["'][^>]*></div>`, 'gi'),
         `<div>${fileContent}</div>`
       );
       
       htmlWithDataUrl = htmlWithDataUrl.replace(
-        new RegExp(`<div[^>]*data-src=["']${htmlFileName}["'][^>]*></div>`, 'gi'),
+        new RegExp(`<div[^>]*data-src\\s*=\\s*["']${htmlFileName}["'][^>]*></div>`, 'gi'),
         `<div>${fileContent}</div>`
       );
       
       htmlWithDataUrl = htmlWithDataUrl.replace(
-        new RegExp(`<link[^>]*rel=["']import["'][^>]*href=["']${htmlFileName}["'][^>]*>`, 'gi'),
+        new RegExp(`<link[^>]*rel\\s*=\\s*["']import["'][^>]*href\\s*=\\s*["']${htmlFileName}["'][^>]*>`, 'gi'),
         `<div>${fileContent}</div>`
       );
       
       // For iframe, object, embed - replace with data URLs
       htmlWithDataUrl = htmlWithDataUrl.replace(
-        new RegExp(`<iframe[^>]*src=["']${htmlFileName}["'][^>]*>`, 'gi'),
+        new RegExp(`<iframe[^>]*src\\s*=\\s*["']${htmlFileName}["'][^>]*>`, 'gi'),
         `<iframe src="${fileDataUrl}"`
       );
       
       htmlWithDataUrl = htmlWithDataUrl.replace(
-        new RegExp(`<object[^>]*data=["']${htmlFileName}["'][^>]*>`, 'gi'),
+        new RegExp(`<object[^>]*data\\s*=\\s*["']${htmlFileName}["'][^>]*>`, 'gi'),
         `<object data="${fileDataUrl}"`
       );
       
       htmlWithDataUrl = htmlWithDataUrl.replace(
-        new RegExp(`<embed[^>]*src=["']${htmlFileName}["'][^>]*>`, 'gi'),
+        new RegExp(`<embed[^>]*src\\s*=\\s*["']${htmlFileName}["'][^>]*>`, 'gi'),
         `<embed src="${fileDataUrl}"`
       );
     });
@@ -907,20 +907,62 @@ export const generateHTMLPreview = (files: {[key: string]: string}) => {
 
   // Process CSS files linked via <link> tags
   processFileReferences(
-    /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi,
+    /<link[^>]*rel\\s*=\\s*["']stylesheet["'][^>]*href\\s*=\\s*["']([^"']+)["'][^>]*>/gi,
     'CSS',
     'data:text/css;charset=utf-8,'
   );
 
   // Process JavaScript files linked via <script> tags
   processFileReferences(
-    /<script[^>]*src=["']([^"']+)["'][^>]*>/gi,
+    /<script[^>]*src\\s*=\\s*["']([^"']+)["'][^>]*>/gi,
     'JS',
     'data:text/javascript;charset=utf-8,'
   );
 
   // Process HTML file references
   processHTMLFileReferences();
+
+  // Process image URL replacements for output generation
+  const processImageUrlReplacements = () => {
+    if (imageUrls && imageUrls.length > 0) {
+      imageUrls.forEach(imageUrl => {
+        if (imageUrl.actualUrl && imageUrl.expectedUrl) {
+          const escaped = imageUrl.expectedUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const patterns = [
+            // src attributes (allow spaces around =)
+            new RegExp(`src\\s*=\\s*["']${escaped}["']`, 'gi'),
+            // href attributes (for links)
+            new RegExp(`href\\s*=\\s*["']${escaped}["']`, 'gi'),
+            // data-src attributes
+            new RegExp(`data-src\\s*=\\s*["']${escaped}["']`, 'gi'),
+            // background-image in style attributes
+            new RegExp(`background-image:\\s*url\\(["']?${escaped}["']?\\)`, 'gi'),
+            // url() in CSS
+            new RegExp(`url\\(["']?${escaped}["']?\\)`, 'gi')
+          ];
+
+          patterns.forEach(pattern => {
+            htmlWithDataUrl = htmlWithDataUrl.replace(pattern, (match) => {
+              if (match.includes('src=')) {
+                return match.replace(imageUrl.expectedUrl, imageUrl.actualUrl);
+              } else if (match.includes('href=')) {
+                return match.replace(imageUrl.expectedUrl, imageUrl.actualUrl);
+              } else if (match.includes('data-src=')) {
+                return match.replace(imageUrl.expectedUrl, imageUrl.actualUrl);
+              } else if (match.includes('background-image')) {
+                return match.replace(imageUrl.expectedUrl, imageUrl.actualUrl);
+              } else if (match.includes('url(')) {
+                return match.replace(imageUrl.expectedUrl, imageUrl.actualUrl);
+              }
+              return match;
+            });
+          });
+        }
+      });
+    }
+  };
+
+  processImageUrlReplacements();
 
   return htmlWithDataUrl;
 };

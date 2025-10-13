@@ -45,6 +45,7 @@ export interface QuestionData {
   status?: boolean;
   score?: string;
   entered_ans?: {[key: string]: string};
+  image_urls?: Array<{actualUrl: string, expectedUrl: string}>;
 }
 
 // Session storage utilities
@@ -289,8 +290,8 @@ export const autoSaveCode = async (
 };
 
 // Generate output code
-export const generateOutputCode = (fileContents: {[key: string]: string}) => {
-  return generateHTMLPreview(fileContents);
+export const generateOutputCode = (fileContents: {[key: string]: string}, imageUrls?: Array<{actualUrl: string, expectedUrl: string}>) => {
+  return generateHTMLPreview(fileContents, imageUrls);
 };
 
 // Cleanup utilities

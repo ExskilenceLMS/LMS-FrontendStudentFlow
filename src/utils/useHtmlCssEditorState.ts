@@ -19,6 +19,7 @@ export interface QuestionData {
   status?: boolean;
   score?: string;
   entered_ans?: { [key: string]: string };
+  image_urls?: Array<{actualUrl: string, expectedUrl: string}>;
 }
 
 export interface ModalContent {

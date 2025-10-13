@@ -34,6 +34,7 @@ interface Question {
   Code_Validation: any;
   Last_Updated_by: string;
   defaulttemplate?: string;
+  image_urls?: Array<{ actualUrl: string; expectedUrl: string }>;
 }
 
 interface TransformedQuestion {
@@ -79,6 +80,7 @@ interface TransformedQuestion {
   image_path?: string;
   video_path?: string;
   currentFile?: string;
+  image_urls?: Array<{actualUrl: string, expectedUrl: string}>;
 }
 
 interface ApiResponse {
@@ -161,7 +163,8 @@ const SubjectBasedCodingEditor: React.FC = () => {
             Code_Validation: q.Code_Validation,
             image_path: q.image_path,
             video_path: q.video_path,
-            currentFile: q.currentFile
+            currentFile: q.currentFile,
+            image_urls: q.image_urls
           }));
           
           // Store in session storage for the editor components
