@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExpand } from '@fortawesome/free-solid-svg-icons';
@@ -213,7 +213,8 @@ const HTMLCSSEditor: React.FC = () => {
             CreatedOn: q.CreatedOn || "",
             LastUpdated: q.LastUpdated || "",
             status: q.status || false,
-            entered_ans: q.entered_ans || {}
+            entered_ans: q.entered_ans || {},
+            image_urls: q.image_urls || []
           };
         });
         
@@ -507,7 +508,9 @@ const HTMLCSSEditor: React.FC = () => {
   };
 
 
-  const srcCode = generateOutputCode(fileContents);
+  const srcCode = useMemo(() => {
+    return generateOutputCode(fileContents, questionData?.image_urls);
+  }, [fileContents, questionData?.image_urls]);
 
 
   // Cleanup effect to restore body scroll on unmount

@@ -133,7 +133,8 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
       CreatedOn: questionData.CreatedOn,
       LastUpdated: questionData.LastUpdated,
       status: testSectionQuestion.status,
-      score: questionData.score
+      score: questionData.score,
+      image_urls: questionData.image_urls || testSectionQuestion.image_urls
     };
   };
   
@@ -335,7 +336,9 @@ const HTMLCSSEditor: React.FC<HTMLCSSEditorProps> = ({
     setStructureErrorMessage
   );
 
-  const srcCode = generateOutputCode(fileContents);
+  const srcCode = useMemo(() => {
+    return generateOutputCode(fileContents, questionData?.image_urls);
+  }, [fileContents, questionData?.image_urls]);
 
   // Modal handlers
 

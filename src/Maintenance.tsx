@@ -72,7 +72,7 @@ const Maintenance: React.FC = () => {
                   <div className="col-6">
                     <div className="d-flex justify-content-between align-items-center py-2 border-bottom">
                       <span className="fw-semibold">Expected Return:</span>
-                      <span className="text-info fw-medium">5 PM, 23 Sept 2025</span>
+                      <span className="text-info fw-medium">7 PM, 13 Oct 2025</span>
                     </div>
                   </div>
                 </div>
