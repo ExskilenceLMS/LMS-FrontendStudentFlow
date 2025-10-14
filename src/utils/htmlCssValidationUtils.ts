@@ -557,6 +557,125 @@ export const validateHTMLRequirement = (htmlCode: string, requirementIndex: numb
   return result;
 };
 
+// Helper function to build hierarchy path for an element
+const buildHierarchyPath = (element: any, structure: any[]): string[] => {
+  const path: string[] = [];
+  let current = element;
+  
+  while (current) {
+    path.unshift(current.tag);
+    if (current.parent) {
+      current = structure.find((item: any) => item.id === current.parent);
+    } else {
+      current = null;
+    }
+  }
+  
+  return path;
+};
+
+// Helper function to clean HTML content for validation
+const cleanHTMLForValidation = (html: string): string => {
+  return html
+    // Remove HTML comments
+    .replace(/<!--[\s\S]*?-->/g, '')
+    // Normalize whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// Helper function to find matching closing tag for nested HTML elements
+const findMatchingClosingTag = (content: string, tagName: string, startIndex: number): number => {
+  const openTag = `<${tagName}`;
+  const closeTag = `</${tagName}>`;
+  let depth = 1;
+  let index = startIndex;
+  
+  while (index < content.length && depth > 0) {
+    const nextOpen = content.indexOf(openTag, index);
+    const nextClose = content.indexOf(closeTag, index);
+    
+    if (nextClose === -1) return -1; // No closing tag found
+    
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      // Found another opening tag before closing tag
+      depth++;
+      index = nextOpen + openTag.length;
+    } else {
+      // Found closing tag
+      depth--;
+      if (depth === 0) return nextClose;
+      index = nextClose + closeTag.length;
+    }
+  }
+  
+  return -1;
+};
+
+// Helper function to validate element exists in correct hierarchy
+const validateElementInHierarchy = (code: string, element: any, hierarchyPath: string[]): boolean => {
+  const targetTag = hierarchyPath[hierarchyPath.length - 1];
+  const expectedContent = element.content;
+  
+  // Clean the HTML to handle edge cases
+  const cleanCode = cleanHTMLForValidation(code);
+
+  const searchLevel = (content: string, level: number): boolean => {
+    // Base case: at target level, look for the element itself within current content
+    if (level === hierarchyPath.length - 1) {
+      if (expectedContent) {
+        // Handle both regular and self-closing tags
+        const elementRegex = new RegExp(`<${targetTag}[^>]*>([^<]*)</${targetTag}>|<${targetTag}[^>]*/>`, 'gi');
+        let match: RegExpExecArray | null;
+        while ((match = elementRegex.exec(content)) !== null) {
+          // Check if it's a self-closing tag
+          if (match[0].endsWith('/>')) {
+            // Self-closing tags can't have content, so skip if content is expected
+            continue;
+          }
+          // Regular tag with content
+          if (match[1] && match[1].trim() === expectedContent) {
+            return true;
+          }
+        }
+        return false;
+      }
+      // Check for tag existence (both regular and self-closing)
+      return content.includes(`<${targetTag}`) && 
+             (content.includes(`</${targetTag}>`) || content.includes(`<${targetTag}[^>]*/>`));
+    }
+
+    // Recursive case: try ALL instances of the current parent tag at this level
+    const parentTag = hierarchyPath[level];
+    const parentOpenRegex = new RegExp(`<${parentTag}[^>]*>`, 'gi');
+    let match: RegExpExecArray | null;
+    
+    while ((match = parentOpenRegex.exec(content)) !== null) {
+      const openTagStart = match.index;
+      const openTagEnd = match.index + match[0].length;
+      
+      // Check if this is a self-closing tag
+      if (match[0].endsWith('/>')) {
+        // Self-closing tags can't contain children, so skip
+        continue;
+      }
+      
+      // Find the matching closing tag using proper nesting logic
+      const closeTagStart = findMatchingClosingTag(content, parentTag, openTagEnd);
+      
+      if (closeTagStart !== -1) {
+        const innerContent = content.substring(openTagEnd, closeTagStart);
+        if (searchLevel(innerContent, level + 1)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  return searchLevel(cleanCode, 0);
+};
+
 // Structure validation function - only checks parent-child relationships
 export const validateStructure = async (code: string, fileName: string, questionData: any) => {
   const fileValidation = questionData.Code_Validation[fileName];
@@ -566,7 +685,7 @@ export const validateStructure = async (code: string, fileName: string, question
   const type = fileName.endsWith('.html') ? 'HTML' : fileName.endsWith('.css') ? 'CSS' : 'JS';
   
   if (type === 'HTML') {
-    // For HTML, check only parent-child relationships
+    // For HTML, validate the complete hierarchy by building expected structure
     return structure.map((requirement: any) => {
       const { tag, parent } = requirement;
       
@@ -574,7 +693,7 @@ export const validateStructure = async (code: string, fileName: string, question
         // Root element - just check if it exists
         return code.includes(`<${tag}`);
       } else {
-        // Child element - check if it's inside its parent
+        // Child element - check if it's in the correct hierarchical position
         const parentRequirement = structure.find((item: any) => item.id === parent);
         if (!parentRequirement) {
           // Parent ID not found in structure list - skip parent-child validation
@@ -583,17 +702,12 @@ export const validateStructure = async (code: string, fileName: string, question
         }
         
         const parentTag = parentRequirement.tag;
-        // Check if the child tag exists inside the parent tag
-        // Use case-insensitive matching and handle self-closing tags
-        const parentRegex = new RegExp(`<${parentTag}[^>]*>([\\s\\S]*?)</${parentTag}>`, 'gi');
-        const parentMatches = [...code.matchAll(parentRegex)];
         
-        for (const match of parentMatches) {
-          if (match[1] && match[1].includes(`<${tag}`)) {
-            return true;
-          }
-        }
-        return false;
+        // Build the expected hierarchy path for this element
+        const hierarchyPath = buildHierarchyPath(requirement, structure);
+        
+        // Validate that this element exists in the correct hierarchical position
+        return validateElementInHierarchy(code, requirement, hierarchyPath);
       }
     });
   }
