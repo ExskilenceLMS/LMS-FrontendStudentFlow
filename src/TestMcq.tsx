@@ -503,7 +503,7 @@ const TestMcq: React.FC = () => {
                     ))}
                   </div>
                   <div className="col-11 lg-8 me-3" style={{ height: "100%", flex: 1 }}>
-                    <div className="border border-dark rounded-2 overflowY-auto d-flex flex-column" style={{ height :"calc(100% - 100px)", backgroundColor: "#E5E5E533" }}>
+                    <div className="border border-dark rounded-2 overflowY-auto d-flex flex-column" style={{ height :"calc(100% - 40px)", backgroundColor: "#E5E5E533" }}>
                         <div className="p-3 pt-4 m-0 mh-50 w-100 fs-5 overflow-auto d-flex" style={{ scrollbarWidth: 'thin' }}>
                           <div className="col-auto" style={{ minWidth: '40px', flexShrink: 0 }}>
                             <span>Q{currentQuestion + 1}.</span>
@@ -518,17 +518,20 @@ const TestMcq: React.FC = () => {
                         </div>
                         <div className="p-3 mh-50">
                         {questions[currentQuestion].options.map((option, index) => (
-                                                         <button onClick={() => handleOptionChange(option)} style={{
+                          <div className="d-flex align-items-center">
+                          {String.fromCharCode(65 + (index as number))}. 
+                          <button onClick={() => handleOptionChange(option)} style={{
                                 boxShadow: '#00000033 0px 5px 4px',
                                 maxHeight: "10vh",
                                 overflowY: "auto",
                                 backgroundColor: selectedOption === option ? "#90EE90" : "transparent",
                                 width: "100%",
-                                textAlign: "left"
-                              }} className="border border-muted rounded-2 p-2 mb-3">
-                                <span className="me-2">{String.fromCharCode(65 + (index as number))}.</span>
+                                textAlign: "left",
+                                whiteSpace: "pre-line"
+                              }} className="border border-muted rounded-2 p-2 mb-3 ms-2">
                                 {option}
-                              </button>
+                          </button>
+                              </div>
                         ))}
                       </div>
                      
