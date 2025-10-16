@@ -46,6 +46,9 @@ interface question {
     user: string;
     correct: string;
   };
+  userAnswerFiles?: {[key: string]: string};
+  correctAnswerFiles?: {[key: string]: {Ans: string}};
+  selectedFile?: string;
   options?: [option, option, option, option];
   score: string;
   status: string;
@@ -67,7 +70,16 @@ interface questionData {
 const TestReport: React.FC = () => {
   const navigate = useNavigate();
   const [choice, setChoice] = useState<"mcq" | "coding">("mcq");
+  const [selectedFiles, setSelectedFiles] = useState<{[questionId: number]: string}>({});
   const testType = sessionStorage.getItem("TestType") || "";
+
+  // Handle file selection for coding questions
+  const handleFileSelection = (questionId: number, fileName: string) => {
+    setSelectedFiles(prev => ({
+      ...prev,
+      [questionId]: fileName
+    }));
+  };
   const [data, setData] = useState<Data1>({
     timeTaken: "",
     total_time: "",
@@ -173,18 +185,62 @@ const TestReport: React.FC = () => {
         }));
 
         // Map coding questions with the new structure
-        const codingQuestions = apiData.answers.coding.map((q: any, index: number) => ({
-          id: index + 1,
-          question: q.Qn,
-          answer: {
-            user: q.user_answer || "Not attempted",
-            correct: q.Ans,
-          },
-          testcase: q.testcases || "0/0",
-          score: `${q.score_secured}/${q.max_score}`,
-          status: q.status.toLowerCase(),
-          topic: q.topic,
-        }));
+        const codingQuestions = apiData.answers.coding.map((q: any, index: number) => {
+          const questionId = index + 1;
+          
+          // Handle both string and object formats for user_answer
+          let userAnswer = "Not attempted";
+          let userAnswerFiles: {[key: string]: string} = {};
+          let selectedFile = "";
+          
+          if (q.user_answer) {
+            if (typeof q.user_answer === 'string') {
+              userAnswer = q.user_answer;
+            } else if (typeof q.user_answer === 'object') {
+              userAnswerFiles = q.user_answer;
+              const fileKeys = Object.keys(q.user_answer);
+              if (fileKeys.length > 0) {
+                selectedFile = fileKeys[0]; // Default to first file
+                userAnswer = q.user_answer[fileKeys[0]];
+              }
+            }
+          }
+
+          // Handle correct answer from Code_Validation
+          let correctAnswer = q.Ans || "No answer provided";
+          let correctAnswerFiles: {[key: string]: {Ans: string}} = {};
+          
+          if (q.Code_Validation && typeof q.Code_Validation === 'object') {
+            const fileKeys = Object.keys(q.Code_Validation);
+            if (fileKeys.length > 0) {
+              // Convert Code_Validation structure to our expected format
+              fileKeys.forEach(fileName => {
+                if (q.Code_Validation[fileName] && q.Code_Validation[fileName].Ans) {
+                  correctAnswerFiles[fileName] = { Ans: q.Code_Validation[fileName].Ans };
+                }
+              });
+              if (correctAnswerFiles[fileKeys[0]]) {
+                correctAnswer = correctAnswerFiles[fileKeys[0]].Ans;
+              }
+            }
+          }
+
+          return {
+            id: questionId,
+            question: q.Qn,
+            answer: {
+              user: userAnswer,
+              correct: correctAnswer,
+            },
+            userAnswerFiles: Object.keys(userAnswerFiles).length > 0 ? userAnswerFiles : undefined,
+            correctAnswerFiles: Object.keys(correctAnswerFiles).length > 0 ? correctAnswerFiles : undefined,
+            selectedFile: selectedFile,
+            testcase: q.testcases || "0/0",
+            score: `${q.score_secured}/${q.max_score}`,
+            status: q.status.toLowerCase(),
+            topic: q.topic,
+          };
+        });
 
         setQuestionsData({
           mcq: mcqQuestions,
@@ -538,19 +594,75 @@ const TestReport: React.FC = () => {
                       {popupData.answer && (
                         <>
                           <div className="container-fluid">
+                            {/* File selection for coding questions with multiple files */}
+                            {popupData.userAnswerFiles && Object.keys(popupData.userAnswerFiles).length > 1 && (
+                              <div className="row mb-3">
+                                <div className="col-12">
+                                  <label className="form-label fw-bold mb-2">Select file to view:</label>
+                                  <div className="d-flex flex-wrap gap-2">
+                                    {Object.keys(popupData.userAnswerFiles).map((fileName) => {
+                                      const isSelected = (selectedFiles[popupData.id] || popupData.selectedFile || (popupData.userAnswerFiles && Object.keys(popupData.userAnswerFiles)[0])) === fileName;
+                                      return (
+                                        <button
+                                          key={fileName}
+                                          className={`btn btn-sm ${isSelected ? 'btn-primary' : 'btn-outline-primary'}`}
+                                          onClick={() => handleFileSelection(popupData.id, fileName)}
+                                          style={{
+                                            fontSize: '12px',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            border: isSelected ? '2px solid #0d6efd' : '1px solid #0d6efd',
+                                            backgroundColor: isSelected ? '#0d6efd' : 'transparent',
+                                            color: isSelected ? 'white' : '#0d6efd',
+                                            cursor: 'pointer'
+                                          }}
+                                        >
+                                          {fileName}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
                             <div className="row gap-2">
                               <div className="col border border-black rounded-3 p-3 px-5 d-flex flex-column">
-                                <p className="fw-bold pb-0 mb-0">Your answer</p>
+                                <p className="fw-bold pb-0 mb-0">
+                                  Your answer
+                                  {popupData.userAnswerFiles && Object.keys(popupData.userAnswerFiles).length > 1 && (
+                                    <span className="text-muted ms-2">
+                                      ({selectedFiles[popupData.id] || popupData.selectedFile || Object.keys(popupData.userAnswerFiles)[0]})
+                                    </span>
+                                  )}
+                                </p>
                                 <hr className="mt-0 pt-0" />
                                 <div className="w-100 overflowX-auto flex-grow-1">
-                                  <pre className="mb-0">{popupData.answer.user}</pre>
+                                  <pre className="mb-0">
+                                    {popupData.userAnswerFiles && Object.keys(popupData.userAnswerFiles).length > 1
+                                      ? popupData.userAnswerFiles[selectedFiles[popupData.id] || popupData.selectedFile || (popupData.userAnswerFiles && Object.keys(popupData.userAnswerFiles)[0])] || popupData.answer.user
+                                      : popupData.answer.user
+                                    }
+                                  </pre>
                                 </div>
                               </div>
                               <div className="col border border-black rounded-2 p-3 px-5 d-flex flex-column">
-                                <p className="fw-bold pb-0 mb-0">Optimal answer</p>
+                                <p className="fw-bold pb-0 mb-0">
+                                  Optimal answer
+                                  {popupData.correctAnswerFiles && Object.keys(popupData.correctAnswerFiles).length > 1 && (
+                                    <span className="text-muted ms-2">
+                                      ({selectedFiles[popupData.id] || popupData.selectedFile || Object.keys(popupData.correctAnswerFiles)[0]})
+                                    </span>
+                                  )}
+                                </p>
                                 <hr className="mt-0 pt-0" />
                                 <div className="w-100 overflowX-auto flex-grow-1">
-                                  <pre className="mb-0">{popupData.answer.correct}</pre>
+                                  <pre className="mb-0">
+                                    {popupData.correctAnswerFiles && Object.keys(popupData.correctAnswerFiles).length > 1
+                                      ? (popupData.correctAnswerFiles[selectedFiles[popupData.id] || popupData.selectedFile || (popupData.correctAnswerFiles && Object.keys(popupData.correctAnswerFiles)[0])] && popupData.correctAnswerFiles[selectedFiles[popupData.id] || popupData.selectedFile || (popupData.correctAnswerFiles && Object.keys(popupData.correctAnswerFiles)[0])].Ans) || popupData.answer.correct
+                                      : popupData.answer.correct
+                                    }
+                                  </pre>
                                 </div>
                               </div>
                             </div>

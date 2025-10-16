@@ -1035,14 +1035,14 @@ export const generateHTMLPreview = (files: {[key: string]: string}, imageUrls?: 
 
   // Process CSS files linked via <link> tags
   processFileReferences(
-    /<link[^>]*rel\\s*=\\s*["']stylesheet["'][^>]*href\\s*=\\s*["']([^"']+)["'][^>]*>/gi,
+    /<link[^>]*rel\s*=\s*["']stylesheet["'][^>]*href\s*=\s*["']([^"']+)["'][^>]*>/gi,
     'CSS',
     'data:text/css;charset=utf-8,'
   );
 
   // Process JavaScript files linked via <script> tags
   processFileReferences(
-    /<script[^>]*src\\s*=\\s*["']([^"']+)["'][^>]*>/gi,
+    /<script[^>]*src\s*=\s*["']([^"']+)["'][^>]*>/gi,
     'JS',
     'data:text/javascript;charset=utf-8,'
   );
