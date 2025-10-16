@@ -1923,13 +1923,14 @@ const SubjectRoadMap: React.FC = () => {
                           </div>
 
                           <button
-                            className="btn text-center px-2 py-1 rounded-2 border border-muted"
+                            className="btn px-2 py-1 rounded-2 border border-muted"
                             style={{
                               backgroundColor: bgColor,
                               height: "100%",
                               width: "100%",
                               overflowWrap: "break-word",
-                              whiteSpace: "normal",
+                              whiteSpace: "pre-wrap",
+                              textAlign: "left",
                               boxShadow: "#00000033 0px 5px 4px",
                               fontFamily:
                                 "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
@@ -1976,7 +1977,7 @@ const SubjectRoadMap: React.FC = () => {
                     Submit
                   </button>
                 )}
-                {isAnswered && !isCorrect && currentQuestion.Explanation && (
+                {isAnswered && currentQuestion.Explanation && (
                   <div
                     className="mt-4 border rounded-2 p-2"
                     style={{

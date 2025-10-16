@@ -77,20 +77,11 @@ const Courses: React.FC = () => {
 
   useEffect(() => {
     if (coursesData && isCoursesApiLoaded) {
-      const colorMapping: { [key: string]: string } = {
-        "HTML CSS": "#B6BAFE",
-        "JavaScript": "#F0DC54",
-        "Python": "#B5FEB5",
-        "Python8": "#B5FEB5",
-        "Data Structures with C++ and Object-Oriented Programming with C++": "#B6FEB5",
-        "Data Structures and Algorithms": "#B6BAFE",
-        "SQL": "#FFB5B5",
-        "SQL8": "#FFB5B5",
-      };
-
-      const courseData = (coursesData?.subjects || []).map((course: any) => ({
+      const availableColors = ["#B6BAFE","#F0DC54","#B5FEB5","#B6FEB5","#B6BAFE","#FFB5B5"];
+      // Assign different colors to each course, cycling through the color array
+      const courseData = (coursesData?.subjects || []).map((course: any, index: number) => ({
         ...course,
-        color: colorMapping[course.title] || "#D3D3D3",
+        color: availableColors[index % availableColors.length],
       }));
 
       setCourses(courseData);

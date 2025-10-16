@@ -108,7 +108,7 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
       const subjectCode = qnId.substring(1, 3).toLowerCase();
       if (subjectCode === 'py') return 'py';
       if (subjectCode === 'sq') return 'sq';
-      if (subjectCode === 'ht') return 'ht'; // HTML/CSS questions
+      if (subjectCode === 'ht' || subjectCode === 'cs' || subjectCode === 'js') return 'ht'; // HTML/CSS questions (ht or cs)
     }
     return 'py'; // Default to Python
   };
