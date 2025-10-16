@@ -110,7 +110,7 @@ const DynamicCodingEditor: React.FC<DynamicCodingEditorProps> = ({
       if (subjectCode === 'sq') return 'sq';
       if (subjectCode === 'ht' || subjectCode === 'cs' || subjectCode === 'js') return 'ht'; // HTML/CSS questions (ht or cs)
     }
-    return 'py'; // Default to Python
+    return 'ht'; // Default to HTML/CSS
   };
 
   /**
