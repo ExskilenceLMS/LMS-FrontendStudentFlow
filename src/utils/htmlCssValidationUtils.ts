@@ -34,11 +34,37 @@ export const validateHTMLStructure = (htmlCode: string, tag: string, attributes:
     
     if (!parentMatches) return false; // Parent not found
     
+    // If no parent attributes to validate, check all parent instances
+    if (!parentAttributes || Object.keys(parentAttributes).length === 0) {
+      // Check each parent tag instance for the child using regex positions
+      const parentTagRegex = new RegExp(`<${parentTag}\\b[^>]*>`, 'gi');
+      let match: RegExpExecArray | null;
+      
+      while ((match = parentTagRegex.exec(cleanHTML)) !== null) {
+        const parentStartIndex = match.index;
+        const parentEndRegex = new RegExp(`</${parentTag}>`, 'gi');
+        parentEndRegex.lastIndex = parentStartIndex;
+        const parentEndMatch = parentEndRegex.exec(cleanHTML);
+        
+        if (parentEndMatch) {
+          const parentStartContentIndex = parentStartIndex + match[0].length;
+          const parentEndIndex = parentEndMatch.index;
+          const parentContent = cleanHTML.substring(parentStartContentIndex, parentEndIndex);
+          
+          // Check if the tag exists within this parent content
+          if (checkTagInContent(parentContent, tag, attributes, content)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    
     // Check each parent tag instance to see if it has all required attributes
     for (const parentMatch of parentMatches) {
       let hasAllParentAttributes = true;
       
-      if (parentAttributes) {
+      if (parentAttributes && Object.keys(parentAttributes).length > 0) {
         for (const [key, value] of Object.entries(parentAttributes)) {
           let attributeFound = false;
           
@@ -47,6 +73,10 @@ export const validateHTMLStructure = (htmlCode: string, tag: string, attributes:
             const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
             attributeFound = attributeRegex.test(parentMatch);
           } else if (value === true) {
+            const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
+            attributeFound = attributeRegex.test(parentMatch);
+          } else if (value === "") {
+            // Handle empty string as boolean attribute
             const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
             attributeFound = attributeRegex.test(parentMatch);
           } else {
@@ -115,6 +145,10 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
           // Handle boolean attributes (like readonly, disabled, etc.)
           const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
           attributeFound = attributeRegex.test(tagMatch);
+        } else if (value === "") {
+          // Handle empty string as boolean attribute
+          const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
+          attributeFound = attributeRegex.test(tagMatch);
         } else {
           // Check for attribute with specific value
           const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -131,7 +165,7 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
     
     if (hasAllAttributes) {
       // Check if this is a self-closing tag
-      const isSelfClosing = tagMatch.endsWith('/>') || isSelfClosingTag(tag);
+      const isSelfClosing = isSelfClosingTag(tag);
       
       if (expectedContent) {
         if (isSelfClosing) {
@@ -167,7 +201,15 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
           }
         }
       } else {
-        return true;
+        // For self-closing tags, accept both forms: <tag /> and <tag>
+        if (isSelfClosing) {
+          return true;
+        } else {
+          // Check if there's a corresponding closing tag
+          const tagStartIndex = content.indexOf(tagMatch);
+          const tagEndIndex = content.indexOf(`</${tag}>`, tagStartIndex);
+          return tagEndIndex !== -1;
+        }
       }
     }
   }
@@ -640,9 +682,9 @@ const validateElementInHierarchy = (code: string, element: any, hierarchyPath: s
         }
         return false;
       }
-      // Check for tag existence (both regular and self-closing)
-      return content.includes(`<${targetTag}`) && 
-             (content.includes(`</${targetTag}>`) || content.includes(`<${targetTag}[^>]*/>`));
+      // Check for tag existence with attributes
+      const attributes = element.attributes || {};
+      return checkTagInContent(content, targetTag, attributes);
     }
 
     // Recursive case: try ALL instances of the current parent tag at this level
@@ -701,13 +743,10 @@ export const validateStructure = async (code: string, fileName: string, question
           return code.includes(`<${tag}`);
         }
         
-        const parentTag = parentRequirement.tag;
+        // Use the existing validateHTMLStructure function which handles parent-child relationships
+        const parentAttributes = parentRequirement.attributes || {};
         
-        // Build the expected hierarchy path for this element
-        const hierarchyPath = buildHierarchyPath(requirement, structure);
-        
-        // Validate that this element exists in the correct hierarchical position
-        return validateElementInHierarchy(code, requirement, hierarchyPath);
+        return validateHTMLStructure(code, requirement.tag, requirement.attributes, parentRequirement.tag, requirement.content, parentAttributes);
       }
     });
   }
