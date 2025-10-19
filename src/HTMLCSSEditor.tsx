@@ -61,328 +61,294 @@ const encryptedStudentId = sessionStorage.getItem('StudentId');
  
 
   useEffect(() => {
-    const fetchQuestion = async () => {
-      const url=`${process.env.REACT_APP_BACKEND_URL}frontend/qns/data/`
+    const fetchQuestions = async () => {
       try {
-        const response = await getApiClient().post(
-          url,
-          {
-            StudentId: "24TEST0108",
-            Course: "HTMLCSS",
-            Qn_name: "QHC2408010000AAXXEM10"
+        setLoading(true);
+        
+        // Check if we're in testing context (from SubjectBasedCodingEditor)
+        const isTestingContext = window.location.pathname.includes('/testing/coding/');
+        
+        if (isTestingContext) {
+          // In testing mode, load questions from session storage set by SubjectBasedCodingEditor
+          const storedQuestions = sessionStorage.getItem('codingQuestions');
+          if (storedQuestions) {
+            try {
+              const questions = JSON.parse(storedQuestions);
+              setQuestions(questions);
+              
+              // Set initial question index from session storage or default to 0
+              const storedIndex = sessionStorage.getItem("currentQuestionIndex");
+              const initialIndex = storedIndex ? 
+                Math.max(0, Math.min(parseInt(storedIndex) || 0, questions.length - 1)) : 0;
+              
+              setCurrentQuestionIndex(initialIndex);
+              
+              // Set current question based on stored index
+              if (questions.length > 0) {
+                const currentQuestion = questions[initialIndex];
+                setQuestionData(currentQuestion);
+                
+                // Initialize file contents from Code_Validation
+                const fileContents: {[key: string]: string} = {};
+                
+                // Process each file in Code_Validation
+                Object.keys(currentQuestion.Code_Validation).forEach(fileName => {
+                  if (isTestingContext) {
+                    // In testing mode, use Ans field from Code_Validation if available
+                    const fileValidation = currentQuestion.Code_Validation[fileName] as any;
+                    if (fileValidation && fileValidation.Ans) {
+                      fileContents[fileName] = fileValidation.Ans;
+                    } else if (fileName === 'index.html') {
+                      // Fallback to template for index.html if no Ans field
+                      const defaultTemplate = currentQuestion.Template || currentQuestion.defaulttemplate || '';
+                      fileContents[fileName] = defaultTemplate;
+                    } else {
+                      // Other files start empty if no Ans field
+                      fileContents[fileName] = '';
+                    }
+                  } else {
+                    // In practice mode, use defaulttemplate for index.html only
+                    if (fileName === 'index.html') {
+                      const defaultTemplate = currentQuestion.Template || currentQuestion.defaulttemplate || '';
+                      fileContents[fileName] = defaultTemplate;
+                    } else {
+                      // Other files start empty in practice mode
+                      fileContents[fileName] = '';
+                    }
+                  }
+                });
+                setFileContents(fileContents);
+                
+                // Set active tab to the first file
+                if (currentQuestion.Tabs.length > 0) {
+                  setActiveTab(currentQuestion.Tabs[0].name);
+                }
+              }
+            } catch (error) {
+              console.error('Error loading questions from session storage:', error);
+            }
           }
-        );
-        setQuestionData(response.data.Question);
-        setHtmlEdit(response.data.Question.UserAnsHTML || '');
-        setCssEdit(response.data.Question.UserAnsCSS || '');
+          setLoading(false);
+          return;
+        }
+        
+        // Only fetch from practice coding API in non-testing mode
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/` +
+          `${studentId}/` +
+          `${subject}/` +
+          `${subjectId}/` +
+          `${dayNumber}/` +
+          `${weekNumber}/` +
+          `${sessionStorage.getItem("currentSubTopicId")}/`;
+        
+        const response = await getApiClient().get(url);
+        const apiQuestions = response.data.questions;
+        const questionsWithSavedCode = apiQuestions.map((q: any) => {
+          // Check for saved code in session storage
+          const savedCodeKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${q.Qn_name}`;
+          const savedCode = sessionStorage.getItem(savedCodeKey);
+          let savedFileContents: {[key: string]: string} = {};
+          
+          if (savedCode) {
+            try {
+              const decryptedCode = CryptoJS.AES.decrypt(savedCode, secretKey).toString(CryptoJS.enc.Utf8);
+              savedFileContents = JSON.parse(decryptedCode);
+            } catch (error) {
+              console.error('Error decrypting saved code:', error);
+            }
+          }
+          
+          // Determine tabs dynamically from API or use default
+          const tabs = q.Tabs || [
+            { name: "index.html", type: "HTML" },
+            { name: "styles.css", type: "CSS" }
+          ];
+          
+          // Build Code_Validation dynamically
+          const codeValidation: {[key: string]: any} = {};
+          tabs.forEach((tab: any) => {
+            const fileName = tab.name;
+            codeValidation[fileName] = {
+              template: ""
+            };
+          });
+          
+          return {
+            Qn_name: q.Qn_name,
+            Page_Name: q.Page_Name || "HTML/CSS Question",
+            level: q.level || "level1",
+            subtopic_id: q.subtopic_id || "",
+            type: q.type || "coding",
+            Tabs: tabs,
+            Qn: q.Qn || q.question || "",
+            requirements: q.requirements || "",
+            Code_Validation: q.Code_Validation || codeValidation,
+            defaulttemplate: q.defaulttemplate || "",
+            image_path: q.image_path || "",
+            video_path: q.video_path || "",
+            CreatedBy: q.CreatedBy || "",
+            CreatedOn: q.CreatedOn || "",
+            LastUpdated: q.LastUpdated || "",
+            status: q.status || false,
+            entered_ans: q.entered_ans || {},
+            image_urls: q.image_urls || []
+          };
+        });
+        
+        setQuestions(questionsWithSavedCode);
+        
+        // Set initial question index from session storage or default to 0
+        const storedIndex = sessionStorage.getItem("currentQuestionIndex");
+        const initialIndex = storedIndex ? 
+          Math.max(0, Math.min(parseInt(storedIndex) || 0, questionsWithSavedCode.length - 1)) : 0;
+        
+        setCurrentQuestionIndex(initialIndex);
+        
+        // Set current question based on stored index
+        if (questionsWithSavedCode.length > 0) {
+          const currentQuestion = questionsWithSavedCode[initialIndex];
+          setQuestionData(currentQuestion);
+          const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${currentQuestion.Qn_name}`;
+          const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
+          const isSubmittedStatus = encryptedSubmitStatus ? 
+            CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
+          
+          if (currentQuestion.status === true || isSubmittedStatus) {
+            setIsSubmitted(true);
+            setHasRunCode(true);
+          }
+          
+          // Initialize file contents from Code_Validation
+          const fileContents: {[key: string]: string} = {};
+          
+          // Process each file in Code_Validation
+          Object.keys(currentQuestion.Code_Validation).forEach(fileName => {
+            // Check if question is submitted and has entered_ans
+            if (currentQuestion.status === true && currentQuestion.entered_ans && currentQuestion.entered_ans[fileName]) {
+              fileContents[fileName] = currentQuestion.entered_ans[fileName];
+            } else if (fileName === 'index.html') {
+              const defaultTemplate = currentQuestion.Template || currentQuestion.defaulttemplate || '';
+              fileContents[fileName] = defaultTemplate;
+            } else {
+              // Other files start empty if not submitted
+              fileContents[fileName] = '';
+            }
+          });
+          
+          // Check session storage first for auto-saved code
+          const sessionKey = isTestingContext 
+            ? `testing_userCode_${currentQuestion.Qn_name}` 
+            : `userCode_${subject}_${weekNumber}_${dayNumber}_${currentQuestion.Qn_name}`;
+          const encryptedSessionCode = sessionStorage.getItem(sessionKey);
+          
+          if (encryptedSessionCode && !currentQuestion.status && !isSubmittedStatus) {
+            // Load from session storage if available and question is not submitted
+            try {
+              const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
+              const sessionCode = JSON.parse(decryptedCode);
+              
+              // Merge session code with current file contents
+              Object.keys(sessionCode).forEach(fileName => {
+                if (fileContents.hasOwnProperty(fileName)) {
+                  fileContents[fileName] = sessionCode[fileName];
+                }
+              });
+            } catch (error) {
+              console.error('Error loading session storage code:', error);
+            }
+          } else if (!currentQuestion.status && !isSubmittedStatus && !isTestingContext) {
+            // Only fetch from backend if no session storage data AND question is not submitted AND not in testing mode
+            try {
+              const autoSavedCode = await loadAutoSavedCode(currentQuestion, sessionKey, studentId, QUESTION_STATUS.PRACTICE, false);
+                // Merge auto-saved code with current file contents
+                Object.keys(autoSavedCode).forEach(fileName => {
+                  if (fileContents.hasOwnProperty(fileName)) {
+                    fileContents[fileName] = autoSavedCode[fileName];
+                  }
+                });
+            } catch (error) {
+              console.error('Error loading auto-saved code from backend:', error);
+            }
+          }
+          
+          setFileContents(fileContents);
+          
+          // Set active tab to the first file
+          if (currentQuestion.Tabs.length > 0) {
+            setActiveTab(currentQuestion.Tabs[0].name);
+          }
+        }
       } catch (error) {
-        console.error("Error fetching question data:", error);
+        console.error("Error fetching questions:", error);
+        setLoading(false);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchQuestion();
-  }, []);
+    fetchQuestions();
+  }, [studentId, subject, subjectId, dayNumber, weekNumber, isTestingContext]);
 
-  const handleMouseDown = (e: ReactMouseEvent<HTMLDivElement>) => {
-    setIsDragging(true);
-    setInitialX(e.clientX);
-  };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging || !initialX) return;
-    const dx = e.clientX - initialX;
-    setSplitOffset(splitOffset + dx);
-    setInitialX(e.clientX);
-  };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setInitialX(null);
-  };
-
-  useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, initialX]);
-
-  const handleVerticalMouseDown = (e: ReactMouseEvent<HTMLDivElement>) => {
-    setIsDraggingVertically(true);
-    setInitialY(e.clientY);
-  };
-
-  const handleVerticalMouseMove = (e: MouseEvent) => {
-    if (!isDraggingVertically || !initialY) return;
-
-    const dy = e.clientY - initialY;
-    const vhUnitChange = (dy / window.innerHeight) * 100;
-
-    setEditorHeightPercentage((prevHeight) => {
-      const newHeight = Math.max(30, Math.min(70, prevHeight + vhUnitChange));
-      setOutputHeightPercentage(94 - newHeight);
-      return newHeight;
-    });
-
-    setInitialY(e.clientY);
-  };
-
-  const handleVerticalMouseUp = () => {
-    setIsDraggingVertically(false);
-    setInitialY(null);
-  };
-
-  useEffect(() => {
-    window.addEventListener('mousemove', handleVerticalMouseMove);
-    window.addEventListener('mouseup', handleVerticalMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleVerticalMouseMove);
-      window.removeEventListener('mouseup', handleVerticalMouseUp);
-    };
-  }, [isDraggingVertically, initialY]);
-
-  const handleTabClick = (tabKey: string) => {
-    setActiveTab(tabKey);
-  };
-
-  const handleSearch = (event: ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-  };
-
-  const handleCloseAlert = () => {
-    setShowAlert(false);
-    setdispl('');
-  };
-
-  const handleImgView = () => {
-    setdispl('image');
-    setShowAlert(true);
-  };
-
-  const Handlepreview = () => {
-    setdispl('output');
-    setShowAlert(true);
-  };
-
-  
-  const onChangeHtml = useCallback((value: string, viewUpdate: any) => {
-    setHtmlEdit(value);
-    handleCheckCode();
-  }, [htmlEdit]);
-
-  const onChangeCss = useCallback((value: string, viewUpdate: any) => {
-    setCssEdit(value);
-    handleCheckCode();
-  }, [cssEdit]);
-
-  const handleCheckCode = () => {
-    let codeToTest: string;
-    switch (activeTab) {
-      case 'html':
-        codeToTest = htmlEdit;
-        break;
-      case 'css':
-        codeToTest = cssEdit;
-        break;
-      default:
-        codeToTest = '';
-        break;
-    }
-
-    sendDataToCheck(activeTab, codeToTest);
-  };
-
-  const sendDataToCheck = (type: string, code: string) => {
-    if (!questionData) {
-      return;
-    }
-  
-    const htmlValidationData = questionData.Code_Validation.HTML;
-    const cssValidationData = questionData.Code_Validation.CSS;
-    let presentIndices: number[];
-  
-    if (type === 'html') {
-      const extractAttributes = (html: string) => {
-        const tagMatches = [...html.matchAll(/<(\w+)([^>]*)>/g)].map(match => {
-          const attributes: { [key: string]: string[] } = {};
-          const selfClosingTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
-          const attributeMatches = [...match[2].matchAll(/(\w+)\s*=\s*["']([^"']*)["']/g)];
-  
-          attributeMatches.forEach(attrMatch => {
-            const attrName = attrMatch[1];
-            let attrValue = attrMatch[2];
-  
-            if (['href', 'src', 'data-url', 'url'].includes(attrName)) {
-              const fullMatch = match[2].match(new RegExp(`${attrName}\\s*=\\s*["']([^"']*\\{\\{\\s*url_for\\s*\\([^\\)]+\\)\\s*[^"']*)["']`));
-              if (fullMatch) {
-                attrValue = fullMatch[1];
-              }
-            }
-  
-            if (!attributes[attrName]) {
-              attributes[attrName] = [];
-            }
-            attributes[attrName].push(attrValue);
-          });
-  
-          return {
-            tag: match[1],
-            attributes,
-            isSelfClosing: selfClosingTags.includes(match[1].toLowerCase()),
-            hasClosingTag: !selfClosingTags.includes(match[1].toLowerCase()) && new RegExp(`</${match[1]}>`).test(html)
-          };
+  const handleQuestionChange = async (index: number) => {
+    if (index >= 0 && index < questions.length) {
+      const question = questions[index];
+      setQuestionData(question);
+      setCurrentQuestionIndex(index);
+      
+      // Reset output tab to image (default)
+      setActiveOutputTab('image');
+      
+      // Save current question index to session storage
+      sessionStorage.setItem("currentQuestionIndex", index.toString());
+      
+      // Check if question is already submitted
+        const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+        const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
+        const isSubmittedStatus = encryptedSubmitStatus ? 
+          CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
+        
+      const isSubmitted = question.status === true || isSubmittedStatus;
+      
+      // Load file contents using shared utility
+      const sessionKey = isTestingContext 
+        ? `testing_userCode_${question.Qn_name}` 
+        : `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+      let fileContents: {[key: string]: string} = {};
+      
+      if (isTestingContext) {
+        // In testing mode, initialize file contents without API calls
+        Object.keys(question.Code_Validation).forEach(fileName => {
+          const fileValidation = question.Code_Validation[fileName] as any;
+          if (fileValidation && fileValidation.Ans) {
+            // Use Ans field from Code_Validation if available
+            fileContents[fileName] = fileValidation.Ans;
+          } else if (fileName === 'index.html') {
+            // Fallback to template for index.html if no Ans field
+            const defaultTemplate = question.Template || question.defaulttemplate || '';
+            fileContents[fileName] = defaultTemplate;
+          } else {
+            // Other files start empty if no Ans field
+            fileContents[fileName] = '';
+          }
         });
-        return tagMatches;
-      };
-  
-      const normalizedAttributes = extractAttributes(code);
-  
-      const relevantAttributes = ['type', 'id', 'name', 'required', 'class', 'url'];
-  
-      const missingHTMLValues = htmlValidationData.filter(expectedTag => {
-        const foundTags = normalizedAttributes.filter(actualTag => actualTag.tag === expectedTag.tag);
-        let isTagMissing = false;
-  
-        const hasMatchingTag = foundTags.some(foundTag => {
-          const expectedAttributes = expectedTag.attributes;
-          const actualAttributes = foundTag.attributes;
-  
-          if (!foundTag.isSelfClosing && !foundTag.hasClosingTag) {
-            return false;
-          }
-  
-          return Object.keys(expectedAttributes).every(attr => {
-            const expectedValues = Array.isArray(expectedAttributes[attr]) ? expectedAttributes[attr] : [expectedAttributes[attr]];
-            const actualValues = Array.isArray(actualAttributes[attr]) ? actualAttributes[attr] : [actualAttributes[attr]];
-  
-            if (!actualValues || actualValues.length === 0) {
-              expectedTag.missingAttributes = expectedTag.missingAttributes || {};
-              expectedTag.missingAttributes[attr] = expectedValues;
-              return false;
-            }
-  
-            const allValuesMatch = expectedValues.every((val: string) => (actualValues as string[]).includes(val));
-            if (!allValuesMatch) {
-              expectedTag.missingAttributes = expectedTag.missingAttributes || {};
-              expectedTag.missingAttributes[attr] = expectedValues.filter((val: string) => !(actualValues as string[]).includes(val));
-              return false;
-            }
-  
-            return true;
-          });
-        });
-  
-        if (!hasMatchingTag) {
-          isTagMissing = true;
-        }
-  
-        return isTagMissing;
-      }).map(tag => {
-        if (tag.missingAttributes) {
-        }
-        return tag;
-      });
-  
-      const isHTMLValid = missingHTMLValues.length === 0;
-  
-      presentIndices = htmlValidationData.map((item, index) => missingHTMLValues.includes(item) ? null : index).filter(index => index !== null) as number[];
-      setValidationStatus(prevState => ({ ...prevState, html: presentIndices }));
-  
-      const validHTMLTags = [
-        'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio',
-        'b', 'base', 'bdi', 'bdo', 'blockquote', 'body', 'br', 'button',
-        'canvas', 'caption', 'cite', 'code', 'col', 'colgroup',
-        'data', 'datalist', 'dd', 'del', 'details', 'dialog', 'div',
-        'dl', 'dt', 'em', 'embed', 'fieldset', 'figcaption', 'figure',
-        'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head',
-        'header', 'hr', 'html', 'i', 'iframe', 'img', 'input', 'ins',
-        'kbd', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark',
-        'meta', 'meta', 'nav', 'noscript', 'object', 'ol', 'optgroup', 'option',
-        'output', 'p', 'param', 'picture', 'pre', 'progress', 'q',
-        'rp', 'rt', 'ruby', 's', 'samp', 'script', 'section', 'select',
-        'small', 'source', 'span', 'strong', 'style', 'sub', 'summary',
-        'sup', 'table', 'tbody', 'td', 'template', 'textarea', 'tfoot',
-        'th', 'thead', 'title', 'tr', 'track', 'u', 'ul', 'var', 'video',
-        'wbr'
-      ];
-  
-      const validateHTML = (html: string) => {
-        const tagPattern = /<\/?([a-z][a-z0-9]*)\b[^>]*>/gi;
-        const headTags = ['title', 'meta', 'link', 'style', 'script'];
-        const bodyTags = ['head', 'html', ...headTags];
-        const selfClosingTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
-        const nonSelfClosingTags = [
-          'a', 'abbr', 'address', 'area', 'article', 'aside', 'audio', 'b', 'base', 'bdi', 'bdo',
-          'blockquote', 'body', 'br', 'button', 'canvas', 'caption', 'cite', 'code', 'col',
-          'colgroup', 'data', 'datalist', 'dd', 'del', 'details', 'dialog', 'div', 'dl', 'dt',
-          'em', 'embed', 'fieldset', 'figcaption', 'figure', 'footer', 'form', 'h1', 'h2',
-          'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hr', 'html', 'i', 'iframe', 'img',
-          'input', 'ins', 'kbd', 'label', 'legend', 'li', 'link', 'main', 'map', 'mark',
-          'menu', 'menuitem', 'meta', 'meter', 'nav', 'noscript', 'object', 'ol', 'optgroup',
-          'option', 'output', 'p', 'param', 'picture', 'pre', 'progress', 'q', 'rp', 'rt',
-          'ruby', 's', 'samp', 'script', 'section', 'select', 'small', 'source', 'span',
-          'strong', 'style', 'sub', 'summary', 'sup', 'table', 'tbody', 'td', 'template',
-          'textarea', 'tfoot', 'th', 'thead', 'time', 'title', 'tr', 'track', 'u', 'ul',
-          'var', 'video', 'wbr'
-        ];
-  
-        const HtmlTags = ['html', 'head', 'body'];
-  
-        const doctypeContent = html.match(/<!DOCTYPE html[^>]*>([\s\S]*?)<\/html>/);
-        const htmlContent = html.match(/<html[^>]*>([\s\S]*?)<\/html>/);
-        const headContent = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
-        const bodyContent = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  
-        const isValidTag = (tagName: string) => validHTMLTags.includes(tagName);
-  
-        if (htmlContent == null) {
-          setDOMSTR('Invalid DOM structure');
-          setDOMTRUE(true);
-          return false;
-        } else {
-          if (doctypeContent) {
-            const docMatches = doctypeContent[1].match(tagPattern);
-            for (let tag of docMatches || []) {
-              const tagName = tag.replace(/<\/?|\/?>/g, '').split(' ')[0].toLowerCase();
-              if (HtmlTags.includes(tagName) || !isValidTag(tagName)) {
+        
+        // Check session storage for auto-saved code in testing mode
+        const encryptedSessionCode = sessionStorage.getItem(sessionKey);
+        if (encryptedSessionCode && !isSubmitted) {
+          try {
+            const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
+            const sessionCode = JSON.parse(decryptedCode);
+            
+            // Merge session code with current file contents
+            Object.keys(sessionCode).forEach(fileName => {
+              if (fileContents.hasOwnProperty(fileName)) {
+                fileContents[fileName] = sessionCode[fileName];
               }
-            }
-            setDOMSTR('HTML DOM structure');
-            setDOMTRUE(false);
-          }
-  
-          if (htmlContent) {
-            const htmlMatches = htmlContent[1].match(tagPattern);
-            for (let tag of htmlMatches || []) {
-              const tagName = tag.replace(/<\/?|\/?>/g, '').split(' ')[0].toLowerCase();
-              if (!isValidTag(tagName)) {
-                setDOMSTR(`Invalid ${tagName} tag inside html tag due to possible spelling error`);
-                setDOMTRUE(true);
-                return false;
-              }
-            }
-            setDOMSTR('HTML DOM structure');
-            setDOMTRUE(false);
-          }
-  
-          if (headContent) {
-            const headMatches = headContent[1].match(tagPattern);
-            for (let tag of headMatches || []) {
-              const tagName = tag.replace(/<\/?|\/?>/g, '').split(' ')[0].toLowerCase();
-              if (!headTags.includes(tagName) || !isValidTag(tagName)) {
-                setDOMSTR(`Invalid ${tagName} tag inside head tag`);
-                setDOMTRUE(true);
-                return false;
-              }
-            }
-            setDOMSTR('HTML DOM structure');
-            setDOMTRUE(false);
+            });
+          } catch (error) {
+            console.error('Error loading testing session storage code:', error);
           }
   
           if (!bodyContent || bodyContent[1].trim() === '') {
