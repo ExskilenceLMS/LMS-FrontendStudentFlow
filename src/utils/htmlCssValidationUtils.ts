@@ -42,13 +42,37 @@ export const validateHTMLStructure = (htmlCode: string, tag: string, attributes:
       
       while ((match = parentTagRegex.exec(cleanHTML)) !== null) {
         const parentStartIndex = match.index;
-        const parentEndRegex = new RegExp(`</${parentTag}>`, 'gi');
-        parentEndRegex.lastIndex = parentStartIndex;
-        const parentEndMatch = parentEndRegex.exec(cleanHTML);
         
-        if (parentEndMatch) {
+        // Find the matching closing tag by counting opening and closing tags
+        let parentEndIndex = -1;
+        let openTagCount = 0;
+        let searchIndex = parentStartIndex + match[0].length;
+        
+        while (searchIndex < cleanHTML.length) {
+          const nextOpenTag = cleanHTML.indexOf(`<${parentTag}`, searchIndex);
+          const nextCloseTag = cleanHTML.indexOf(`</${parentTag}>`, searchIndex);
+          
+          // If we find a closing tag before any opening tag, this is our match
+          if (nextCloseTag !== -1 && (nextOpenTag === -1 || nextCloseTag < nextOpenTag)) {
+            if (openTagCount === 0) {
+              parentEndIndex = nextCloseTag;
+              break;
+            } else {
+              openTagCount--;
+              searchIndex = nextCloseTag + `</${parentTag}>`.length;
+            }
+          } else if (nextOpenTag !== -1) {
+            // Found another opening tag, increment counter
+            openTagCount++;
+            searchIndex = nextOpenTag + `<${parentTag}`.length;
+          } else {
+            // No more tags found
+            break;
+          }
+        }
+        
+        if (parentEndIndex !== -1) {
           const parentStartContentIndex = parentStartIndex + match[0].length;
-          const parentEndIndex = parentEndMatch.index;
           const parentContent = cleanHTML.substring(parentStartContentIndex, parentEndIndex);
           
           // Check if the tag exists within this parent content
