@@ -25,9 +25,12 @@ const Header: React.FC = () => {
   const encryptedSubject = sessionStorage.getItem("Subject") || "";
   const decryptedSubject = useMemo(() => CryptoJS.AES.decrypt(encryptedSubject!, secretKey).toString(CryptoJS.enc.Utf8), [encryptedSubject]);
   const subject = decryptedSubject;
-  const encryptedDayNumber = sessionStorage.getItem('DayNumber') || "";
-  const decryptedDayNumber = useMemo(() => CryptoJS.AES.decrypt(encryptedDayNumber!, secretKey).toString(CryptoJS.enc.Utf8), [encryptedDayNumber]);
-  const dayNumber = decryptedDayNumber;
+  const encryptedDay = sessionStorage.getItem("Day");
+  const decryptedDay = encryptedDay ? CryptoJS.AES.decrypt(
+    encryptedDay,
+    secretKey
+  ).toString(CryptoJS.enc.Utf8) : null;
+  const dayNumber = decryptedDay;
   const actualStudentId= CryptoJS.AES.decrypt(sessionStorage.getItem('StudentId')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualEmail= CryptoJS.AES.decrypt(sessionStorage.getItem('Email')!, secretKey).toString(CryptoJS.enc.Utf8);
   const actualName= CryptoJS.AES.decrypt(sessionStorage.getItem('Name')!, secretKey).toString(CryptoJS.enc.Utf8);
