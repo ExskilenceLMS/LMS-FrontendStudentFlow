@@ -20,7 +20,8 @@ import {
   Typography,
   Box,
   Chip,
-  CircularProgress
+  CircularProgress,
+  TablePagination
 } from '@mui/material';
 import { OpenInNew, PlayArrow, ArrowUpward, ArrowDownward } from '@mui/icons-material';
 
@@ -35,6 +36,9 @@ interface Session {
   status: string;
   session_duration: number;
   attended_duration: number;
+  actual_start_date: string | null;
+  actual_start_time: string | null;
+  actual_end_time: string | null;
 }
 
 interface SessionsResponse {
@@ -51,6 +55,11 @@ const OnlineSession: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalSessions, setTotalSessions] = useState(0);
   const encryptedStudentId = sessionStorage.getItem('StudentId') || "";
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
@@ -100,21 +109,58 @@ const OnlineSession: React.FC = () => {
     return 0;
   });
  
+  // Helper functions for date/time display and session status
+  const getDisplayDate = (session: Session): string => {
+    // If actual_start_date is null, show the scheduled date
+    return session.actual_start_date || session.date;
+  };
+
+  const getDisplayTime = (session: Session): string => {
+    // If actual_start_time is null, show the scheduled time
+    return session.actual_start_time || session.time;
+  };
+
+  const isSessionExpired = (session: Session): boolean => {
+    // If actual_end_time is not null OR status is "Completed", the session has ended
+    return session.actual_end_time !== null || session.status === "Completed";
+  };
+
+  // Pagination handlers
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPageSize(parseInt(event.target.value, 10));
+    setCurrentPage(0);
+  };
+
   useEffect(() => {
     const fetchSessions = async () => {
       try {
         setLoading(true);
-        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/live-sessions/${studentId}/1/10`;
-        const response = await apiClient.get(url);
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/live-sessions/`;
+        
+        const requestBody = {
+          student_id: studentId,
+          page: currentPage + 1, // API expects 1-based page numbers
+          page_size: pageSize,
+          session_status: ""
+        };
+
+        const response = await apiClient.post(url, requestBody);
         
         if (response.data && response.data.sessions) {
           setSessions(response.data.sessions);
+          setTotalSessions(response.data.total || 0);
         } else {
           setSessions([]);
+          setTotalSessions(0);
         }
       } catch (error: any) {
         console.error("Error fetching sessions data:", error);
         setSessions([]);
+        setTotalSessions(0);
       } finally {
         setLoading(false);
       }
@@ -123,13 +169,13 @@ const OnlineSession: React.FC = () => {
     if (studentId) {
       fetchSessions();
     }
-  }, [studentId]);
+  }, [studentId, currentPage, pageSize]);
 
   return (
     <>
       <div className="container-fluid p-0 me-2 my-2 bg-white" style={{ height: "calc(100vh - 90px)", overflowY: "scroll"  }}>
           <div
-            className="container-fluid bg-white border rounded-1"
+            className="container-fluid bg-white border rounded-1 p-0"
           >
             {loading ? (
               <Box display="flex" justifyContent="center" alignItems="center" height="400px">
@@ -237,19 +283,19 @@ const OnlineSession: React.FC = () => {
                             }}
                           >
                             <TableCell component="th" scope="row" sx={{ fontSize: '14px' }}>
-                              {index + 1}
+                              {currentPage * pageSize + index + 1}
                             </TableCell>
                             <TableCell sx={{ fontSize: '14px', fontWeight: 'medium' }}>
                               {session.session_name}
                             </TableCell>
                             <TableCell sx={{ fontSize: '14px' }}>
-                              {session.date}
+                              {getDisplayDate(session)}
                             </TableCell>
                             <TableCell sx={{ fontSize: '14px' }}>
-                              {session.time}
+                              {getDisplayTime(session)}
                             </TableCell>
                             <TableCell>
-                              {session.status === "ended" ? (
+                              {isSessionExpired(session) ? (
                                 <Typography variant="body2" color="text.secondary">
                                   Expired
                                 </Typography>
@@ -296,7 +342,7 @@ const OnlineSession: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell sx={{ fontSize: '14px' }}>
-                              {session.status === "ended" ? "Completed" : session.status}
+                              {isSessionExpired(session) ? "Completed" : session.status}
                             </TableCell>
                           </TableRow>
                     ))
@@ -311,6 +357,21 @@ const OnlineSession: React.FC = () => {
                       )}
                     </TableBody>
                   </Table>
+                  <TablePagination
+                    rowsPerPageOptions={[5, 10, 25, 50]}
+                    component="div"
+                    count={totalSessions}
+                    rowsPerPage={pageSize}
+                    page={currentPage}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    sx={{
+                      borderTop: '1px solid #e0e0e0',
+                      '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                        fontSize: '14px',
+                      }
+                    }}
+                  />
                 </TableContainer>
               </Box>
             )}
