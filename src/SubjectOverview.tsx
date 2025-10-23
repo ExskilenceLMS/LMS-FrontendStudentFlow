@@ -237,14 +237,17 @@ const SubjectOverview: React.FC = () => {
     day_key: string,
     weekNumber: number,
     day_status: string,
-    topics: string[] | undefined
+    topics: string[] | undefined,
+    day: number
   ) => {
     setBtnClickLoading(true);
  
     const encryptedDayKey = CryptoJS.AES.encrypt(day_key, secretKey).toString();
     const encryptedWeekNumber = CryptoJS.AES.encrypt(weekNumber.toString(), secretKey).toString();
+    const encryptedDay = CryptoJS.AES.encrypt(day.toString(), secretKey).toString();
     sessionStorage.setItem("DayNumber", encryptedDayKey);
     sessionStorage.setItem("WeekNumber", encryptedWeekNumber);
+    sessionStorage.setItem("Day", encryptedDay);
     const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/weekly/${studentId}/${weekNumber}/${subjectId}`;
     const url1 = `${process.env.REACT_APP_BACKEND_URL}api/student/add/days/`;
     try {
@@ -515,7 +518,7 @@ const SubjectOverview: React.FC = () => {
                                 opacity: (day.status === "Completed" && day.topics?.includes("Weekly Test")) ? 0.6 : 1,
                               }}
                               className="btn btn-sm"
-                              onClick={() => handleStartButtonClickVideo(day.day_key, week.weekNumber, day.status, day.topics)}
+                              onClick={() => handleStartButtonClickVideo(day.day_key, week.weekNumber, day.status, day.topics, day.day)}
                               disabled={day.status === "Completed" && day.topics?.includes("Weekly Test")}
                             >
                               {day.status}
