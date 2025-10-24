@@ -64,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({ show, toggleSidebar }) => {
 
   const sidebarItems: Menu[] = [
     { icon: <BiBookReader size={20} />, label: "My Courses", path: "Dashboard", paths: ["/Dashboard"] },
-    { icon: <TbUserScreen size={20} />, label: "Online Sessions", path: "Online-Session", paths: ["/Online-Session"] },
+    // { icon: <TbUserScreen size={20} />, label: "Online Sessions", path: "Online-Session", paths: ["/Online-Session"] },
     { icon: <SiLintcode size={20} />, label: "Tests", path: "test", paths: ["/test"] },
     {
       icon: <TfiTicket size={20} />,
