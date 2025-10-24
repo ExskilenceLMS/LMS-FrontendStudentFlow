@@ -119,6 +119,13 @@ const SubjectRoadMap: React.FC = () => {
     secretKey
   ).toString(CryptoJS.enc.Utf8);
   const dayNumber = decryptedDayNumber;
+  
+  const encryptedDay = sessionStorage.getItem("Day");
+  const decryptedDay = encryptedDay ? CryptoJS.AES.decrypt(
+    encryptedDay,
+    secretKey
+  ).toString(CryptoJS.enc.Utf8) : null;
+  const dayValue = decryptedDay;
   const encryptedWeekNumber = sessionStorage.getItem("WeekNumber");
   const decryptedWeekNumber = CryptoJS.AES.decrypt(
     encryptedWeekNumber!,
@@ -2719,14 +2726,14 @@ const SubjectRoadMap: React.FC = () => {
               onMouseEnter={(e) => {
                 const target = e.currentTarget;
                 if (target.scrollWidth > target.clientWidth) {
-                  target.title = `${chapters[0].Day}: ${chapters[0].title}`;
+                  target.title = `${dayValue ? `Day ${dayValue}` : chapters[0].Day}: ${chapters[0].title}`;
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.title = "";
               }}
             >
-              {chapters[0].Day}: {chapters[0].title}
+              {dayValue ? `Day ${dayValue}` : chapters[0].Day}: {chapters[0].title}
             </h6>
             <div className="d-flex align-items-center">
               <span className="badge bg-primary me-2">
