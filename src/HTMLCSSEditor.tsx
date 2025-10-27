@@ -133,11 +133,14 @@ const HTMLCSSEditor: React.FC = () => {
                 // Process each file in Code_Validation
                 Object.keys(currentQuestion.Code_Validation).forEach(fileName => {
                   if (fileName === 'index.html') {
+                    // In testing context, check for Ans field first, then fallback to template
+                    const ansContent = currentQuestion.Code_Validation[fileName]?.Ans;
                     const defaultTemplate = currentQuestion.Template || currentQuestion.defaulttemplate || '';
-                    fileContents[fileName] = defaultTemplate;
+                    fileContents[fileName] = ansContent || defaultTemplate;
                   } else {
-                    // Other files start empty
-                    fileContents[fileName] = '';
+                    // For other files, check for Ans field in testing context
+                    const ansContent = currentQuestion.Code_Validation[fileName]?.Ans;
+                    fileContents[fileName] = ansContent || '';
                   }
                 });
                 setFileContents(fileContents);
@@ -344,10 +347,14 @@ const HTMLCSSEditor: React.FC = () => {
         // In testing mode, initialize file contents without API calls
         Object.keys(question.Code_Validation).forEach(fileName => {
           if (fileName === 'index.html') {
-              const defaultTemplate = question.Template || question.defaulttemplate || '';
-              fileContents[fileName] = defaultTemplate;
+            // In testing context, check for Ans field first, then fallback to template
+            const ansContent = question.Code_Validation[fileName]?.Ans;
+            const defaultTemplate = question.Template || question.defaulttemplate || '';
+            fileContents[fileName] = ansContent || defaultTemplate;
           } else {
-            fileContents[fileName] = '';
+            // For other files, check for Ans field in testing context
+            const ansContent = question.Code_Validation[fileName]?.Ans;
+            fileContents[fileName] = ansContent || '';
           }
         });
         

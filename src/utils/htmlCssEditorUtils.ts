@@ -22,6 +22,7 @@ export interface CodeValidation {
   [key: string]: {
     template: string;
     structure?: any[];
+    Ans?: string;
   };
 }
 
@@ -75,17 +76,33 @@ export const initializeFileContents = (
 ): {[key: string]: string} => {
   const fileContents: {[key: string]: string} = {};
   
+  // Check if we're in testing context
+  const isTestingContext = window.location.pathname.includes('/testing/coding/');
+  
   // Process each file in Code_Validation
   Object.keys(question.Code_Validation).forEach(fileName => {
     // Check if question is submitted and has entered_ans
     if (question.status === true && question.entered_ans && question.entered_ans[fileName]) {
       fileContents[fileName] = question.entered_ans[fileName];
     } else if (fileName === 'index.html') {
-      // Use defaulttemplate for index.html if not submitted
-      fileContents[fileName] = question.defaulttemplate || '';
+      // In testing context, check for Ans field first, then fallback to template
+      if (isTestingContext) {
+        const ansContent = question.Code_Validation[fileName]?.Ans;
+        const defaultTemplate = question.defaulttemplate || '';
+        fileContents[fileName] = ansContent || defaultTemplate;
+      } else {
+        // Use defaulttemplate for index.html if not submitted
+        fileContents[fileName] = question.defaulttemplate || '';
+      }
     } else {
-      // Other files start empty if not submitted
-      fileContents[fileName] = '';
+      // For other files, check for Ans field in testing context
+      if (isTestingContext) {
+        const ansContent = question.Code_Validation[fileName]?.Ans;
+        fileContents[fileName] = ansContent || '';
+      } else {
+        // Other files start empty if not submitted
+        fileContents[fileName] = '';
+      }
     }
   });
   
