@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
-import ReCAPTCHA from 'react-google-recaptcha';
 import axios from 'axios';
 import './Login.css';
 import GoogleLogo from './Components/images/search.png';
@@ -39,44 +38,9 @@ const Login: React.FC = () => {
   const [verifyingSession, setVerifyingSession] = useState<boolean>(false);
   const [showAlert, setShowAlert] = useState<boolean>(false);
   const [alertMessage, setAlertMessage] = useState<string>('');
-  const [recaptchaVerified, setRecaptchaVerified] = useState<boolean>(false);
-  const [recaptchaToken, setRecaptchaToken] = useState<string>('');
   const sessionCheckExecuted = useRef<boolean>(false);
-  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const handleCloseAlert = (): void => setShowAlert(false);
-
-  // reCAPTCHA v2 callback functions
-  const onRecaptchaChange = (token: string | null): void => {
-    if (token) {
-      setRecaptchaToken(token);
-      setRecaptchaVerified(true);
-    } else {
-      setRecaptchaToken('');
-      setRecaptchaVerified(false);
-    }
-  };
-
-  const onRecaptchaExpired = (): void => {
-    setRecaptchaToken('');
-    setRecaptchaVerified(false);
-  };
-
-  const onRecaptchaError = (): void => {
-    setRecaptchaToken('');
-    setRecaptchaVerified(false);
-    setAlertMessage('reCAPTCHA verification failed. Please try again.');
-    setShowAlert(true);
-  };
-
-  // Reset reCAPTCHA
-  const resetRecaptcha = (): void => {
-    if (recaptchaRef.current) {
-      recaptchaRef.current.reset();
-    }
-    setRecaptchaToken('');
-    setRecaptchaVerified(false);
-  };
 
   // Function to update student people_id
   const updateStudentPeopleId = async (studentId: string, peopleId: string): Promise<void> => {
@@ -296,7 +260,6 @@ const Login: React.FC = () => {
                     localStorage.removeItem("LMS_Picture");
                     localStorage.removeItem("LMS_timestamp");
                     localStorage.removeItem("LMS_lastActivityTime");
-                    resetRecaptcha(); // Reset reCAPTCHA verification
                     return;
                   }
                 } 
@@ -347,7 +310,6 @@ const Login: React.FC = () => {
             localStorage.removeItem("LMS_Picture");
             localStorage.removeItem("LMS_timestamp");
             localStorage.removeItem("LMS_lastActivityTime");
-            resetRecaptcha(); // Reset reCAPTCHA verification
             return;
           } else if (isMounted) {
             localStorage.removeItem("LMS_access_token");
@@ -359,7 +321,6 @@ const Login: React.FC = () => {
             localStorage.removeItem("LMS_Picture");
             localStorage.removeItem("LMS_timestamp");
             localStorage.removeItem("LMS_lastActivityTime");
-            resetRecaptcha(); // Reset reCAPTCHA verification
           }
         } 
 
@@ -378,7 +339,6 @@ const Login: React.FC = () => {
           localStorage.removeItem("LMS_Picture");
           localStorage.removeItem("LMS_timestamp");
           localStorage.removeItem("LMS_lastActivityTime");
-          setRecaptchaVerified(false); // Reset reCAPTCHA verification
         }
       } finally {
         if (isMounted) {
@@ -442,36 +402,18 @@ const Login: React.FC = () => {
                     </div>
                   ) : (
                     <div className="d-flex flex-column align-items-center">
-                      {process.env.REACT_APP_RECAPTCHA_SITE_KEY ? (
-                        <div className="mb-3 d-flex justify-content-center">
-                          <ReCAPTCHA
-                            ref={recaptchaRef}
-                            sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
-                            onChange={onRecaptchaChange}
-                            onExpired={onRecaptchaExpired}
-                            onErrored={onRecaptchaError}
-                          />
-                        </div>
-                      ) : (
-                        <div className="mb-3 p-3 border border-warning rounded bg-warning bg-opacity-10">
-                          <small className="text-warning">
-                            reCAPTCHA site key not configured.
-                          </small>
-                        </div>
-                      )}
                       <button 
                         onClick={() => handleLogin()} 
-                        disabled={process.env.REACT_APP_RECAPTCHA_SITE_KEY ? !recaptchaVerified : false}
                         className="btn w-100" 
                         style={{ 
-                          backgroundColor: (process.env.REACT_APP_RECAPTCHA_SITE_KEY ? recaptchaVerified : true) ? '#4168a3' : '#6c757d', 
+                          backgroundColor: '#4168a3', 
                           color: 'white', 
                           border: 'none',
                           borderRadius: '8px',
                           padding: '12px 24px',
                           fontWeight: '500',
                           fontSize: '16px',
-                          cursor: (process.env.REACT_APP_RECAPTCHA_SITE_KEY ? recaptchaVerified : true) ? 'pointer' : 'not-allowed'
+                          cursor: 'pointer'
                         }}
                       >
                         Sign in with Google

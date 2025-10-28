@@ -47,6 +47,7 @@ export interface QuestionData {
   score?: string;
   entered_ans?: {[key: string]: string};
   image_urls?: Array<{actualUrl: string, expectedUrl: string}>;
+  currentFile?: string;
 }
 
 // Session storage utilities

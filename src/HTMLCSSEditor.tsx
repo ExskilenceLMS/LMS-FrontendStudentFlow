@@ -217,7 +217,8 @@ const HTMLCSSEditor: React.FC = () => {
             LastUpdated: q.LastUpdated || "",
             status: q.status || false,
             entered_ans: q.entered_ans || {},
-            image_urls: q.image_urls || []
+            image_urls: q.image_urls || [],
+            currentFile: q.currentFile || ""
           };
         });
         
@@ -718,8 +719,9 @@ const HTMLCSSEditor: React.FC = () => {
                         >
                           {/* Problem Statement Section */}
                           <div style={{ marginBottom: "20px" }}>
+                             { isTestingContext ? <span>ID : {questionData?.currentFile}</span> : null}
                             <h4 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "10px", color: "#333" }}>
-                              Problem Statement
+                              Problem Statement 
                             </h4>
                             <div 
                               style={{ 
