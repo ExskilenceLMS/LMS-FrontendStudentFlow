@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Sidebar from "./Components/Sidebar";
 import { useNavigate, useLocation } from "react-router-dom";
 import Footer from "./Components/Footer";
@@ -8,22 +8,20 @@ import { secretKey } from "./constants";
 import CryptoJS from "crypto-js";
 import { getBackNavigationPath, isBackNavigationAllowed } from "./utils/navigationRules";
 import { FaArrowLeft } from "react-icons/fa";
+import { MaterialReactTable } from "material-react-table";
+import { MRT_ColumnDef } from "material-react-table";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Button,
   Typography,
   Box,
   Chip,
   CircularProgress,
-  TablePagination
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
-import { OpenInNew, PlayArrow, ArrowUpward, ArrowDownward } from '@mui/icons-material';
+import { OpenInNew, PlayArrow } from '@mui/icons-material';
 
 interface Session {
   session_id: number;
@@ -53,13 +51,9 @@ const OnlineSession: React.FC = () => {
   const location = useLocation();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortField, setSortField] = useState<string>('');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  const [totalSessions, setTotalSessions] = useState(0);
+  const [sessionStatus, setSessionStatus] = useState<string>("");
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [totalSessions, setTotalSessions] = useState<number>(0);
   const encryptedStudentId = sessionStorage.getItem('StudentId') || "";
   const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
@@ -74,40 +68,6 @@ const OnlineSession: React.FC = () => {
   };
 
   const canGoBack = isBackNavigationAllowed(location.pathname);
-
-  // Sorting handler
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  // Sort sessions based on current sort field and direction
-  const sortedSessions = [...sessions].sort((a, b) => {
-    if (!sortField) return 0;
-    
-    let aValue: any = a[sortField as keyof Session];
-    let bValue: any = b[sortField as keyof Session];
-    
-    // Handle different data types
-    if (sortField === 'attended' || sortField === 'session_duration' || sortField === 'attended_duration') {
-      aValue = Number(aValue) || 0;
-      bValue = Number(bValue) || 0;
-    } else if (sortField === 'date') {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
-    } else {
-      aValue = String(aValue).toLowerCase();
-      bValue = String(bValue).toLowerCase();
-    }
-    
-    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
  
   // Helper functions for date/time display and session status
   const getDisplayDate = (session: Session): string => {
@@ -125,15 +85,137 @@ const OnlineSession: React.FC = () => {
     return session.actual_end_time !== null || session.status === "Completed";
   };
 
-  // Pagination handlers
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setCurrentPage(newPage);
+  // Handler to start session and redirect to Google Meet
+  const handleJoinSession = async (session: Session) => {
+    if (!isSessionExpired(session)) {
+      try {
+        const startSessionUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/start-session/`;
+        const startSessionPayload = {
+          student_id: studentId,
+          session_id: session.session_id.toString()
+        };
+        
+        await apiClient.post(startSessionUrl, startSessionPayload);
+        
+        // Redirect to Google Meet
+        window.open(session.link, '_blank');
+      } catch (error: any) {
+        console.error("Error starting session:", error);
+      }
+    }
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setPageSize(parseInt(event.target.value, 10));
-    setCurrentPage(0);
-  };
+  // Define columns for MaterialReactTable
+  const columns = useMemo<MRT_ColumnDef<Session>[]>(
+    () => [
+      {
+        id: "sl_no",
+        header: "Sl No",
+        size: 80,
+        Cell: ({ row }) => (
+          (pagination.pageIndex * pagination.pageSize) + row.index + 1
+        ),
+      },
+      {
+        accessorKey: "session_name",
+        header: "Session Name",
+        size: 200,
+      },
+      {
+        accessorKey: "date",
+        header: "Date",
+        Cell: ({ row }) => getDisplayDate(row.original),
+      },
+      {
+        accessorKey: "time",
+        header: "Time",
+        Cell: ({ row }) => getDisplayTime(row.original),
+      },
+      {
+        id: "link",
+        header: "Link",
+        Cell: ({ row }) => {
+          const expired = isSessionExpired(row.original);
+          const isEnded = row.original.status === "ended";
+          
+          if (expired || isEnded) {
+            return (
+              <Typography variant="body2" color="text.secondary">
+                Expired
+              </Typography>
+            );
+          }
+          
+          return (
+            <Button
+              variant="text"
+              color="primary"
+              size="small"
+              startIcon={<OpenInNew />}
+              onClick={() => handleJoinSession(row.original)}
+              sx={{ 
+                textTransform: 'none',
+                fontSize: '14px',
+                fontWeight: 'medium'
+              }}
+            >
+              Join
+            </Button>
+          );
+        },
+      },
+      {
+        accessorKey: "attended",
+        header: "Time Attended",
+        Cell: ({ row }) => {
+          const attended = row.original.attended;
+          return attended > 0 ? `${attended}%` : "--";
+        },
+      },
+      {
+        id: "video",
+        header: "Video",
+        Cell: ({ row }) => {
+          const video = row.original.video;
+          return video ? (
+            <Button
+              variant="text"
+              color="primary"
+              size="small"
+              startIcon={<PlayArrow />}
+              onClick={() => window.open(video, '_blank')}
+              sx={{ 
+                textTransform: 'none',
+                fontSize: '14px',
+                fontWeight: 'medium'
+              }}
+            >
+              Watch
+            </Button>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          );
+        },
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        Cell: ({ row }) => {
+          const expired = isSessionExpired(row.original);
+          const status = row.original.status;
+          
+          if (expired || status === "ended") {
+            return "Completed";
+          }
+          
+          return status;
+        },
+      },
+    ],
+    [pagination.pageIndex, pagination.pageSize]
+  );
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -143,16 +225,16 @@ const OnlineSession: React.FC = () => {
         
         const requestBody = {
           student_id: studentId,
-          page: currentPage + 1, // API expects 1-based page numbers
-          page_size: pageSize,
-          session_status: ""
+          page: pagination.pageIndex + 1,
+          page_size: pagination.pageSize,
+          session_status: sessionStatus
         };
 
         const response = await apiClient.post(url, requestBody);
         
         if (response.data && response.data.sessions) {
           setSessions(response.data.sessions);
-          setTotalSessions(response.data.total || 0);
+          setTotalSessions(response.data.total ?? response.data.sessions.length ?? 0);
         } else {
           setSessions([]);
           setTotalSessions(0);
@@ -169,214 +251,62 @@ const OnlineSession: React.FC = () => {
     if (studentId) {
       fetchSessions();
     }
-  }, [studentId, currentPage, pageSize]);
+  }, [studentId, sessionStatus, pagination.pageIndex, pagination.pageSize]);
 
   return (
     <>
-      <div className="container-fluid p-0 me-2 my-2 bg-white" style={{ height: "calc(100vh - 90px)", overflowY: "scroll"  }}>
-          <div
-            className="container-fluid bg-white border rounded-1 p-0"
-          >
+      <div className="container-fluid p-0 pe-1 m-0 my-2" style={{ height: "calc(100vh - 70px)", overflowY: "scroll"  }}>
+          <div className="container-fluid bg-white border rounded-1 p-0">
             {loading ? (
-              <Box display="flex" justifyContent="center" alignItems="center" height="400px">
+              <Box display="flex" justifyContent="center" alignItems="center" height="calc(100vh - 80px)">
                 <CircularProgress />
               </Box>
             ) : (
-              <Box sx={{ p: 2 }}>
-                <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid #e0e0e0' }}>
-                  <Table sx={{ minWidth: 650 }} aria-label="sessions table">
-                    <TableHead>
-                      <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '14px' }}>Sl No</TableCell>
-                        <TableCell 
-                          sx={{ 
-                            fontWeight: 'bold', 
-                            fontSize: '14px', 
-                            cursor: 'pointer',
-                            '&:hover': { backgroundColor: '#e0e0e0' }
+              <Box sx={{ p: 2, height: 'calc(100vh - 80px)' }}>
+                <MaterialReactTable
+                  columns={columns}
+                  data={sessions}
+                  rowCount={totalSessions}
+                  enableSorting
+                  enableColumnFilters
+                  enablePagination
+                  enableBottomToolbar
+                  enableStickyHeader
+                  positionPagination="bottom"
+                  muiTablePaperProps={{ sx: { height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 'none' } }}
+                  muiTableContainerProps={{ sx: { height: 'calc(100% - 125px)' } }}
+                  muiPaginationProps={{
+                    rowsPerPageOptions: [5, 10, 25, 50],
+                  }}
+                  manualPagination
+                  onPaginationChange={setPagination}
+                  renderTopToolbarCustomActions={() => (
+                    <Box sx={{ p: 1 }}>
+                      <FormControl size="small" sx={{ minWidth: 200 }}>
+                        <InputLabel>Status</InputLabel>
+                        <Select
+                          value={sessionStatus}
+                          label="Filter by Status"
+                          onChange={(e) => {
+                            setPagination({ pageIndex: 0, pageSize: pagination.pageSize });
+                            setSessionStatus(e.target.value);
                           }}
-                          onClick={() => handleSort('session_name')}
                         >
-                          <Box display="flex" alignItems="center" gap={1}>
-                            Session Name
-                            {sortField === 'session_name' && (
-                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell 
-                          sx={{ 
-                            fontWeight: 'bold', 
-                            fontSize: '14px', 
-                            cursor: 'pointer',
-                            '&:hover': { backgroundColor: '#e0e0e0' }
-                          }}
-                          onClick={() => handleSort('date')}
-                        >
-                          <Box display="flex" alignItems="center" gap={1}>
-                            Date
-                            {sortField === 'date' && (
-                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell 
-                          sx={{ 
-                            fontWeight: 'bold', 
-                            fontSize: '14px', 
-                            cursor: 'pointer',
-                            '&:hover': { backgroundColor: '#e0e0e0' }
-                          }}
-                          onClick={() => handleSort('time')}
-                        >
-                          <Box display="flex" alignItems="center" gap={1}>
-                            Time
-                            {sortField === 'time' && (
-                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '14px' }}>Link</TableCell>
-                        <TableCell 
-                          sx={{ 
-                            fontWeight: 'bold', 
-                            fontSize: '14px', 
-                            cursor: 'pointer',
-                            '&:hover': { backgroundColor: '#e0e0e0' }
-                          }}
-                          onClick={() => handleSort('attended')}
-                        >
-                          <Box display="flex" alignItems="center" gap={1}>
-                            Time Attended
-                            {sortField === 'attended' && (
-                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                            )}
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '14px' }}>Video</TableCell>
-                        <TableCell 
-                          sx={{ 
-                            fontWeight: 'bold', 
-                            fontSize: '14px', 
-                            cursor: 'pointer',
-                            '&:hover': { backgroundColor: '#e0e0e0' }
-                          }}
-                          onClick={() => handleSort('status')}
-                        >
-                          <Box display="flex" alignItems="center" gap={1}>
-                            Status
-                            {sortField === 'status' && (
-                              sortDirection === 'asc' ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />
-                            )}
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {sortedSessions.length > 0 ? (
-                        sortedSessions.map((session, index) => (
-                          <TableRow 
-                            key={session.session_id} 
-                            sx={{ 
-                              '&:last-child td, &:last-child th': { border: 0 },
-                              '&:hover': { backgroundColor: '#f9f9f9' }
-                            }}
-                          >
-                            <TableCell component="th" scope="row" sx={{ fontSize: '14px' }}>
-                              {currentPage * pageSize + index + 1}
-                            </TableCell>
-                            <TableCell sx={{ fontSize: '14px', fontWeight: 'medium' }}>
-                              {session.session_name}
-                            </TableCell>
-                            <TableCell sx={{ fontSize: '14px' }}>
-                              {getDisplayDate(session)}
-                            </TableCell>
-                            <TableCell sx={{ fontSize: '14px' }}>
-                              {getDisplayTime(session)}
-                            </TableCell>
-                            <TableCell>
-                              {isSessionExpired(session) ? (
-                                <Typography variant="body2" color="text.secondary">
-                                  Expired
-                                </Typography>
-                              ) : (
-                                <Button
-                                  variant="text"
-                                  color="primary"
-                                  size="small"
-                                  startIcon={<OpenInNew />}
-                                  onClick={() => window.open(session.link, '_blank')}
-                                  sx={{ 
-                                    textTransform: 'none',
-                                    fontSize: '14px',
-                                    fontWeight: 'medium'
-                                  }}
-                            >
-                              Join
-                                </Button>
-                              )}
-                            </TableCell>
-                            <TableCell sx={{ fontSize: '14px' }}>
-                              {session.attended > 0 ? `${session.attended}%` : "--"}
-                            </TableCell>
-                            <TableCell>
-                              {session.video ? (
-                                <Button
-                                  variant="text"
-                                  color="primary"
-                                  size="small"
-                                  startIcon={<PlayArrow />}
-                                  onClick={() => window.open(session.video, '_blank')}
-                                  sx={{ 
-                                    textTransform: 'none',
-                                    fontSize: '14px',
-                                    fontWeight: 'medium'
-                                  }}
-                            >
-                              Watch
-                                </Button>
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  N/A
-                                </Typography>
-                              )}
-                            </TableCell>
-                            <TableCell sx={{ fontSize: '14px' }}>
-                              {isSessionExpired(session) ? "Completed" : session.status}
-                            </TableCell>
-                          </TableRow>
-                    ))
-                  ) : (
-                        <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                            <Typography variant="body1" color="text.secondary">
-                              No sessions found.
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                  <TablePagination
-                    rowsPerPageOptions={[5, 10, 25, 50]}
-                    component="div"
-                    count={totalSessions}
-                    rowsPerPage={pageSize}
-                    page={currentPage}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    sx={{
-                      borderTop: '1px solid #e0e0e0',
-                      '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                        fontSize: '14px',
-                      }
-                    }}
-                  />
-                </TableContainer>
+                          <MenuItem value="">All</MenuItem>
+                          <MenuItem value="upcoming">Upcoming</MenuItem>
+                          <MenuItem value="ongoing">Ongoing</MenuItem>
+                          <MenuItem value="completed">Completed</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  )}
+                  initialState={{ 
+                    pagination: { pageSize: pagination.pageSize, pageIndex: pagination.pageIndex } 
+                  }}
+                />
               </Box>
             )}
           </div>
-        
       </div>
     </>
   );
