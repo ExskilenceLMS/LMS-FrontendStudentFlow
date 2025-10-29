@@ -204,13 +204,21 @@ const OnlineSession: React.FC = () => {
         header: "Status",
         Cell: ({ row }) => {
           const expired = isSessionExpired(row.original);
-          const status = row.original.status;
+          const status = row.original.status?.toLowerCase();
           
-          if (expired || status === "ended") {
+          if (status === "cancelled") {
+            return "Cancelled";
+          }
+          
+          if (status === "live") {
+            return "Ongoing";
+          }
+          
+          if (expired || status === "ended" || status === "completed") {
             return "Completed";
           }
           
-          return status;
+          return row.original.status;
         },
       },
     ],
