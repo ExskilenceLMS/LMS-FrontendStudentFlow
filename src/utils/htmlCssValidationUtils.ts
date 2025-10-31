@@ -10,10 +10,53 @@ import {
   validateVariable, 
   validateFunctionTestCase, 
   validateEvent, 
-  executeFunctionTest, 
+  executeFunctionTest,
   executeDOMTest,
   validateJSTestCases 
 } from './jsValidationUtils';
+
+// Helper function to check if an attribute value matches in HTML
+const validateAttributeValue = (key: string, value: any, htmlContent: string): boolean => {
+  let attributeFound = false;
+  
+  if (Array.isArray(value)) {
+    // Handle multiple values (like multiple CSS classes)
+    if (key === 'class') {
+      // For class attribute, check if all required classes are present
+      const classRegex = /class\s*=\s*["']([^"']*)["']/i;
+      const classMatch = htmlContent.match(classRegex);
+      if (!classMatch) {
+        attributeFound = false;
+      } else {
+        const actualClasses = classMatch[1].split(/\s+/).filter(cls => cls.trim() !== '');
+        const requiredClasses = value.map(cls => String(cls).trim()).filter(cls => cls !== '');
+        attributeFound = requiredClasses.every(requiredClass => 
+          actualClasses.includes(requiredClass)
+        );
+      }
+    } else {
+      // For other array attributes, check for specific value
+      const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
+      attributeFound = attributeRegex.test(htmlContent);
+    }
+  } else if (value === true) {
+    // Handle boolean attributes (like readonly, disabled, etc.)
+    const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
+    attributeFound = attributeRegex.test(htmlContent);
+  } else if (value === "") {
+    // Handle empty string as boolean attribute
+    const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
+    attributeFound = attributeRegex.test(htmlContent);
+  } else {
+    // Check for attribute with specific value
+    const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
+    attributeFound = attributeRegex.test(htmlContent);
+  }
+  
+  return attributeFound;
+};
 
 // HTML Structure Validation using regex
 export const validateHTMLStructure = (htmlCode: string, tag: string, attributes: any, parentTag?: string, content?: string, parentAttributes?: any): boolean => {
@@ -90,24 +133,7 @@ export const validateHTMLStructure = (htmlCode: string, tag: string, attributes:
       
       if (parentAttributes && Object.keys(parentAttributes).length > 0) {
         for (const [key, value] of Object.entries(parentAttributes)) {
-          let attributeFound = false;
-          
-          if (Array.isArray(value)) {
-            const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
-            attributeFound = attributeRegex.test(parentMatch);
-          } else if (value === true) {
-            const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
-            attributeFound = attributeRegex.test(parentMatch);
-          } else if (value === "") {
-            // Handle empty string as boolean attribute
-            const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
-            attributeFound = attributeRegex.test(parentMatch);
-          } else {
-            const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
-            attributeFound = attributeRegex.test(parentMatch);
-          }
+          const attributeFound = validateAttributeValue(key, value, parentMatch);
           
           if (!attributeFound) {
             hasAllParentAttributes = false;
@@ -158,27 +184,7 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
     
     if (attributes && Object.keys(attributes).length > 0) {
       for (const [key, value] of Object.entries(attributes)) {
-        let attributeFound = false;
-        
-        if (Array.isArray(value)) {
-          // Check for attribute with specific value
-          const escapedValue = String(value[0]).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
-          attributeFound = attributeRegex.test(tagMatch);
-        } else if (value === true) {
-          // Handle boolean attributes (like readonly, disabled, etc.)
-          const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
-          attributeFound = attributeRegex.test(tagMatch);
-        } else if (value === "") {
-          // Handle empty string as boolean attribute
-          const attributeRegex = new RegExp(`${key}(?:\\s|>|$)`, 'i');
-          attributeFound = attributeRegex.test(tagMatch);
-        } else {
-          // Check for attribute with specific value
-          const escapedValue = String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const attributeRegex = new RegExp(`${key}\\s*=\\s*["']${escapedValue}["']`, 'i');
-          attributeFound = attributeRegex.test(tagMatch);
-        }
+        const attributeFound = validateAttributeValue(key, value, tagMatch);
         
         if (!attributeFound) {
           hasAllAttributes = false;
