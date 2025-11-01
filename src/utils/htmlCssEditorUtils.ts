@@ -151,7 +151,8 @@ export const validateCodeWithStructure = async (
   setHasRunCode: (hasRun: boolean) => void,
   setTestResults: (results: any) => void,
   setStructureResults: (results: any) => void,
-  setSelectedTestCaseIndex: (index: number | null) => void
+  setSelectedTestCaseIndex: (index: number | null) => void,
+  allFileContents?: { [key: string]: string }
 ) => {
   // First check basic HTML structure for HTML files
   if (activeTab.endsWith('.html')) {
@@ -187,8 +188,52 @@ export const validateCodeWithStructure = async (
     }
   }
   
-  const results = await validateCode(currentCode, activeTab, questionData, validateBasicHTMLStructure);
-  const structureValidationResults = await validateStructure(currentCode, activeTab, questionData);
+  let results: any[] = [];
+  let structureValidationResults: any[] = [];
+  if (activeTab.endsWith('.js')) {
+    try {
+      const backendUrl = `${process.env.REACT_APP_JSEXE_BASE_URL}/validate`;
+      if (backendUrl && allFileContents) {
+        const codeValidationPayload: any = { Code_Validation: {} };
+        Object.keys(allFileContents).forEach((fileName) => {
+          codeValidationPayload.Code_Validation[fileName] = {
+            Ans: allFileContents[fileName] || ''
+          };
+        });
+        const qv = (questionData as any)?.Code_Validation || {};
+        if (qv[activeTab]?.structure && Array.isArray(qv[activeTab].structure)) {
+          if (!codeValidationPayload.Code_Validation[activeTab]) {
+            codeValidationPayload.Code_Validation[activeTab] = { Ans: currentCode };
+          }
+          codeValidationPayload.Code_Validation[activeTab].testcases = qv[activeTab].structure;
+        }
+
+        const response = await fetch(backendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(codeValidationPayload)
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data.results)) {
+            results = data.results;
+          }
+          if (Array.isArray(data.structureResults)) {
+            structureValidationResults = data.structureResults;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('JS validation API failed, falling back to local validation');
+    }
+  }
+
+  if (results.length === 0) {
+    results = await validateCode(currentCode, activeTab, questionData, validateBasicHTMLStructure);
+  }
+  if (structureValidationResults.length === 0) {
+    structureValidationResults = await validateStructure(currentCode, activeTab, questionData);
+  }
   
   // Update test results for current file
   setTestResults((prev: any) => ({

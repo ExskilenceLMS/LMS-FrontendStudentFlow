@@ -37,7 +37,7 @@ export const useHtmlCssEditorState = () => {
   // UI state
   const [isMaximized, setIsMaximized] = useState(false);
   const [showRequirement, setShowRequirement] = useState(false);
-  const [activeSection, setActiveSection] = useState<'output' | 'testcases'>('output');
+  const [activeSection, setActiveSection] = useState<'output' | 'console' | 'testcases'>('output');
   const [activeOutputTab, setActiveOutputTab] = useState('image');
   
   // Processing state
