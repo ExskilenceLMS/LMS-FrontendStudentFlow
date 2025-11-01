@@ -26,6 +26,7 @@ import {
   cleanupAfterSubmission,
   isSuccessMessage
 } from "./utils/htmlCssEditorUtils";
+import { useConsoleTab, ConsoleTabContent } from "./utils/consoleTabUtils";
 import CryptoJS from "crypto-js";
 
 
@@ -469,7 +470,8 @@ const HTMLCSSEditor: React.FC = () => {
         setHasRunCode,
         setTestResults,
         setStructureResults,
-        setSelectedTestCaseIndex
+        setSelectedTestCaseIndex,
+        fileContents
       );
       
       if (results.length === 0) return; // Validation failed
@@ -511,6 +513,19 @@ const HTMLCSSEditor: React.FC = () => {
   const srcCode = useMemo(() => {
     return generateOutputCode(fileContents, questionData?.image_urls);
   }, [fileContents, questionData?.image_urls]);
+
+  // Console tab hook
+  const {
+    consoleLogs,
+    clearConsoleLogs,
+    iframeKey,
+    iframeRef,
+    currentExecutionId
+  } = useConsoleTab({
+    activeSection,
+    srcCode: srcCode || '',
+    questionId: questionData?.Qn_name
+  });
 
 
   // Cleanup effect to restore body scroll on unmount
@@ -876,6 +891,13 @@ const HTMLCSSEditor: React.FC = () => {
                             Output
                           </button>
                           <button
+                            className={`btn ${activeSection === 'console' ? 'btn-primary' : 'btn-outline-primary'} me-2`}
+                            onClick={() => setActiveSection('console')}
+                            style={{ fontSize: "12px", padding: "6px 12px" }}
+                          >
+                            Console
+                          </button>
+                          <button
                             className={`btn ${activeSection === 'testcases' ? 'btn-primary' : 'btn-outline-primary'}`}
                             onClick={() => setActiveSection('testcases')}
                             style={{ fontSize: "12px", padding: "6px 12px" }}
@@ -928,6 +950,19 @@ const HTMLCSSEditor: React.FC = () => {
                               )}
                             </div>
                           </div>
+                        )}
+                        
+                        {/* ===== CONSOLE SECTION ===== */}
+                        {activeSection === 'console' && (
+                          <ConsoleTabContent
+                            activeSection={activeSection}
+                            srcCode={srcCode || ''}
+                            consoleLogs={consoleLogs}
+                            clearConsoleLogs={clearConsoleLogs}
+                            iframeKey={iframeKey}
+                            iframeRef={iframeRef}
+                            currentExecutionId={currentExecutionId}
+                          />
                         )}
                         
                         {/* ===== TEST CASES SECTION ===== */}
