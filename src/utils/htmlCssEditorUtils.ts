@@ -194,18 +194,18 @@ export const validateCodeWithStructure = async (
     try {
       const backendUrl = `${process.env.REACT_APP_JSEXE_BASE_URL}/validate`;
       if (backendUrl && allFileContents) {
-        const codeValidationPayload: any = { Code_Validation: {} };
+        const codeValidationPayload: any = { generated_testcases: {} };
         Object.keys(allFileContents).forEach((fileName) => {
-          codeValidationPayload.Code_Validation[fileName] = {
+          codeValidationPayload.generated_testcases[fileName] = {
             Ans: allFileContents[fileName] || ''
           };
         });
         const qv = (questionData as any)?.Code_Validation || {};
         if (qv[activeTab]?.structure && Array.isArray(qv[activeTab].structure)) {
-          if (!codeValidationPayload.Code_Validation[activeTab]) {
-            codeValidationPayload.Code_Validation[activeTab] = { Ans: currentCode };
+          if (!codeValidationPayload.generated_testcases[activeTab]) {
+            codeValidationPayload.generated_testcases[activeTab] = { Ans: currentCode };
           }
-          codeValidationPayload.Code_Validation[activeTab].testcases = qv[activeTab].structure;
+          codeValidationPayload.generated_testcases[activeTab].testcases = qv[activeTab].structure;
         }
 
         const response = await fetch(backendUrl, {
@@ -215,7 +215,11 @@ export const validateCodeWithStructure = async (
         });
         if (response.ok) {
           const data = await response.json();
-          if (Array.isArray(data.results)) {
+          // Handle new API response format with result.parsed_results
+          if (data.result && Array.isArray(data.result.parsed_results)) {
+            results = data.result.parsed_results;
+          } else if (Array.isArray(data.results)) {
+            // Fallback to old format for backward compatibility
             results = data.results;
           }
           if (Array.isArray(data.structureResults)) {
