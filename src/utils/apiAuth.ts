@@ -1,9 +1,26 @@
 import axios from "axios";
+import { 
+  encryptJSON, 
+  decryptJSON
+} from './encryptionUtils';
 
-// Create axios instance with default configuration
 const apiClient = axios.create();
 
-// Add request interceptor to include bearer token and update activity time
+const ENCRYPTED_LOGIN_ENDPOINTS = [
+  '/api/new-login/'
+];
+
+const shouldEncryptAllPayloads = (): boolean => {
+  return process.env.REACT_APP_ENCRYPT_ALL_PAYLOAD?.toLowerCase() === 'true';
+};
+
+const requiresEncryption = (url: string): boolean => {
+  if (shouldEncryptAllPayloads()) {
+    return true;
+  }
+  return ENCRYPTED_LOGIN_ENDPOINTS.some(pattern => url.includes(pattern));
+};
+
 apiClient.interceptors.request.use(
   async (config) => {
     try {
@@ -11,11 +28,20 @@ apiClient.interceptors.request.use(
       if (accessToken) {
         config.headers.Authorization = `Bearer ${accessToken}`;
       }
+
+      const url = config.url || '';
+      
+      if (requiresEncryption(url) && config.data && config.method?.toLowerCase() === 'post') {
+        try {
+          const encryptedData = encryptJSON(config.data);
+          config.data = { data: encryptedData };
+        } catch (error: any) {
+          throw new Error(`Request encryption failed: ${error.message}`);
+        }
+      }
+      
     } catch (error: any) {
-      console.error(
-        "Error getting session data from localStorage in request interceptor:",
-        error
-      );
+      console.error("Error in request interceptor:", error);
     }
     return config;
   },
@@ -24,18 +50,38 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle token expiration and update activity time
 apiClient.interceptors.response.use(
   (response) => {
-    // Update last activity time only if response status is 200
-    if (response.status === 200) {
-      // Update last activity time in localStorage
-      try {
-        localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
-      } catch (error) {
-        console.error("Error updating last activity time:", error);
+    try {
+      if (response.status === 200) {
+        try {
+          localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
+        } catch (error) {
+          console.error("Error updating last activity time:", error);
+        }
       }
+
+      const url = response.config.url || '';
+      
+      if (requiresEncryption(url) && response.data) {
+        if (
+          typeof response.data === 'object' &&
+          'data' in response.data &&
+          typeof response.data.data === 'string'
+        ) {
+          try {
+            const decryptedData = decryptJSON(response.data.data);
+            response.data = decryptedData;
+          } catch (error) {
+            console.warn('Decryption failed, returning original', error);
+          }
+        }
+      }
+      
+    } catch (error: any) {
+      console.error('Error in response interceptor:', error);
     }
+    
     return response;
   },
   (error) => {
@@ -75,11 +121,20 @@ export const createAxiosWithActivityTracking = () => {
         if (accessToken) {
           config.headers.Authorization = `Bearer ${accessToken}`;
         }
+
+        const url = config.url || '';
+        
+        if (requiresEncryption(url) && config.data && config.method?.toLowerCase() === 'post') {
+          try {
+            const encryptedData = encryptJSON(config.data);
+            config.data = { data: encryptedData };
+          } catch (error: any) {
+            throw new Error(`Request encryption failed: ${error.message}`);
+          }
+        }
+        
       } catch (error: any) {
-        console.error(
-          "Error getting session data from localStorage in custom request interceptor:",
-          error
-        );
+        console.error("Error in custom request interceptor:", error);
       }
       return config;
     },
@@ -90,15 +145,36 @@ export const createAxiosWithActivityTracking = () => {
 
   axiosInstance.interceptors.response.use(
     (response) => {
-      // Update last activity time only if response status is 200
-      if (response.status === 200) {
-        // Update last activity time in localStorage
-        try {
-          localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
-        } catch (error) {
-          console.error("Error updating last activity time:", error);
+      try {
+        if (response.status === 200) {
+          try {
+            localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
+          } catch (error) {
+            console.error("Error updating last activity time:", error);
+          }
         }
+
+        const url = response.config.url || '';
+        
+        if (requiresEncryption(url) && response.data) {
+          if (
+            typeof response.data === 'object' &&
+            'data' in response.data &&
+            typeof response.data.data === 'string'
+          ) {
+            try {
+              const decryptedData = decryptJSON(response.data.data);
+              response.data = decryptedData;
+            } catch (error) {
+              console.warn('Decryption failed, returning original', error);
+            }
+          }
+        }
+        
+      } catch (error: any) {
+        console.error('Error in response interceptor:', error);
       }
+      
       return response;
     },
     (error) => {
