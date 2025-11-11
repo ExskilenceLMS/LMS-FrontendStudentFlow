@@ -223,6 +223,10 @@ export const checkTagInContent = (content: string, tag: string, attributes: any,
               if (validateStyleContent(tagContent, expectedContent)) {
                 return true;
               }
+            } else if (tag === 'script') {
+              if (validateScriptContent(tagContent, expectedContent)) {
+                return true;
+              }
             } else {
               if (tagContent.includes(expectedContent)) {
                 return true;
@@ -279,6 +283,30 @@ export const hasBalancedBraces = (css: string): boolean => {
     }
   }
   return braceCount === 0;
+};
+
+// Helper function to validate script tag content with JavaScript normalization
+export const validateScriptContent = (actualContent: string, expectedContent: string): boolean => {
+  const normalizeJavaScript = (js: string) => {
+    return js
+      .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
+      .replace(/\s*;\s*/g, ';') // Normalize spaces around semicolons
+      .replace(/;\s*$/, '') // Remove trailing semicolons (optional in JS)
+      .replace(/\s*{\s*/g, '{') // Remove spaces around opening braces
+      .replace(/\s*}\s*/g, '}') // Remove spaces around closing braces
+      .replace(/\s*\(\s*/g, '(') // Remove spaces around opening parentheses
+      .replace(/\s*\)\s*/g, ')') // Remove spaces around closing parentheses
+      .trim(); // Remove leading/trailing whitespace
+  };
+  
+  const normalizedActual = normalizeJavaScript(actualContent);
+  const normalizedExpected = normalizeJavaScript(expectedContent);
+  
+  // After normalization, both should match (trailing semicolons are removed)
+  // Check if normalized actual includes normalized expected or vice versa
+  return normalizedActual === normalizedExpected ||
+         normalizedActual.includes(normalizedExpected) ||
+         normalizedExpected.includes(normalizedActual);
 };
 
 // CSS Parser

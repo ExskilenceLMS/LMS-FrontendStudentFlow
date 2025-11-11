@@ -151,7 +151,8 @@ export const validateCodeWithStructure = async (
   setHasRunCode: (hasRun: boolean) => void,
   setTestResults: (results: any) => void,
   setStructureResults: (results: any) => void,
-  setSelectedTestCaseIndex: (index: number | null) => void
+  setSelectedTestCaseIndex: (index: number | null) => void,
+  allFileContents?: { [key: string]: string }
 ) => {
   // First check basic HTML structure for HTML files
   if (activeTab.endsWith('.html')) {
@@ -187,8 +188,56 @@ export const validateCodeWithStructure = async (
     }
   }
   
-  const results = await validateCode(currentCode, activeTab, questionData, validateBasicHTMLStructure);
-  const structureValidationResults = await validateStructure(currentCode, activeTab, questionData);
+  let results: any[] = [];
+  let structureValidationResults: any[] = [];
+  if (activeTab.endsWith('.js')) {
+    try {
+      const backendUrl = `${process.env.REACT_APP_JSEXE_BASE_URL}/validate`;
+      if (backendUrl && allFileContents) {
+        const codeValidationPayload: any = { generated_testcases: {} };
+        Object.keys(allFileContents).forEach((fileName) => {
+          codeValidationPayload.generated_testcases[fileName] = {
+            Ans: allFileContents[fileName] || ''
+          };
+        });
+        const qv = (questionData as any)?.Code_Validation || {};
+        if (qv[activeTab]?.structure && Array.isArray(qv[activeTab].structure)) {
+          if (!codeValidationPayload.generated_testcases[activeTab]) {
+            codeValidationPayload.generated_testcases[activeTab] = { Ans: currentCode };
+          }
+          codeValidationPayload.generated_testcases[activeTab].testcases = qv[activeTab].structure;
+        }
+
+        const response = await fetch(backendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(codeValidationPayload)
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Handle new API response format with result.parsed_results
+          if (data.result && Array.isArray(data.result.parsed_results)) {
+            results = data.result.parsed_results;
+          } else if (Array.isArray(data.results)) {
+            // Fallback to old format for backward compatibility
+            results = data.results;
+          }
+          if (Array.isArray(data.structureResults)) {
+            structureValidationResults = data.structureResults;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('JS validation API failed, falling back to local validation');
+    }
+  }
+
+  if (results.length === 0) {
+    results = await validateCode(currentCode, activeTab, questionData, validateBasicHTMLStructure);
+  }
+  if (structureValidationResults.length === 0) {
+    structureValidationResults = await validateStructure(currentCode, activeTab, questionData);
+  }
   
   // Update test results for current file
   setTestResults((prev: any) => ({
