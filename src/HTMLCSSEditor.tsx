@@ -24,7 +24,8 @@ import {
   autoSaveCode,
   generateOutputCode,
   cleanupAfterSubmission,
-  isSuccessMessage
+  isSuccessMessage,
+  getMessageClass
 } from "./utils/htmlCssEditorUtils";
 import { useConsoleTab, ConsoleTabContent } from "./utils/consoleTabUtils";
 import CryptoJS from "crypto-js";
@@ -449,43 +450,48 @@ const HTMLCSSEditor: React.FC = () => {
 
 
   const handleCheckCode = async () => {
-    // If maximized, return to normal view when RUN is clicked
-    if (isMaximized) {
-      setIsMaximized(false);
-    }
-    setActiveSection('output');
-    
-    // Validate only the current active file
-    if (questionData && activeTab) {
-      const currentCode = getCurrentFileContent();
-      
-      // Use shared validation utility
-      const { results } = await validateCodeWithStructure(
-        currentCode,
-        activeTab,
-        questionData,
-        setSuccessMessage,
-        setAdditionalMessage,
-        setStructureErrorMessage,
-        setHasRunCode,
-        setTestResults,
-        setStructureResults,
-        setSelectedTestCaseIndex,
-        fileContents
-      );
-      
-      if (results.length === 0) return; // Validation failed
-      
-      // Auto-save code when running (only in practice mode)
-      if (!isTestingContext) {
-        await autoSaveCode(fileContents, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
+    setProcessing(true);
+    try {
+      // If maximized, return to normal view when RUN is clicked
+      if (isMaximized) {
+        setIsMaximized(false);
       }
+      setActiveSection('output');
       
-      setSelectedTestCaseIndex(0);
-      
-      // Calculate success rate and set messages
-      const successRate = calculateSuccessRate(results);
-      setValidationMessages(successRate, setSuccessMessage, setAdditionalMessage);
+      // Validate only the current active file
+      if (questionData && activeTab) {
+        const currentCode = getCurrentFileContent();
+        
+        // Use shared validation utility
+        const { results } = await validateCodeWithStructure(
+          currentCode,
+          activeTab,
+          questionData,
+          setSuccessMessage,
+          setAdditionalMessage,
+          setStructureErrorMessage,
+          setHasRunCode,
+          setTestResults,
+          setStructureResults,
+          setSelectedTestCaseIndex,
+          fileContents
+        );
+        
+        if (results.length === 0) return;
+        
+        // Auto-save code when running (only in practice mode)
+        if (!isTestingContext) {
+          await autoSaveCode(fileContents, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
+        }
+        
+        setSelectedTestCaseIndex(0);
+        
+        // Calculate success rate and set messages
+        const successRate = calculateSuccessRate(results);
+        setValidationMessages(successRate, setSuccessMessage, setAdditionalMessage);
+      }
+    } finally {
+      setProcessing(false);
     }
   };
   
@@ -819,8 +825,8 @@ const HTMLCSSEditor: React.FC = () => {
                             <h5 className="m-0 processingDivHeadingTag">Processing...</h5>
                           ) : (
                             <>
-                              {successMessage && <h5 className={`m-0 ps-1 ${isSuccessMessage(successMessage) ? 'text-success' : 'text-danger'}`} style={{ fontSize: '14px' }}>{successMessage}</h5>}
-                              {additionalMessage && <p className={`processingDivParaTag m-0 ps-1 ${isSuccessMessage(successMessage) ? 'text-success' : 'text-danger'}`} style={{ fontSize: "10px" }}>{additionalMessage}</p>}
+                              {successMessage && <h5 className={`m-0 ps-1 ${getMessageClass(successMessage)}`} style={{ fontSize: '14px' }}>{successMessage}</h5>}
+                              {additionalMessage && <p className={`processingDivParaTag m-0 ps-1 ${getMessageClass(successMessage)}`} style={{ fontSize: "10px" }}>{additionalMessage}</p>}
                             </>
                           )}
                         </div>
