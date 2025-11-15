@@ -140,6 +140,100 @@ export const loadAutoSavedCode = async (
   return fileContents;
 };
 
+const validateJavaScriptWithTwoStageAPI = async (
+  currentCode: string,
+  activeTab: string,
+  questionData: QuestionData,
+  allFileContents: { [key: string]: string },
+  setSuccessMessage: (msg: string) => void,
+  setAdditionalMessage: (msg: string) => void
+): Promise<{ results: any[], structureResults: any[] }> => {
+  const baseUrl = process.env.REACT_APP_JSEXE_BASE_URL;
+  if (!baseUrl) {
+    throw new Error('REACT_APP_JSEXE_BASE_URL is not configured');
+  }
+
+  // Build payload
+  const payload: any = { generated_testcases: {} };
+  Object.keys(allFileContents).forEach((fileName) => {
+    payload.generated_testcases[fileName] = { Ans: allFileContents[fileName] || '' };
+  });
+  
+  const qv = questionData?.Code_Validation || {};
+  if (qv[activeTab]?.structure && Array.isArray(qv[activeTab].structure)) {
+    if (!payload.generated_testcases[activeTab]) {
+      payload.generated_testcases[activeTab] = { Ans: currentCode };
+    }
+    payload.generated_testcases[activeTab].testcases = qv[activeTab].structure;
+  }
+
+  // Stage 1: Submit validation request
+  const submitResponse = await fetch(`${baseUrl}/validate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  if (!submitResponse.ok) {
+    throw new Error(`Validation request failed: ${submitResponse.status}`);
+  }
+
+  const { submission_id, estimated_wait_time = 0 } = await submitResponse.json();
+  if (!submission_id) {
+    throw new Error('No submission_id received');
+  }
+
+  // Stage 2: Wait before polling
+  const initialWait = Math.max(estimated_wait_time - 2, 0) * 1000;
+  if (initialWait > 0) {
+    await new Promise(resolve => setTimeout(resolve, initialWait));
+  }
+
+  // Stage 3: Poll every 1 second until completed
+  const statusUrl = `${baseUrl}/api/v1/status/${submission_id}`;
+  const maxAttempts = 60;
+
+  for (let attempts = 0; attempts < maxAttempts; attempts++) {
+    try {
+      const statusResponse = await fetch(statusUrl, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!statusResponse.ok) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+
+      const statusData = await statusResponse.json();
+
+      if (statusData.status === 'completed') {
+        const results = statusData.result?.result?.parsed_results || 
+                       statusData.result?.parsed_results || 
+                       statusData.results || 
+                       [];
+        const structureResults = statusData.structureResults || [];
+        return { results, structureResults };
+      }
+
+      if (statusData.status === 'pending' || statusData.status === 'running' || statusData.status === 'submitted') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+
+      throw new Error(`Unexpected status: ${statusData.status}`);
+    } catch (error: any) {
+      if (error.message?.includes('Unexpected status')) {
+        throw error;
+      }
+      // Network/other errors - wait and retry
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  throw new Error('Validation timeout');
+};
+
 // Code validation utilities
 export const validateCodeWithStructure = async (
   currentCode: string,
@@ -151,7 +245,8 @@ export const validateCodeWithStructure = async (
   setHasRunCode: (hasRun: boolean) => void,
   setTestResults: (results: any) => void,
   setStructureResults: (results: any) => void,
-  setSelectedTestCaseIndex: (index: number | null) => void
+  setSelectedTestCaseIndex: (index: number | null) => void,
+  allFileContents?: { [key: string]: string }
 ) => {
   // First check basic HTML structure for HTML files
   if (activeTab.endsWith('.html')) {
@@ -187,8 +282,43 @@ export const validateCodeWithStructure = async (
     }
   }
   
-  const results = await validateCode(currentCode, activeTab, questionData, validateBasicHTMLStructure);
-  const structureValidationResults = await validateStructure(currentCode, activeTab, questionData);
+  let results: any[] = [];
+  let structureValidationResults: any[] = [];
+  
+  // Use two-stage API for JavaScript files
+  if (activeTab.endsWith('.js') && allFileContents) {
+    try {
+      // Show validating message
+      setSuccessMessage("Validating...");
+      setAdditionalMessage("Please wait while we validate your code.");
+      
+      const validationResult = await validateJavaScriptWithTwoStageAPI(
+        currentCode,
+        activeTab,
+        questionData,
+        allFileContents,
+        setSuccessMessage,
+        setAdditionalMessage
+      );
+      
+      results = validationResult.results;
+      structureValidationResults = validationResult.structureResults;
+    } catch (err: any) {
+      console.warn('JS validation API failed:', err);
+      // Clear messages so local validation can set its own
+      setSuccessMessage('');
+      setAdditionalMessage('');
+      // Will fall through to local validation below
+    }
+  }
+
+  // Fallback to local validation if API validation didn't return results
+  if (results.length === 0) {
+    results = await validateCode(currentCode, activeTab, questionData, validateBasicHTMLStructure);
+  }
+  if (structureValidationResults.length === 0) {
+    structureValidationResults = await validateStructure(currentCode, activeTab, questionData);
+  }
   
   // Update test results for current file
   setTestResults((prev: any) => ({
@@ -252,6 +382,14 @@ export const isSuccessMessage = (message: string): boolean => {
     "Correct"
   ];
   return successMessages.some(successMsg => message.includes(successMsg));
+};
+
+// Get the appropriate CSS class for a message
+export const getMessageClass = (message: string): string => {
+  if (message === "Validating...") {
+    return '';
+  }
+  return isSuccessMessage(message) ? 'text-success' : 'text-danger';
 };
 
 // Tab click with message clearing

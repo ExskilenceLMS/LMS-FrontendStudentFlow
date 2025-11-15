@@ -6,11 +6,15 @@ import { secretKey } from "../constants";
 import Skeleton from "react-loading-skeleton";
 import { useApiLoading } from "../Dashboard";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../utils/apiAuth";
+
 interface Discussion {
   title: string;
   week: string;
   date: string;
   time: string;
+  session_id?: string;
+  link?: string;
 }
 
 interface Events {
@@ -50,6 +54,26 @@ const Upcoming: React.FC = () => {
     isCoursesApiLoaded ? `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/upcomming/events/${courseId}/${batchId}` : null
   );
 
+  // Handler to start session and redirect to Google Meet
+  const handleJoinSession = async (session: Discussion) => {
+    if (session.session_id && session.link) {
+      try {
+        const startSessionUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/start-session/`;
+        const startSessionPayload = {
+          student_id: studentId,
+          session_id: session.session_id
+        };
+        
+        await apiClient.post(startSessionUrl, startSessionPayload);
+        
+        // Redirect to Google Meet
+        window.open(session.link, '_blank');
+      } catch (error: any) {
+        console.error("Error starting session:", error);
+      }
+    }
+  };
+
   useEffect(() => {
     if (sessionsData) {
       if (sessionsData.sessions && Array.isArray(sessionsData.sessions)) {
@@ -58,6 +82,8 @@ const Upcoming: React.FC = () => {
           week: item.title,
           date: item.date,
           time: item.time,
+          session_id: item.session_id,
+          link: item.link,
         })));
       } else {
         console.error("Expected sessions array but got:", typeof sessionsData, sessionsData);
@@ -113,7 +139,16 @@ const Upcoming: React.FC = () => {
                   key={index}
                   className="d-flex justify-content-between align-items-center"
                 >
-                  <span>{discussion.title}</span>
+                  <span 
+                    style={{ 
+                      cursor: discussion.link ? 'pointer' : 'default',
+                      textDecoration: discussion.link ? 'underline' : 'none',
+                      color: discussion.link ? '#007bff' : 'inherit'
+                    }}
+                    onClick={() => discussion.link && handleJoinSession(discussion)}
+                  >
+                    {discussion.title}
+                  </span>
                   <span>{`${discussion.date} - ${discussion.time}`}</span>
                 </div>
               ))

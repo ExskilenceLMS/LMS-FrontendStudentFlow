@@ -24,8 +24,10 @@ import {
   autoSaveCode,
   generateOutputCode,
   cleanupAfterSubmission,
-  isSuccessMessage
+  isSuccessMessage,
+  getMessageClass
 } from "./utils/htmlCssEditorUtils";
+import { useConsoleTab, ConsoleTabContent } from "./utils/consoleTabUtils";
 import CryptoJS from "crypto-js";
 
 
@@ -448,42 +450,48 @@ const HTMLCSSEditor: React.FC = () => {
 
 
   const handleCheckCode = async () => {
-    // If maximized, return to normal view when RUN is clicked
-    if (isMaximized) {
-      setIsMaximized(false);
-    }
-    setActiveSection('output');
-    
-    // Validate only the current active file
-    if (questionData && activeTab) {
-      const currentCode = getCurrentFileContent();
-      
-      // Use shared validation utility
-      const { results } = await validateCodeWithStructure(
-        currentCode,
-        activeTab,
-        questionData,
-        setSuccessMessage,
-        setAdditionalMessage,
-        setStructureErrorMessage,
-        setHasRunCode,
-        setTestResults,
-        setStructureResults,
-        setSelectedTestCaseIndex
-      );
-      
-      if (results.length === 0) return; // Validation failed
-      
-      // Auto-save code when running (only in practice mode)
-      if (!isTestingContext) {
-        await autoSaveCode(fileContents, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
+    setProcessing(true);
+    try {
+      // If maximized, return to normal view when RUN is clicked
+      if (isMaximized) {
+        setIsMaximized(false);
       }
+      setActiveSection('output');
       
-      setSelectedTestCaseIndex(0);
-      
-      // Calculate success rate and set messages
-      const successRate = calculateSuccessRate(results);
-      setValidationMessages(successRate, setSuccessMessage, setAdditionalMessage);
+      // Validate only the current active file
+      if (questionData && activeTab) {
+        const currentCode = getCurrentFileContent();
+        
+        // Use shared validation utility
+        const { results } = await validateCodeWithStructure(
+          currentCode,
+          activeTab,
+          questionData,
+          setSuccessMessage,
+          setAdditionalMessage,
+          setStructureErrorMessage,
+          setHasRunCode,
+          setTestResults,
+          setStructureResults,
+          setSelectedTestCaseIndex,
+          fileContents
+        );
+        
+        if (results.length === 0) return;
+        
+        // Auto-save code when running (only in practice mode)
+        if (!isTestingContext) {
+          await autoSaveCode(fileContents, questionData.Qn_name, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
+        }
+        
+        setSelectedTestCaseIndex(0);
+        
+        // Calculate success rate and set messages
+        const successRate = calculateSuccessRate(results);
+        setValidationMessages(successRate, setSuccessMessage, setAdditionalMessage);
+      }
+    } finally {
+      setProcessing(false);
     }
   };
   
@@ -511,6 +519,19 @@ const HTMLCSSEditor: React.FC = () => {
   const srcCode = useMemo(() => {
     return generateOutputCode(fileContents, questionData?.image_urls);
   }, [fileContents, questionData?.image_urls]);
+
+  // Console tab hook
+  const {
+    consoleLogs,
+    clearConsoleLogs,
+    iframeKey,
+    iframeRef,
+    currentExecutionId
+  } = useConsoleTab({
+    activeSection,
+    srcCode: srcCode || '',
+    questionId: questionData?.Qn_name
+  });
 
 
   // Cleanup effect to restore body scroll on unmount
@@ -572,11 +593,25 @@ const HTMLCSSEditor: React.FC = () => {
             jsCode[fileName] = fileContents[fileName] || '';
             // Calculate score for JS file based on test results
             const testResultsForFile = testResults[fileName] || [];
-            const passedTests = testResultsForFile.filter(result => result).length;
-            // Use actual test case count from question data if no tests have been run
-            const totalTests = testResultsForFile.length > 0 ? testResultsForFile.length : 
-              (questionData?.Code_Validation[fileName]?.structure?.length || 0);
-            jsResult[fileName] = `${passedTests}/${totalTests}`;
+            
+            // If no test results exist (code hasn't been run), calculate as 0/totalTests
+            if (testResultsForFile.length === 0) {
+              const totalTests = questionData?.Code_Validation[fileName]?.structure?.length || 0;
+              jsResult[fileName] = `0/${totalTests}`;
+            } else {
+              // Handle both boolean results (HTML/CSS) and object results (JavaScript) with passed property
+              const passedTests = testResultsForFile.filter((result: any) => {
+                if (typeof result === 'boolean') {
+                  return result;
+                } else if (typeof result === 'object' && result !== null && 'passed' in result) {
+                  return result.passed;
+                }
+                return false;
+              }).length;
+              // Use actual test case count from test results
+              const totalTests = testResultsForFile.length;
+              jsResult[fileName] = `${passedTests}/${totalTests}`;
+            }
           });
           
           // Get max score from question data (e.g., "0/10" -> use 10 as max score)
@@ -790,8 +825,8 @@ const HTMLCSSEditor: React.FC = () => {
                             <h5 className="m-0 processingDivHeadingTag">Processing...</h5>
                           ) : (
                             <>
-                              {successMessage && <h5 className={`m-0 ps-1 ${isSuccessMessage(successMessage) ? 'text-success' : 'text-danger'}`} style={{ fontSize: '14px' }}>{successMessage}</h5>}
-                              {additionalMessage && <p className={`processingDivParaTag m-0 ps-1 ${isSuccessMessage(successMessage) ? 'text-success' : 'text-danger'}`} style={{ fontSize: "10px" }}>{additionalMessage}</p>}
+                              {successMessage && <h5 className={`m-0 ps-1 ${getMessageClass(successMessage)}`} style={{ fontSize: '14px' }}>{successMessage}</h5>}
+                              {additionalMessage && <p className={`processingDivParaTag m-0 ps-1 ${getMessageClass(successMessage)}`} style={{ fontSize: "10px" }}>{additionalMessage}</p>}
                             </>
                           )}
                         </div>
@@ -876,6 +911,13 @@ const HTMLCSSEditor: React.FC = () => {
                             Output
                           </button>
                           <button
+                            className={`btn ${activeSection === 'console' ? 'btn-primary' : 'btn-outline-primary'} me-2`}
+                            onClick={() => setActiveSection('console')}
+                            style={{ fontSize: "12px", padding: "6px 12px" }}
+                          >
+                            Console
+                          </button>
+                          <button
                             className={`btn ${activeSection === 'testcases' ? 'btn-primary' : 'btn-outline-primary'}`}
                             onClick={() => setActiveSection('testcases')}
                             style={{ fontSize: "12px", padding: "6px 12px" }}
@@ -930,6 +972,19 @@ const HTMLCSSEditor: React.FC = () => {
                           </div>
                         )}
                         
+                        {/* ===== CONSOLE SECTION ===== */}
+                        {activeSection === 'console' && (
+                          <ConsoleTabContent
+                            activeSection={activeSection}
+                            srcCode={srcCode || ''}
+                            consoleLogs={consoleLogs}
+                            clearConsoleLogs={clearConsoleLogs}
+                            iframeKey={iframeKey}
+                            iframeRef={iframeRef}
+                            currentExecutionId={currentExecutionId}
+                          />
+                        )}
+                        
                         {/* ===== TEST CASES SECTION ===== */}
                         {activeSection === 'testcases' && (
                           <div style={{ flex: 1, maxHeight: "90%", overflow: "hidden" }}>
@@ -947,29 +1002,15 @@ const HTMLCSSEditor: React.FC = () => {
                                   scrollbarColor: "#c1c1c1 #f1f1f1"
                                 }}>
                                     {testResults[activeTab].map((result, index) => {
-                                      // Handle different result types
-                                      let displayText = '';
+                                      // Left side always shows just "Test Case {index + 1}"
+                                      const displayText = `Test Case ${index + 1}`;
                                       let isPassed = false;
                                       
                                       if (typeof result === 'boolean') {
-                                        displayText = `Test Case ${index + 1}`;
                                         isPassed = result;
                                       } else if (typeof result === 'object' && result !== null && 'passed' in result) {
-                                        const objResult = result as any;
-                                        isPassed = objResult.passed;
-                                        
-                                        if (objResult.isGrouped && objResult.elementType === 'function') {
-                                          // For grouped function test cases, show count
-                                          displayText = `Test Case ${index + 1}`;
-                                        } else if (objResult.elementType === 'variable') {
-                                          displayText = `Test Case ${index + 1}`;
-                                        } else if (objResult.elementType === 'function') {
-                                          displayText = `Test Case ${index + 1}`;
-                                        } else {
-                                          displayText = `Test Case ${index + 1}`;
-                                        }
+                                        isPassed = (result as any).passed;
                                       } else {
-                                        displayText = `Test Case ${index + 1}`;
                                         isPassed = false;
                                       }
                                       
@@ -1059,15 +1100,32 @@ const HTMLCSSEditor: React.FC = () => {
                                                 )}
                                               </div>
                                             );
-                                          } else if (isJSFile && typeof result === 'object' && result !== null && 'elementType' in result) {
+                                          } else if (isJSFile && typeof result === 'object' && result !== null) {
                                             const jsResult = result as any;
-                                            return (
-                                              <div className="mb-3">
-                                                <strong>Element: </strong>
-                                                <span className="text-dark">{jsResult.elementName}</span>
-                                                <span className="text-muted ms-2">({jsResult.elementType})</span>
-                                              </div>
-                                            );
+                                            // Handle new API format with title
+                                            if (jsResult.title !== undefined) {
+                                              return (
+                                                <div className="mb-3">
+                                                  <strong>Description: </strong>
+                                                  <span className="text-dark">{jsResult.title}</span>
+                                                  {!jsResult.passed && jsResult.error && (
+                                                    <div className="mt-2">
+                                                      <strong className="text-danger">Error: </strong>
+                                                      <span className="text-danger">{jsResult.error}</span>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            } else if ('elementType' in jsResult) {
+                                              // Old format with elementType
+                                              return (
+                                                <div className="mb-3">
+                                                  <strong>Element: </strong>
+                                                  <span className="text-dark">{jsResult.elementName}</span>
+                                                  <span className="text-muted ms-2">({jsResult.elementType})</span>
+                                                </div>
+                                              );
+                                            }
                                           }
                                           return null;
                                         })()}
@@ -1095,10 +1153,10 @@ const HTMLCSSEditor: React.FC = () => {
                                       </div>
 
                                         {/* For JavaScript files, show simplified test case information */}
-                                        {isJSFile && typeof result === 'object' && result !== null && 'elementType' in result && (() => {
+                                        {isJSFile && typeof result === 'object' && result !== null && (() => {
                                           const jsResult = result as any;
                                           
-                                          // If it's a grouped function result, show nested test cases
+                                          // Old format - If it's a grouped function result, show nested test cases
                                           if (jsResult.isGrouped && jsResult.elementType === 'function') {
                                             return (
                                               <>
