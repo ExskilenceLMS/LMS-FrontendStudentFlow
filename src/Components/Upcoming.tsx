@@ -180,7 +180,7 @@ const Upcoming: React.FC = () => {
               <Skeleton height={10} width={100} />
               <Skeleton height={10} width={100} />
             </>
-          ) : (
+          ) : events.length > 0 ? (
             events.map((event, index) => (
               <div
                 key={index}
@@ -190,6 +190,8 @@ const Upcoming: React.FC = () => {
                 <span>{`${event.date} - ${event.time}`}</span>
               </div>
             ))
+          ) : (
+            <p className="text-center pt-3">No upcoming events</p>
           )}
         </div>
       </div>
