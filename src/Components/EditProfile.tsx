@@ -12,7 +12,6 @@ interface ProfileDetails {
   address: string;
   email: string;
   phone: string;
-  college_batch: string;
 }
 
 interface EducationDetails {
@@ -60,7 +59,6 @@ const EditProfile: React.FC = () => {
     address: '',
     email: '',
     phone: '',
-    college_batch: ''
   });
 
   const [educationDetails, setEducationDetails] = useState<EducationDetails[]>([
@@ -114,8 +112,7 @@ const EditProfile: React.FC = () => {
         gender: profile_details?.gender || '',
         address: profile_details?.address || '',
         email: profile_details?.email || '',
-        phone: profile_details?.phone || '',
-        college_batch: profile_details?.college_batch || ''
+        phone: profile_details?.phone || ''
       });
 
       if (education_details && education_details.length > 0) {
@@ -292,7 +289,6 @@ const EditProfile: React.FC = () => {
       gender: profileDetails.gender,
       address: profileDetails.address,
       phone: profileDetails.phone,
-      college_batch: profileDetails.college_batch,
       linkedin: socialMedia.linkedin,
       github: socialMedia.github,
       leetcode: socialMedia.leetcode,
@@ -397,16 +393,6 @@ const EditProfile: React.FC = () => {
                   className="form-control"
                   name="phone"
                   value={profileDetails.phone}
-                  onChange={handleProfileChange}
-                />
-              </div>
-              <div className="col-md-6 mb-3">
-                <label>College Batch</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  name="college_batch"
-                  value={profileDetails.college_batch || ''}
                   onChange={handleProfileChange}
                 />
               </div>
