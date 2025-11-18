@@ -3,6 +3,7 @@ import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { Spinner } from "react-bootstrap";
+import { getApiClient } from "./utils/apiAuth";
 /**
  * Interface for Example data structure
  */
@@ -137,8 +138,9 @@ const PythonContentTester: React.FC = () => {
    */
   const checkBackendHealth = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}health`);
-      const data: FastAPIHealthResponse = await response.json();
+      const apiClient = getApiClient();
+      const response = await apiClient.get(`${process.env.REACT_APP_PYEXE_BASE_URL}health`);
+      const data: FastAPIHealthResponse = response.data;
       setBackendHealthy(data.status === 'healthy');
     } catch (error) {
       setBackendHealthy(false);
@@ -199,19 +201,9 @@ const PythonContentTester: React.FC = () => {
       test_id: testId
     };
 
-    const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
+    const response = await getApiClient().post(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/submit`, payload);
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: FastAPISubmitResponse = await response.json();
+    const data: FastAPISubmitResponse = response.data;
     return data.submission_id;
   };
 
@@ -224,14 +216,8 @@ const PythonContentTester: React.FC = () => {
 
     while (Date.now() - startTime < maxWaitTime * 1000) {
       try {
-        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/execute/${submissionId}`,
-          {
-          method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      }}
-        );
-        const data: FastAPIStatusResponse = await response.json();
+        const response = await getApiClient().post(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/execute/${submissionId}`, {});
+        const data: FastAPIStatusResponse = response.data;
         
         if (data.status === 'completed') {
           return data;
@@ -343,8 +329,8 @@ const PythonContentTester: React.FC = () => {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const response = await fetch(API_BASE_URL);
-        const data = await response.json();
+        const response = await getApiClient().get(API_BASE_URL);
+        const data = response.data;
         
         // Process the questions and handle mixed test case formats
         const questionsWithProcessedTestCases = data.questions.map((q: any) => {

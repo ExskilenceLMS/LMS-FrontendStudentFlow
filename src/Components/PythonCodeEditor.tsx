@@ -539,19 +539,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
       test_id: testId
     };
 
-    const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data: FastAPISubmitResponse = await response.json();
+    const response = await getApiClient().post(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/submit`, payload);
+    const data: FastAPISubmitResponse = response.data;
     return data.submission_id;
   };
 
@@ -564,15 +553,8 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
 
     while (Date.now() - startTime < maxWaitTime * 1000) {
       try {
-        const response = await fetch(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/execute/${submissionId}`,
-          {
-            method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        }}
-          
-        );
-        const data: FastAPIStatusResponse = await response.json();
+        const response = await getApiClient().post(`${process.env.REACT_APP_PYEXE_BASE_URL}api/v1/execute/${submissionId}`, {});
+        const data: FastAPIStatusResponse = response.data;
         
         if (data.status === 'completed') {
           return data;
