@@ -1,28 +1,28 @@
 import axios from "axios";
 import { 
   encryptJSON, 
-  decryptJSON
+  decryptJSON,
+  ENCRYPTED_LOGIN_ENDPOINTS,
+  conditionalEncryptJSON,
+  conditionalDecryptJSON
 } from './encryptionUtils';
 
 const apiClient = axios.create();
 
-const ENCRYPTED_LOGIN_ENDPOINTS = [
-  '/api/new-login/'
-];
 
-const shouldEncryptAllPayloads = (): boolean => {
-  return process.env.REACT_APP_ENCRYPT_ALL_PAYLOAD?.toLowerCase() === 'true';
+// Helper function to encrypt request payload
+const encryptRequestPayload = (data: any, url: string): any => {
+  return conditionalEncryptJSON(data, url);
 };
 
-const requiresEncryption = (url: string): boolean => {
-  if (shouldEncryptAllPayloads()) {
-    return true;
-  }
-  return ENCRYPTED_LOGIN_ENDPOINTS.some(pattern => url.includes(pattern));
+// Helper function to decrypt response data
+const decryptResponseData = (responseData: any, url: string): any => {
+  return conditionalDecryptJSON(responseData, url);
 };
 
-apiClient.interceptors.request.use(
-  async (config) => {
+// Shared interceptor configuration to avoid code duplication
+const createRequestInterceptor = () => {
+  return async (config: any) => {
     try {
       const accessToken = localStorage.getItem("LMS_access_token");
       if (accessToken) {
@@ -31,27 +31,20 @@ apiClient.interceptors.request.use(
 
       const url = config.url || '';
       
-      if (requiresEncryption(url) && config.data && config.method?.toLowerCase() === 'post') {
-        try {
-          const encryptedData = encryptJSON(config.data);
-          config.data = { data: encryptedData };
-        } catch (error: any) {
-          throw new Error(`Request encryption failed: ${error.message}`);
-        }
+      // Encrypt payload for supported methods (POST, PUT, PATCH)
+      if (config.data && ['post', 'put', 'patch'].includes(config.method?.toLowerCase() || '')) {
+        config.data = encryptRequestPayload(config.data, url);
       }
       
     } catch (error: any) {
       console.error("Error in request interceptor:", error);
     }
     return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+  };
+};
 
-apiClient.interceptors.response.use(
-  (response) => {
+const createResponseInterceptor = () => {
+  return (response: any) => {
     try {
       if (response.status === 200) {
         try {
@@ -63,19 +56,9 @@ apiClient.interceptors.response.use(
 
       const url = response.config.url || '';
       
-      if (requiresEncryption(url) && response.data) {
-        if (
-          typeof response.data === 'object' &&
-          'data' in response.data &&
-          typeof response.data.data === 'string'
-        ) {
-          try {
-            const decryptedData = decryptJSON(response.data.data);
-            response.data = decryptedData;
-          } catch (error) {
-            console.warn('Decryption failed, returning original', error);
-          }
-        }
+      // Decrypt response data if needed
+      if (response.data) {
+        response.data = decryptResponseData(response.data, url);
       }
       
     } catch (error: any) {
@@ -83,8 +66,11 @@ apiClient.interceptors.response.use(
     }
     
     return response;
-  },
-  (error) => {
+  };
+};
+
+const createErrorInterceptor = () => {
+  return (error: any) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
       // Token expired, invalid, or forbidden - navigate to login page
       console.warn(
@@ -107,104 +93,36 @@ apiClient.interceptors.response.use(
       window.location.href = "/";
     }
     return Promise.reject(error);
-  }
-);
+  };
+};
 
 // Function to wrap axios with activity tracking
 export const createAxiosWithActivityTracking = () => {
   const axiosInstance = axios.create();
 
   axiosInstance.interceptors.request.use(
-    async (config) => {
-      try {
-        const accessToken = localStorage.getItem("LMS_access_token");
-        if (accessToken) {
-          config.headers.Authorization = `Bearer ${accessToken}`;
-        }
-
-        const url = config.url || '';
-        
-        if (requiresEncryption(url) && config.data && config.method?.toLowerCase() === 'post') {
-          try {
-            const encryptedData = encryptJSON(config.data);
-            config.data = { data: encryptedData };
-          } catch (error: any) {
-            throw new Error(`Request encryption failed: ${error.message}`);
-          }
-        }
-        
-      } catch (error: any) {
-        console.error("Error in custom request interceptor:", error);
-      }
-      return config;
-    },
-    (error) => {
-      return Promise.reject(error);
-    }
+    createRequestInterceptor(),
+    (error) => Promise.reject(error)
   );
 
   axiosInstance.interceptors.response.use(
-    (response) => {
-      try {
-        if (response.status === 200) {
-          try {
-            localStorage.setItem("LMS_lastActivityTime", Date.now().toString());
-          } catch (error) {
-            console.error("Error updating last activity time:", error);
-          }
-        }
-
-        const url = response.config.url || '';
-        
-        if (requiresEncryption(url) && response.data) {
-          if (
-            typeof response.data === 'object' &&
-            'data' in response.data &&
-            typeof response.data.data === 'string'
-          ) {
-            try {
-              const decryptedData = decryptJSON(response.data.data);
-              response.data = decryptedData;
-            } catch (error) {
-              console.warn('Decryption failed, returning original', error);
-            }
-          }
-        }
-        
-      } catch (error: any) {
-        console.error('Error in response interceptor:', error);
-      }
-      
-      return response;
-    },
-    (error) => {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        // Token expired, invalid, or forbidden - navigate to login page
-        console.warn(
-          `⚠️ ${error.response?.status} Unauthorized/Forbidden error - navigating to login`
-        );
-
-        // Clear session data
-        sessionStorage.clear();
-        localStorage.removeItem("LMS_access_token");
-        localStorage.removeItem("LMS_StudentId");
-        localStorage.removeItem("LMS_CourseId");
-        localStorage.removeItem("LMS_BatchId");
-        localStorage.removeItem("LMS_Email");
-        localStorage.removeItem("LMS_Name");
-        localStorage.removeItem("LMS_Picture");
-        localStorage.removeItem("LMS_timestamp");
-        localStorage.removeItem("LMS_lastActivityTime");
-
-        // Navigate to login page
-        window.location.href = "/";
-      }
-      return Promise.reject(error);
-    }
+    createResponseInterceptor(),
+    createErrorInterceptor()
   );
 
   return axiosInstance;
 };
+
+// Apply shared interceptors to the main apiClient
+apiClient.interceptors.request.use(
+  createRequestInterceptor(),
+  (error) => Promise.reject(error)
+);
+
+apiClient.interceptors.response.use(
+  createResponseInterceptor(),
+  createErrorInterceptor()
+);
 
 // Standardized logout function
 export const performLogout = async (
@@ -234,11 +152,7 @@ export const performLogout = async (
   // Make API call first (if we have access token)
   if (accessToken) {
     try {
-      await axios.get(url, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      await apiClient.get(url);
     } catch (error) {
       console.error("Logout API error:", error);
       // API call failed, but we'll still clear session data
