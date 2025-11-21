@@ -11,6 +11,7 @@ import { QUESTION_STATUS } from "../constants/constants";
 import { autoSaveHTMLCode, getAutoSavedHTMLCode, cleanupAutoSavedHTMLCode } from "./autoSaveUtils";
 import { validateBasicHTMLStructure } from "./htmlStructureValidation";
 import { validateCode, validateStructure, generateHTMLPreview } from "./htmlCssValidationUtils";
+import { getApiClient } from "./apiAuth";
 
 // Common interfaces
 export interface Tab {
@@ -168,17 +169,12 @@ const validateJavaScriptWithTwoStageAPI = async (
   }
 
   // Stage 1: Submit validation request
-  const submitResponse = await fetch(`${baseUrl}/validate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+  const apiClient = getApiClient();
+  const submitResponse = await apiClient.post(`${baseUrl}/validate`, payload, {
+    headers: { 'Content-Type': 'application/json' }
   });
 
-  if (!submitResponse.ok) {
-    throw new Error(`Validation request failed: ${submitResponse.status}`);
-  }
-
-  const { submission_id, estimated_wait_time = 0 } = await submitResponse.json();
+  const { submission_id, estimated_wait_time = 0 } = submitResponse.data;
   if (!submission_id) {
     throw new Error('No submission_id received');
   }
@@ -195,17 +191,11 @@ const validateJavaScriptWithTwoStageAPI = async (
 
   for (let attempts = 0; attempts < maxAttempts; attempts++) {
     try {
-      const statusResponse = await fetch(statusUrl, {
-        method: 'GET',
+      const statusResponse = await apiClient.get(statusUrl, {
         headers: { 'Content-Type': 'application/json' }
       });
 
-      if (!statusResponse.ok) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        continue;
-      }
-
-      const statusData = await statusResponse.json();
+      const statusData = statusResponse.data;
 
       if (statusData.status === 'completed') {
         const results = statusData.result?.result?.parsed_results || 
