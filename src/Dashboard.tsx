@@ -39,15 +39,68 @@ const Dashboard: React.FC = () => {
   const encryptedStudentId = sessionStorage.getItem('StudentId');
   const studentId = encryptedStudentId ? CryptoJS.AES.decrypt(encryptedStudentId, secretKey).toString(CryptoJS.enc.Utf8) : '';
 
+  // Hardcoded API response
+  const coursesData = {
+    "subjects": [
+      {
+        "title": "Python",
+        "subject": "Python",
+        "subject_id": "py",
+        "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "duration": "31st Aug 25 - 1st Sep 25",
+        "progress": {
+          "student_progress": 0,
+          "progress": 100
+        },
+        "status": "Open"
+      }
+    ],
+    "internships": [
+      {
+        "title": "Choose Intenship",
+        "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "duration": "31st Dec 25",
+        "status": "select"
+      },
+      {
+        "title": "TODO List",
+        "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "duration": "31st Dec 25 - 1st Feb 25",
+        "progress": {
+          "student_progress": 0,
+          "progress": 100
+        },
+        "status": "Open",
+        "can_change": "true",
+        "time_left": "2 hours left"
+      },
+      {
+        "title": "TODO List",
+        "image": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        "duration": "31st Dec 25 - 1st Feb 25",
+        "progress": {
+          "student_progress": 0,
+          "progress": 100
+        },
+        "status": "Open",
+        "can_change": "false"
+      }
+    ]
+  };
+  const coursesError = null;
+
   // Call the courses API first - this is the primary API
-  const { data: coursesData, error: coursesError } = useAPISWR<any>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}`);
+  // const { data: coursesData, error: coursesError } = useAPISWR<any>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}`);
 
   // Only set courses as loaded when the API response is received
   useEffect(() => {
-    if (coursesData || coursesError) {
+    // Simulate API loading delay
+    const timer = setTimeout(() => {
       setIsCoursesLoaded(true);
-    }
-  }, [coursesData, coursesError]);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const Skeleton: React.FC<SkeletonProps> = ({ width, height, className = "" }) => (
     <div
