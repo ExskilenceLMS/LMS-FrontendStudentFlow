@@ -746,9 +746,16 @@ const HTMLCSSEditor: React.FC = () => {
                         >
                           {/* Problem Statement Section */}
                           <div style={{ marginBottom: "20px" }}>
-                            <h4 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "10px", color: "#333" }}>
-                              Problem Statement
-                            </h4>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                              <h4 style={{ fontSize: "18px", fontWeight: "600", color: "#333", margin: 0 }}>
+                                Problem Statement
+                              </h4>
+                              {isTestingContext && questionData?.Qn_name && (
+                                <span className="p-2 fs-6 rounded-2 bg-primary-subtle">
+                                  QID: {questionData.Qn_name}
+                                </span>
+                              )}
+                            </div>
                             <div 
                               style={{ 
                                 whiteSpace: "pre-wrap", 
@@ -1325,9 +1332,16 @@ const HTMLCSSEditor: React.FC = () => {
                   >
                     {/* Problem Statement Section */}
                     <div style={{ marginBottom: "20px" }}>
-                      <h4 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "10px", color: "#333" }}>
-                        Problem Statement
-                      </h4>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                        <h4 style={{ fontSize: "18px", fontWeight: "600", color: "#333", margin: 0 }}>
+                          Problem Statement
+                        </h4>
+                        {isTestingContext && questionData?.Qn_name && (
+                          <span className="p-2 fs-6 rounded-2 bg-primary-subtle">
+                            QID: {questionData.Qn_name}
+                          </span>
+                        )}
+                      </div>
                       <div 
                         style={{ 
                           whiteSpace: "pre-wrap", 
