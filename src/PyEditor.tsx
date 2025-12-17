@@ -187,6 +187,7 @@ const PyEditor: React.FC = () => {
   const [currentInput, setCurrentInput] = useState<string>("");       // Current input for prompts
   const inputResolver = useRef<((value: string) => void) | null>(null);  // Resolver for input prompts
   const outputRef = useRef<HTMLPreElement>(null);                    // Reference to output element
+  const editorRef = useRef<any>(null);                               // Reference to the AceEditor instance
   const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false);  // Track user interaction
   
   // Test case and validation state
@@ -453,32 +454,11 @@ const decryptData = (encryptedData: string) => {
   };
 
   /**
-   * Generate editor value with FunctionCall appended to template
+   * Generate editor value - now simply returns Ans since template initialization
+   * is handled in useEffect for question changes and initial load
    */
   const generateEditorValue = () => {
-    const currentQuestion = questions[currentQuestionIndex];
-    const template = currentQuestion?.Template || "";
-    const functionCall = currentQuestion?.FunctionCall || "";
-    
-    // If user has entered code (and it's not empty), use that
-    if (Ans && Ans.trim() !== "") {
-      return Ans;
-    }
-    
-    // If user has interacted and cleared the editor, return empty
-    if (hasUserInteracted && Ans === "") {
-      return "";
-    }
-    
-    // If template exists, append FunctionCall
-    if (template) {
-      if (functionCall) {
-        return template + '\n\n\n\n\n' + functionCall;
-      }
-      return template;
-    }
-    
-    return "";
+    return Ans;
   };
 
   // ===== DATA FETCHING =====
@@ -546,15 +526,35 @@ const decryptData = (encryptedData: string) => {
                 // Also save to session storage for future use
                 sessionStorage.setItem(initialQuestionKey, autoSavedCode);
               } else {
-                // Fallback to question's entered_ans
-                setEnteredAns(initialQuestion.entered_ans);
-                setAns(initialQuestion.entered_ans || '');
+                // Fallback to question's entered_ans or template
+                const enteredAnswer = initialQuestion.entered_ans;
+                if (enteredAnswer && enteredAnswer.trim() !== '') {
+                  setEnteredAns(enteredAnswer);
+                  setAns(enteredAnswer);
+                } else {
+                  // Initialize with template if no saved code
+                  const template = initialQuestion.Template || "";
+                  const functionCall = initialQuestion.FunctionCall || "";
+                  const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
+                  setEnteredAns(initialCode);
+                  setAns(initialCode);
+                }
               }
             })
             .catch(() => {
-              // Fallback to question's entered_ans on error
-              setEnteredAns(initialQuestion.entered_ans);
-              setAns(initialQuestion.entered_ans || '');
+              // Fallback to question's entered_ans or template on error
+              const enteredAnswer = initialQuestion.entered_ans;
+              if (enteredAnswer && enteredAnswer.trim() !== '') {
+                setEnteredAns(enteredAnswer);
+                setAns(enteredAnswer);
+              } else {
+                // Initialize with template if no saved code
+                const template = initialQuestion.Template || "";
+                const functionCall = initialQuestion.FunctionCall || "";
+                const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
+                setEnteredAns(initialCode);
+                setAns(initialCode);
+              }
             });
         } else {
           // Question is already submitted, use entered_ans
@@ -574,6 +574,32 @@ const decryptData = (encryptedData: string) => {
 
     fetchQuestions();
   }, []);
+  
+  // Configure character-by-character undo
+  const onEditorLoad = (editor: any) => {
+    editorRef.current = editor;
+    
+    const session = editor.getSession();
+    
+    // Create a completely new undo manager to ensure no history from previous questions
+    const UndoManager = (window as any).ace.require("ace/undomanager").UndoManager;
+    const newUndoManager = new UndoManager();
+    
+    // Set merge delay to 0 for character-by-character undo
+    if (typeof newUndoManager.setMergeDelay === 'function') {
+      newUndoManager.setMergeDelay(0);
+    }
+    
+    // Set merge interval property if available
+    if ('mergeInterval' in newUndoManager) {
+      newUndoManager.mergeInterval = 0;
+    }
+    
+    // Replace the session's undo manager with the new one
+    session.setUndoManager(newUndoManager);
+    
+    console.log('Editor loaded with fresh undo manager');
+  };
   
   // ===== CODE EDITOR HANDLERS =====
   
@@ -873,6 +899,37 @@ const handleQuestionChange = (index: number) => {
   setOutput('');
   setCurrentQuestionIndex(index);
   setHasUserInteracted(false); // Reset interaction state for new question
+  
+  // Use setTimeout to ensure the undo manager replacement happens after the value is set
+  setTimeout(() => {
+    // Create a completely new undo manager when changing questions
+    if (editorRef.current) {
+      try {
+        const session = editorRef.current.getSession();
+        
+        // Create a brand new undo manager instance
+        const UndoManager = (window as any).ace.require("ace/undomanager").UndoManager;
+        const newUndoManager = new UndoManager();
+        
+        // Set merge delay to 0 for character-by-character undo
+        if (typeof newUndoManager.setMergeDelay === 'function') {
+          newUndoManager.setMergeDelay(0);
+        }
+        
+        // Set merge interval property if available
+        if ('mergeInterval' in newUndoManager) {
+          newUndoManager.mergeInterval = 0;
+        }
+        
+        // Replace the session's undo manager with the new one
+        session.setUndoManager(newUndoManager);
+        
+        console.log(`Undo manager reset for question index: ${index}`);
+      } catch (error) {
+        console.error('Error resetting undo manager:', error);
+      }
+    }
+  }, 150); // Increased to 150ms
 
   // Retrieve and decrypt the submit status from session storage
   const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${questions[index].Qn_name}`;
@@ -901,15 +958,35 @@ const handleQuestionChange = (index: number) => {
             // Also save to session storage for future use
             sessionStorage.setItem(nextQuestionKey, autoSavedCode);
           } else {
-            // Fallback to question's entered_ans
-    setEnteredAns(questions[index].entered_ans);
-    setAns(questions[index].entered_ans || '');
+            // Fallback to question's entered_ans or template
+            const enteredAnswer = questions[index].entered_ans;
+            if (enteredAnswer && enteredAnswer.trim() !== '') {
+              setEnteredAns(enteredAnswer);
+              setAns(enteredAnswer);
+            } else {
+              // Initialize with template if no saved code
+              const template = questions[index].Template || "";
+              const functionCall = questions[index].FunctionCall || "";
+              const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
+              setEnteredAns(initialCode);
+              setAns(initialCode);
+            }
           }
         })
         .catch(() => {
-          // Fallback to question's entered_ans on error
-          setEnteredAns(questions[index].entered_ans);
-          setAns(questions[index].entered_ans || '');
+          // Fallback to question's entered_ans or template on error
+          const enteredAnswer = questions[index].entered_ans;
+          if (enteredAnswer && enteredAnswer.trim() !== '') {
+            setEnteredAns(enteredAnswer);
+            setAns(enteredAnswer);
+          } else {
+            // Initialize with template if no saved code
+            const template = questions[index].Template || "";
+            const functionCall = questions[index].FunctionCall || "";
+            const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
+            setEnteredAns(initialCode);
+            setAns(initialCode);
+          }
         });
     } else {
       // Question is already submitted, use entered_ans
@@ -955,6 +1032,37 @@ const handleNext = () => {
     
     setCurrentQuestionIndex(nextIndex);
     setHasUserInteracted(false); // Reset interaction state for next question
+    
+    // Use setTimeout to ensure the undo manager replacement happens after the value is set
+    setTimeout(() => {
+      // Create a completely new undo manager when moving to next question
+      if (editorRef.current) {
+        try {
+          const session = editorRef.current.getSession();
+          
+          // Create a brand new undo manager instance
+          const UndoManager = (window as any).ace.require("ace/undomanager").UndoManager;
+          const newUndoManager = new UndoManager();
+          
+          // Set merge delay to 0 for character-by-character undo
+          if (typeof newUndoManager.setMergeDelay === 'function') {
+            newUndoManager.setMergeDelay(0);
+          }
+          
+          // Set merge interval property if available
+          if ('mergeInterval' in newUndoManager) {
+            newUndoManager.mergeInterval = 0;
+          }
+          
+          // Replace the session's undo manager with the new one
+          session.setUndoManager(newUndoManager);
+          
+          console.log(`Undo manager reset for next question index: ${nextIndex}`);
+        } catch (error) {
+          console.error('Error resetting undo manager:', error);
+        }
+      }
+    }, 150); // Increased to 150ms
 
     const nextQuestionKey = getUserCodeKey(questions[nextIndex].Qn_name);
     const savedCode = sessionStorage.getItem(nextQuestionKey);
@@ -965,8 +1073,19 @@ const handleNext = () => {
       setEnteredAns(savedCode);
       setAns(savedCode);
     } else {
-      setEnteredAns(questions[nextIndex].entered_ans);
-      setAns(questions[nextIndex].entered_ans || '');
+      // Fallback to question's entered_ans or template
+      const enteredAnswer = questions[nextIndex].entered_ans;
+      if (enteredAnswer && enteredAnswer.trim() !== '') {
+        setEnteredAns(enteredAnswer);
+        setAns(enteredAnswer);
+      } else {
+        // Initialize with template if no saved code
+        const template = questions[nextIndex].Template || "";
+        const functionCall = questions[nextIndex].FunctionCall || "";
+        const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
+        setEnteredAns(initialCode);
+        setAns(initialCode);
+      }
     }
 
       // Process test cases to handle mixed format
@@ -1263,15 +1382,23 @@ const handleSubmit = async () => {
                     {/* ===== CODE EDITOR ===== */}
                     <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
                       <AceEditor
+                        key={`editor-${currentQuestionIndex}`}
                         mode="python"
                         theme="dreamweaver"
                         onChange={handleCodeChange}
+                        onLoad={onEditorLoad}
                         value={generateEditorValue()}
                         fontSize={14}
                         showPrintMargin={false}
                         wrapEnabled={true}
                         className="pe-3"
                         style={{ width: "95%", height: "calc(100% - 60px)", marginTop: "20px", margin: '15px' }}
+                        editorProps={{ $blockScrolling: true }}
+                        setOptions={{
+                          enableBasicAutocompletion: false,
+                          enableLiveAutocompletion: false,
+                          enableSnippets: false,
+                        }}
                         placeholder={questions[currentQuestionIndex]?.Template || questions[currentQuestionIndex]?.FunctionCall ? "" : `Instructions :
 1. Don't use input() function. 
 2. It is mandatory to use the exact variable names provided in the question or example [variable names are case-sensitive ]
