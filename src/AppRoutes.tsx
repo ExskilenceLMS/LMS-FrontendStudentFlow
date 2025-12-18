@@ -28,6 +28,8 @@ import TestingMCQS from './Components/TestingMCQS';
 import PythonContentTester from './PythonContentTester';
 import DynamicCodingEditorWrapper from './Components/DynamicCodingEditorWrapper';
 import SubjectBasedCodingEditor from './Components/SubjectBasedCodingEditor';
+import ProjectRoadmap from './ProjectRoadmap';
+import ProjectTasks from './Components/ProjectTasks';
 
 const AppRoutes = () => {
   const showMaintenance = process.env.REACT_APP_SHOW_MAINTENANCE === 'true';
@@ -63,6 +65,8 @@ const AppRoutes = () => {
         <Route path="/EditProfile" element={<Layout><EditProfile /></Layout>} />
         <Route path="/SQL-MCQ-Testing" element={<Layout><TestingMCQS /></Layout>} />
         <Route path="/testing/coding/:subject_id" element={<Layout><SubjectBasedCodingEditor /></Layout>} />
+        <Route path="/project-roadmap" element={<Layout><ProjectRoadmap /></Layout>} />
+        <Route path="/project-tasks" element={<Layout><ProjectTasks /></Layout>} />
       </Route>
     </Routes>
   );

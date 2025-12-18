@@ -29,6 +29,8 @@ export const navigationRules: NavigationRule[] = [
   { currentPath: '/Reports', previousPath: '/Dashboard', description: 'Reports -> Dashboard', allowBack: true },
   { currentPath: '/Online-Session', previousPath: '/Dashboard', description: 'OnlineSession -> Dashboard', allowBack: true },
   { currentPath: '/Sql-editor', previousPath: '/Dashboard', description: 'SQLEditor -> Dashboard', allowBack: true },
+  { currentPath: '/project-roadmap', previousPath: '/Dashboard', description: 'ProjectRoadmap -> Dashboard', allowBack: true },
+  { currentPath: '/project-tasks', previousPath: '/project-roadmap', description: 'ProjectTasks -> ProjectRoadmap', allowBack: true },
 ];
 
 export const getPreviousPath = (currentPath: string): string => {
