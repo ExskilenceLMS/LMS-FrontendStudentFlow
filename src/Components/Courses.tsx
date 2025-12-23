@@ -153,7 +153,7 @@ const Courses: React.FC = () => {
       const allItemsWithColors = allSubjects.map((item: any, index: number) => ({
         ...item,
         color: availableColors[index % availableColors.length],
-        isInternship: item.project_id !== null || item.subject_id?.startsWith("project_")
+        isInternship: item.project_id !== null || item.subject_id?.startsWith("project_") || item.status === "select"
       }));
 
       const subjects = allItemsWithColors.filter((item: any) => !item.isInternship);
@@ -397,7 +397,7 @@ const Courses: React.FC = () => {
             {coursesData?.subjects?.map((item: any, index: number) => {
               const availableColors = ["#B6BAFE","#F0DC54","#B5FEB5","#B6FEB5","#B6BAFE","#FFB5B5"];
               const itemColor = availableColors[index % availableColors.length];
-              const isInternship = item.project_id !== null || item.subject_id?.startsWith("project_");
+              const isInternship = item.project_id !== null || item.subject_id?.startsWith("project_") || item.status === "select";
               
               const displayTitle = item.subject?.trim() ? item.subject : item.title;
               const truncatedTitle = displayTitle.length > 20 ? `${displayTitle.slice(0, 20)}...` : displayTitle;

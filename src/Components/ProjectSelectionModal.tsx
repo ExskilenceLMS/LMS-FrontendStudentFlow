@@ -4,6 +4,7 @@ import { useApiLoading } from "../Dashboard";
 import { getApiClient } from "../utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
+import { mutate } from "swr";
 
 interface ProjectSelectionModalProps {
   show: boolean;
@@ -102,6 +103,11 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
         student_id: studentId,
         project_id: selectedProject.project_id || selectedProject.id
       });
+      
+      // Refetch the courses API after successful project selection
+      const coursesApiUrl = `${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}`;
+      await mutate(coursesApiUrl);
+      
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to select project.");
