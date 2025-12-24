@@ -103,6 +103,7 @@ const ProjectRoadmapContent: React.FC = () => {
         // Set project data in context
         setProjectData({
           project_name: response.data.project_name,
+          start_date: response.data.start_date,
           content: response.data.content,
         });
 
