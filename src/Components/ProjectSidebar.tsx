@@ -23,6 +23,11 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
   }, [projectData]);
 
   const handlePartClick = (phaseName: string, partName: string, tasks: any[], phaseId?: string, partId?: string) => {
+    // Check if this part is already selected - if so, don't do anything
+    if (selectedPart?.phaseName === phaseName && selectedPart?.partName === partName) {
+      return;
+    }
+    
     // Update phaseId and partId in session storage when part is clicked
     const projectId = getProjectId("projectId") || sessionStorage.getItem("currentProjectId") || "";
     const currentPhaseId = phaseId || phaseName;
@@ -140,10 +145,70 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                         selectedPart?.partName === part.part_name;
                       const isLastPart = partIndex === phase.parts.length - 1;
                       
-                      // Calculate days left (assuming days is a string like "6" or number)
-                      const daysLeft = part.days !== undefined && part.days !== null 
-                        ? parseInt(part.days.toString()) 
-                        : 0;
+                      // Calculate days left based on project start date and cumulative task days
+                      const calculateDaysLeft = () => {
+                        try {
+                          // Get project start date
+                          const startDateStr = projectData?.start_date;
+                          if (!startDateStr) {
+                            return 0;
+                          }
+                          
+                          // Parse start date and reset to start of day
+                          const startDate = new Date(startDateStr);
+                          if (isNaN(startDate.getTime())) {
+                            console.error("Invalid start_date:", startDateStr);
+                            return 0;
+                          }
+                          startDate.setHours(0, 0, 0, 0);
+                          
+                          // Get today's date and reset to start of day
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          
+                          // Calculate cumulative days from all tasks in this part and previous parts in the same phase
+                          let cumulativeDays = 0;
+                          
+                          // Sum days from all previous parts in the same phase
+                          for (let i = 0; i < partIndex; i++) {
+                            const prevPart = phase.parts[i];
+                            if (prevPart.tasks && Array.isArray(prevPart.tasks)) {
+                              prevPart.tasks.forEach((task: any) => {
+                                const taskDays = task.no_of_days;
+                                if (taskDays !== undefined && taskDays !== null) {
+                                  cumulativeDays += taskDays;
+                                }
+                              });
+                            }
+                          }
+                          
+                          // Sum days from all tasks in current part
+                          if (part.tasks && Array.isArray(part.tasks)) {
+                            part.tasks.forEach((task: any) => {
+                              const taskDays = task.no_of_days;
+                              if (taskDays !== undefined && taskDays !== null) {
+                                cumulativeDays += taskDays;
+                              }
+                            });
+                          }
+                          
+                          // Calculate end date for this part (start date + cumulative days)
+                          const endDate = new Date(startDate);
+                          endDate.setDate(endDate.getDate() + cumulativeDays);
+                          
+                          // Calculate days left (end date - today)
+                          const diffTime = endDate.getTime() - today.getTime();
+                          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                          
+                          // Return 0 if negative, otherwise return the calculated days
+                          return Math.max(0, diffDays);
+                        } catch (error) {
+                          console.error("Error calculating days left:", error);
+                          return 0;
+                        }
+                      };
+                      
+                      const daysLeft = calculateDaysLeft();
                       
                       // Calculate progress percentage (default to 0 if not provided)
                       // Progress should be between 0-100

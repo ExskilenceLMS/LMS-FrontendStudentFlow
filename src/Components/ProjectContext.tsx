@@ -3,7 +3,9 @@ import React, { createContext, useContext, useState, ReactNode } from "react";
 // Common types that work for both old and new project JSON structures
 export interface ProjectTask {
   task_name: string;
+  task_id: string;
   data: any[];
+  no_of_days: number; // Number of days for this task
 }
 
 export interface ProjectPart {
@@ -24,6 +26,7 @@ export interface ProjectData {
   project_name?: string;
   project_description?: string;
   slots_left?: string;
+  start_date?: string; // Project start date
   // Older structure
   project_data?: ProjectPhase[];
   // Newer structure (as in the latest project.json)
