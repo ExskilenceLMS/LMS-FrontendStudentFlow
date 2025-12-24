@@ -160,8 +160,10 @@ export interface CodingQuestion {
   question: string;
   score: string;
   isSolved: boolean;
-  Qn?: string;
+  Qn: string;
   status?: boolean;
+  level: string;
+  editor: string;
 }
 
 /**
@@ -241,6 +243,8 @@ export const fetchProjectCodingQuestions = async (
       isSolved: question.status || false,
       Qn: question.Qn || question.question,
       status: question.status || false,
+      level: question.level,
+      editor: question.editor,
     }));
   } catch (error) {
     console.error("Error fetching project coding questions:", error);
