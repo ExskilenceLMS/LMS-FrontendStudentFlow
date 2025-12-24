@@ -57,18 +57,6 @@ const CodingContent: React.FC<CodingContentProps> = ({
     );
   }
 
-  const url = (editor: string): string => {
-    if (editor === "python_coding") {
-      return "/py-editor";
-    } else if (editor === "sql_editor") {
-      return "/sql-editor";
-    } else if ( editor === "frontend_coding") {
-      return "/html-css-editor";
-    }
-    return "/html-css-editor";
-  };
-
-  const navigateTo = url(questions[currentIndex].editor);
 
   return (
     <div className="d-flex flex-column flex-grow-1 h-100 overflow-auto bg-light">
@@ -98,9 +86,32 @@ const CodingContent: React.FC<CodingContentProps> = ({
             >
               <div className="d-flex align-items-stretch flex-grow-1">
                 <div className="d-flex align-items-center justify-content-between flex-grow-1 p-0 px-2">
-                  <div className="flex-grow-1 me-4 text-truncate">
-                    <span className="mb-2 fw-semibold" style={{ fontFamily: "Ziro"}}>
-                    {questionTitle}
+                  <div className="flex-grow-1 me-4" style={{ minWidth: 0, maxWidth: "calc(100% - 200px)" }}>
+                    <span 
+                      className="mb-2 fw-semibold d-block" 
+                      style={{ 
+                        fontFamily: "Ziro",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        maxWidth: "100%"
+                      }}
+                      title={questionTitle}
+                    >
+                      {(() => {
+                        const maxLength = window.innerWidth < 600
+                          ? 50
+                          : window.innerWidth < 1024
+                            ? 80
+                            : window.innerWidth < 1200
+                              ? 100
+                              : window.innerWidth < 1400
+                                ? 140
+                                : questionTitle.length;
+                        return questionTitle.length > maxLength
+                          ? `${questionTitle.substring(0, maxLength)}...`
+                          : questionTitle;
+                      })()}
                     </span>
                   </div>
                   <div className="d-flex align-items-center gap-3 flex-shrink-0 text-nowrap">
@@ -140,7 +151,7 @@ const CodingContent: React.FC<CodingContentProps> = ({
                     "currentQuestionIndex",
                     questions.indexOf(question).toString()
                   );
-                  navigate(navigateTo, { replace: true });
+                  navigate("/editor", { replace: true });
                 }}
               >
                 <span
