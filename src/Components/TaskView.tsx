@@ -18,6 +18,7 @@ import {
   setProjectIds, 
   fetchProjectMCQQuestions, 
   fetchProjectCodingQuestions,
+  transformToCodingQuestions,
   MCQQuestion,
   CodingQuestion
 } from "../utils/projectStorageUtils";
@@ -157,7 +158,8 @@ const TaskView: React.FC = () => {
         return;
       }
       
-      const questions = await fetchProjectCodingQuestions(studentId, subTask.subtask_id);
+      const fullQuestions = await fetchProjectCodingQuestions(studentId, subTask.subtask_id);
+      const questions = transformToCodingQuestions(fullQuestions);
       setCodingQuestions(questions);
     } catch (error) {
       console.error("Error fetching coding questions:", error);

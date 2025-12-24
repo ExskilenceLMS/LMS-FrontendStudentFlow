@@ -210,15 +210,15 @@ export const fetchProjectMCQQuestions = async (
 };
 
 /**
- * Fetches Coding questions for a project subtask
+ * Fetches full Coding questions data for a project subtask (with all fields)
  * @param studentId - Student ID
  * @param subtaskId - Subtask ID (required)
- * @returns Promise<CodingQuestion[]>
+ * @returns Promise<any[]> - Full question objects with all fields
  */
 export const fetchProjectCodingQuestions = async (
   studentId: string,
   subtaskId: string
-): Promise<CodingQuestion[]> => {
+): Promise<any[]> => {
   try {
     if (!subtaskId) {
       throw new Error("subtaskId is required for fetching coding questions");
@@ -236,19 +236,29 @@ export const fetchProjectCodingQuestions = async (
     const url = `${process.env.REACT_APP_BACKEND_URL}api/student/project/practice/coding/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/${subtaskId}/`;
     const response = await getApiClient().get(url);
     
-    return (response.data.questions || []).map((question: any, index: number) => ({
-      id: index + 1,
-      question: question.Qn || question.question,
-      score: question.score || "0/10",
-      isSolved: question.status || false,
-      Qn: question.Qn || question.question,
-      status: question.status || false,
-      level: question.level,
-      editor: question.editor,
-    }));
+    // Return full question objects as-is from API
+    return response.data.questions || [];
   } catch (error) {
     console.error("Error fetching project coding questions:", error);
     throw error;
   }
+};
+
+/**
+ * Transforms full question objects to simplified CodingQuestion format
+ * @param questions - Full question objects from API
+ * @returns CodingQuestion[] - Simplified question format
+ */
+export const transformToCodingQuestions = (questions: any[]): CodingQuestion[] => {
+  return questions.map((question: any, index: number) => ({
+    id: index + 1,
+    question: question.Qn || question.question,
+    score: question.score || "0/10",
+    isSolved: question.status || false,
+    Qn: question.Qn || question.question,
+    status: question.status || false,
+    level: question.level,
+    editor: question.editor,
+  }));
 };
 
