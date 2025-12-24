@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { TfiMenuAlt } from "react-icons/tfi";
+import { PiMonitorPlayBold } from "react-icons/pi";
+import { SlNotebook } from "react-icons/sl";
+import { BsListTask } from "react-icons/bs";
+import { LiaLaptopCodeSolid } from "react-icons/lia";
 import VideoContent from "./VideoContent";
 import NotesContent from "./NotesContent";
 import MCQContent from "./MCQContent";
@@ -9,6 +13,14 @@ import { getApiClient } from "../utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
 import { Spinner } from "react-bootstrap";
+import { 
+  getProjectId,
+  setProjectIds, 
+  fetchProjectMCQQuestions, 
+  fetchProjectCodingQuestions,
+  MCQQuestion,
+  CodingQuestion
+} from "../utils/projectStorageUtils";
 
 // Data structure interfaces
 interface TaskData {
@@ -19,42 +31,13 @@ interface TaskData {
   subject_id?: string;
   is_mandatory: boolean;
   sub_topic_id?: string;
-  count?: {
-    level1: string;
-    level2: string;
-    level3: string;
-  };
-  selected?: {
-    level1: string;
-    level2: string;
-    level3: string;
-  };
+  subtask_name: string;
+  subtask_id: string;
 }
 
 interface Task {
   data: TaskData[];
   task_name: string;
-}
-
-interface MCQQuestion {
-  shuffledOptions: any;
-  questionId: string;
-  status: boolean;
-  score: string;
-  level: string;
-  question: string;
-  options: string[];
-  correct_answer: string;
-  Explanation?: string;
-  Qn_name: string;
-  entered_ans: string;
-}
-
-interface CodingQuestion {
-  id: number;
-  question: string;
-  score: string;
-  isSolved: boolean;
 }
 
 interface NoteData {
@@ -93,10 +76,23 @@ const TaskView: React.FC = () => {
       try {
         const taskData = JSON.parse(taskDataStr);
         setTask(taskData.task);
-        // Set first sub-task as active
+        
+        // Check if user has a current subtask ID (from learning modules API)
+        let initialSubTaskIndex = 0;
+        if (taskData.currentSubTaskId && taskData.task.data) {
+          // Find the index of the subtask with matching subtask_id
+          const subtaskIndex = taskData.task.data.findIndex(
+            (subTask: TaskData) => subTask.subtask_id === taskData.currentSubTaskId
+          );
+          if (subtaskIndex !== -1) {
+            initialSubTaskIndex = subtaskIndex;
+          }
+        }
+        
+        // Set the appropriate sub-task as active
         if (taskData.task.data && taskData.task.data.length > 0) {
-          setCurrentSubTaskIndex(0);
-          loadSubTaskContent(taskData.task.data[0], 0);
+          setCurrentSubTaskIndex(initialSubTaskIndex);
+          loadSubTaskContent(taskData.task.data[initialSubTaskIndex], initialSubTaskIndex);
         }
         setLoading(false);
       } catch (err) {
@@ -140,85 +136,29 @@ const TaskView: React.FC = () => {
     }
   };
 
-  const fetchMCQQuestions = async (subTopicId: string) => {
+  const fetchMCQQuestions = async (subTask: TaskData) => {
     try {
-      const encryptedSubjectId = sessionStorage.getItem("SubjectId");
-      const decryptedSubjectId = CryptoJS.AES.decrypt(
-        encryptedSubjectId!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const subjectId = decryptedSubjectId;
-
-      const encryptedSubject = sessionStorage.getItem("Subject");
-      const decryptedSubject = CryptoJS.AES.decrypt(
-        encryptedSubject!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const subject = decryptedSubject;
-
-      const encryptedDayNumber = sessionStorage.getItem("DayNumber");
-      const decryptedDayNumber = CryptoJS.AES.decrypt(
-        encryptedDayNumber!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const dayNumber = decryptedDayNumber;
-
-      const encryptedWeekNumber = sessionStorage.getItem("WeekNumber");
-      const decryptedWeekNumber = CryptoJS.AES.decrypt(
-        encryptedWeekNumber!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const weekNumber = decryptedWeekNumber;
-
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicemcq/${studentId}/${subject}/${subjectId}/${dayNumber}/${weekNumber}/${subTopicId}/`;
-      const response = await getApiClient().get(url);
-      setMcqQuestions(response.data.questions);
+      if (!subTask.subtask_id) {
+        console.error("No subtask_id available");
+        return;
+      }
+      
+      const questions = await fetchProjectMCQQuestions(studentId);
+      setMcqQuestions(questions);
     } catch (error) {
       console.error("Error fetching MCQ questions:", error);
     }
   };
 
-  const fetchCodingQuestions = async (subTopicId: string) => {
+  const fetchCodingQuestions = async (subTask: TaskData) => {
     try {
-      const encryptedSubjectId = sessionStorage.getItem("SubjectId");
-      const decryptedSubjectId = CryptoJS.AES.decrypt(
-        encryptedSubjectId!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const subjectId = decryptedSubjectId;
-
-      const encryptedSubject = sessionStorage.getItem("Subject");
-      const decryptedSubject = CryptoJS.AES.decrypt(
-        encryptedSubject!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const subject = decryptedSubject;
-
-      const encryptedDayNumber = sessionStorage.getItem("DayNumber");
-      const decryptedDayNumber = CryptoJS.AES.decrypt(
-        encryptedDayNumber!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const dayNumber = decryptedDayNumber;
-
-      const encryptedWeekNumber = sessionStorage.getItem("WeekNumber");
-      const decryptedWeekNumber = CryptoJS.AES.decrypt(
-        encryptedWeekNumber!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const weekNumber = decryptedWeekNumber;
-
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/${studentId}/${subject}/${subjectId}/${dayNumber}/${weekNumber}/${subTopicId}/`;
-      const response = await getApiClient().get(url);
-      const codingQuestionsData = response.data.questions.map(
-        (question: any, index: number) => ({
-          id: index + 1,
-          question: question.Qn,
-          score: question.score,
-          isSolved: question.status,
-        })
-      );
-      setCodingQuestions(codingQuestionsData);
+      if (!subTask.subtask_id) {
+        console.error("No subtask_id available");
+        return;
+      }
+      
+      const questions = await fetchProjectCodingQuestions(studentId, subTask.subtask_id);
+      setCodingQuestions(questions);
     } catch (error) {
       console.error("Error fetching coding questions:", error);
     }
@@ -250,11 +190,11 @@ const TaskView: React.FC = () => {
             },
           }));
         }
-      } else if (subTask.type === "mcq" && subTask.sub_topic_id) {
-        await fetchMCQQuestions(subTask.sub_topic_id);
+      } else if (subTask.type === "mcq") {
+        await fetchMCQQuestions(subTask);
         setCurrentMCQIndex(0);
-      } else if (subTask.type === "coding" && subTask.sub_topic_id) {
-        await fetchCodingQuestions(subTask.sub_topic_id);
+      } else if (subTask.type === "coding") {
+        await fetchCodingQuestions(subTask);
       }
     } catch (err) {
       console.error("Error loading sub-task content:", err);
@@ -265,8 +205,25 @@ const TaskView: React.FC = () => {
 
   const handleSubTaskClick = (index: number) => {
     if (task && task.data[index]) {
+      const subTask = task.data[index];
       setCurrentSubTaskIndex(index);
-      loadSubTaskContent(task.data[index], index);
+      
+      // Update all IDs in session storage when subtask changes
+      const projectId = getProjectId("projectId") || "";
+      const phaseId = getProjectId("phaseId") || "";
+      const partId = getProjectId("partId") || "";
+      const taskId = getProjectId("taskId") || "";
+      const subtaskId = subTask.subtask_id || "";
+      
+      setProjectIds({
+        projectId,
+        phaseId,
+        partId,
+        taskId,
+        subtaskId,
+      });
+      
+      loadSubTaskContent(subTask, index);
     }
   };
 
@@ -275,6 +232,11 @@ const TaskView: React.FC = () => {
   };
 
   const getSubTaskLabel = (subTask: TaskData, index: number): string => {
+    // Use subtask_name if available, otherwise fallback to default labels
+    if (subTask.subtask_name) {
+      return subTask.subtask_name;
+    }
+    
     if (subTask.type === "video") {
       return `Video ${index + 1}`;
     } else if (subTask.type === "notes") {
@@ -285,6 +247,21 @@ const TaskView: React.FC = () => {
       return "Practice Coding";
     }
     return `Item ${index + 1}`;
+  };
+
+  const getSubTaskIcon = (type: string): React.ReactElement => {
+    switch (type) {
+      case "video":
+        return <PiMonitorPlayBold size={20} />;
+      case "notes":
+        return <SlNotebook size={20} />;
+      case "mcq":
+        return <BsListTask size={20} />;
+      case "coding":
+        return <LiaLaptopCodeSolid size={20} />;
+      default:
+        return <PiMonitorPlayBold size={20} />;
+    }
   };
 
   const renderContent = () => {
@@ -425,9 +402,14 @@ const TaskView: React.FC = () => {
                 role="button"
               >
                 <div className="d-flex align-items-center justify-content-between">
-                  <span>
-                    {index + 1}. {getSubTaskLabel(subTask, index)}
-                  </span>
+                  <div className="d-flex align-items-center">
+                    <span className="me-2" style={{ display: "flex", alignItems: "center" }}>
+                      {getSubTaskIcon(subTask.type)}
+                    </span>
+                    <span>
+                      {index + 1}. {getSubTaskLabel(subTask, index)}
+                    </span>
+                  </div>
                   {subTask.is_mandatory && (
                     <span
                       className="badge bg-warning text-dark ms-2"

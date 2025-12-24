@@ -38,17 +38,15 @@ const NotesContent: React.FC<NotesContentProps> = ({ noteData, loading = false }
   // Display HTML content directly in div using dangerouslySetInnerHTML
   return (
     <div
-      className="scrollable-content h-100"
+      className="p-0 m-0 ps-3 scrollable-content"
       style={{
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
         fontSize: "16px",
         lineHeight: "1.6",
         padding: "20px",
         color: "#333",
-        height: "100%",
-        width: "100%",
+        minHeight: "100%",
         overflow: "auto",
-        boxSizing: "border-box",
       }}
       dangerouslySetInnerHTML={{
         __html: `

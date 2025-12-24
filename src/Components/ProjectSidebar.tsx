@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Accordion } from "react-bootstrap";
 import { useProjectContext } from "./ProjectContext";
 import { MdKeyboardArrowUp, MdKeyboardArrowDown } from "react-icons/md";
+import { setProjectIds, getProjectId } from "../utils/projectStorageUtils";
 
 interface ProjectSidebarProps {
   projectId?: string;
@@ -21,7 +22,26 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
     }
   }, [projectData]);
 
-  const handlePartClick = (phaseName: string, partName: string, tasks: any[]) => {
+  const handlePartClick = (phaseName: string, partName: string, tasks: any[], phaseId?: string, partId?: string) => {
+    // Update phaseId and partId in session storage when part is clicked
+    const projectId = getProjectId("projectId") || sessionStorage.getItem("currentProjectId") || "";
+    const currentPhaseId = phaseId || phaseName;
+    const currentPartId = partId || partName;
+    
+    // Get the first subtask ID from the first task of this part
+    const firstTask = tasks && tasks.length > 0 ? tasks[0] : null;
+    const firstSubtaskId = firstTask?.data && firstTask.data.length > 0 
+      ? (firstTask.data[0]?.subtask_id || "") 
+      : "";
+    
+    setProjectIds({
+      projectId,
+      phaseId: currentPhaseId,
+      partId: currentPartId,
+      taskId: "", // Will be set when task is clicked
+      subtaskId: firstSubtaskId, // Set to first subtask of first task when changing part/phase
+    });
+    
     setSelectedPart({ phaseName, partName, tasks });
     if (!window.location.pathname.includes("/project-roadmap")) {
       navigate("/project-roadmap");
@@ -134,7 +154,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                       return (
                         <div
                           key={partIndex}
-                          onClick={() => handlePartClick(phase.phase_name, part.part_name, part.tasks)}
+                          onClick={() => handlePartClick(phase.phase_name, part.part_name, part.tasks, (phase as any).phase_id, (part as any).part_id)}
                           className="px-3"
                           style={{ 
                             cursor: "pointer",

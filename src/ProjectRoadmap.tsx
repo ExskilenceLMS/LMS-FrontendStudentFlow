@@ -6,6 +6,7 @@ import CryptoJS from "crypto-js";
 import { secretKey } from "./constants";
 import ProjectSidebar from "./Components/ProjectSidebar";
 import { ProjectProvider, useProjectContext } from "./Components/ProjectContext";
+import { setProjectIds } from "./utils/projectStorageUtils";
 
 // Data structure interfaces
 interface TaskData {
@@ -16,6 +17,8 @@ interface TaskData {
   subject_id?: string;
   is_mandatory: boolean;
   sub_topic_id?: string;
+  subtask_name: string;
+  subtask_id: string;
   count?: {
     level1: string;
     level2: string;
@@ -31,17 +34,20 @@ interface TaskData {
 interface Task {
   data: TaskData[];
   task_name: string;
+  task_id: string;
 }
 
 interface Part {
   tasks: Task[];
   part_name: string;
   days: string;
+  part_id: string;
 }
 
 interface Phase {
   parts: Part[];
   phase_name: string;
+  phase_id: string;
 }
 
 interface ProjectSidebarResponse {
@@ -123,19 +129,92 @@ const ProjectRoadmapContent: React.FC = () => {
     fetchProjectData();
   }, []);
 
-  const handleTaskClick = (task: Task, taskIndex: number) => {
-    // Store task data in sessionStorage for TaskView
-    sessionStorage.setItem("currentTask", JSON.stringify({
-      task,
-      taskIndex,
-      taskName: task.task_name,
-      phaseName: selectedPart?.phaseName,
-      partName: selectedPart?.partName,
-      projectName: projectData?.project_name,
-    }));
-    
-    // Navigate to project tasks page (no parameters, data stored in sessionStorage)
-    navigate(`/project-tasks`, { replace: true });
+  const handleTaskClick = async (task: Task, taskIndex: number) => {
+    try {
+      // Find phase and part to get their IDs
+      const phase = projectData?.content?.find(
+        (p) => p.phase_name === selectedPart?.phaseName
+      );
+      const part = phase?.parts?.find(
+        (p) => p.part_name === selectedPart?.partName
+      );
+      
+      // Validate phase and part exist
+      if (!phase || !part) {
+        console.error("Phase or part not found");
+        setError("Missing required project information. Please try again.");
+        return;
+      }
+      
+      // Get IDs - these are mandatory, not optional
+      const projectId = sessionStorage.getItem("currentProjectId") || "";
+      const phaseId = phase.phase_id;
+      const partId = part.part_id;
+      const taskId = task.task_id;
+      
+      // Validate that all required IDs are present
+      if (!phaseId || !partId || !taskId) {
+        console.error("Missing required IDs:", { phaseId, partId, taskId });
+        setError("Missing required project information. Please try again.");
+        return;
+      }
+      
+      // Call the learning modules API to check if user has started this task
+      const learningModulesUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/project/learningmodules/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/`;
+      let currentSubTaskId: string | null = null;
+      
+      try {
+        const response = await getApiClient().get(learningModulesUrl);
+        if (response.data?.current_sub_task_id) {
+          currentSubTaskId = response.data.current_sub_task_id;
+        }
+      } catch (err) {
+        console.error("Error fetching learning modules:", err);
+        // Continue even if API fails
+      }
+      
+      // Always use the first subtask ID when clicking on a task (changing task)
+      const firstSubtaskId = task?.data?.[0]?.subtask_id || "";
+      
+      // Store all IDs in session storage using utility function
+      setProjectIds({
+        projectId,
+        phaseId,
+        partId,
+        taskId,
+        subtaskId: firstSubtaskId, // Always use first subtask when changing tasks
+        currentSubTaskId: currentSubTaskId || undefined, // Keep for progress tracking
+      });
+      
+      // Store task data in sessionStorage for TaskView
+      sessionStorage.setItem("currentTask", JSON.stringify({
+        task,
+        taskIndex,
+        taskName: task.task_name,
+        phaseName: selectedPart?.phaseName,
+        partName: selectedPart?.partName,
+        projectName: projectData?.project_name,
+        phaseId,
+        partId,
+        taskId,
+        currentSubTaskId, // Store the current subtask ID if available
+      }));
+      
+      // Navigate to project tasks page (no parameters, data stored in sessionStorage)
+      navigate(`/project-tasks`, { replace: true });
+    } catch (error) {
+      console.error("Error handling task click:", error);
+      // Still navigate even if there's an error
+      sessionStorage.setItem("currentTask", JSON.stringify({
+        task,
+        taskIndex,
+        taskName: task.task_name,
+        phaseName: selectedPart?.phaseName,
+        partName: selectedPart?.partName,
+        projectName: projectData?.project_name,
+      }));
+      navigate(`/project-tasks`, { replace: true });
+    }
   };
 
   const renderTasks = () => {

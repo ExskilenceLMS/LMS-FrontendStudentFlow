@@ -4,6 +4,7 @@ import QuestionNav from "./QuestionNav";
 import { getApiClient } from "../utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
+import { getProjectId } from "../utils/projectStorageUtils";
 
 interface MCQOption {
   id: string;
@@ -49,6 +50,9 @@ const MCQContent: React.FC<MCQContentProps> = ({
   );
   const [submittedAnswers, setSubmittedAnswers] = useState<{
     [key: string]: boolean;
+  }>({});
+  const [questionScores, setQuestionScores] = useState<{
+    [key: string]: string;
   }>({});
 
   const shuffleArray = (array: string[]) => {
@@ -147,25 +151,50 @@ const MCQContent: React.FC<MCQContentProps> = ({
         return newSet;
       });
 
+      // Calculate and display score immediately based on correct_ans and entered_ans
+      if (currentQuestion && currentQuestion.score) {
+        const scoreParts = currentQuestion.score.split("/");
+        // Extract total points from current score (e.g., "0/3" -> 3, "3/3" -> 3)
+        if (scoreParts.length === 2 && !isNaN(Number(scoreParts[1]))) {
+          const total = Number(scoreParts[1]);
+          const newScore = isCorrect ? `${total}/${total}` : `0/${total}`;
+          
+          setQuestionScores((prev) => ({
+            ...prev,
+            [questionId]: newScore,
+          }));
+        }
+      }
+
+      // Get project IDs from session storage
+      const projectId = getProjectId("projectId") || "";
+      const phaseId = getProjectId("phaseId") || "";
+      const partId = getProjectId("partId") || "";
+      const taskId = getProjectId("taskId") || "";
+
       const submissionData = {
         student_id: studentId,
         question_id: questionId,
         correct_ans: correctAnswer,
         entered_ans: selectedAnswers[questionId],
-        subject_id: subjectId,
-        subject: subject.split(" ")[0],
-        week_number: parseInt(weekNumber),
-        day_number: parseInt(dayNumber),
-        course_id: decryptedCourseId,
         batch_id: decryptedBatchId,
+        project_id: projectId,
+        phase_id: phaseId,
+        part_id: partId,
+        task_id: taskId,
       };
 
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicemcq/submit/`;
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/project/practicemcq/submit/`;
       try {
         const response = await getApiClient().post(url, submissionData);
 
-        // Trigger MCQ status API in loop after successful submission
-        await triggerMCQStatusAPI(submissionData);
+        // Update score from API response
+        if (response.data?.score) {
+          setQuestionScores((prev) => ({
+            ...prev,
+            [questionId]: response.data.score,
+          }));
+        }
 
         if (onAnswerSubmit) {
           onAnswerSubmit(questionId, isCorrect);
@@ -177,13 +206,9 @@ const MCQContent: React.FC<MCQContentProps> = ({
     [
       selectedAnswers,
       studentId,
-      subject,
-      subjectId,
-      weekNumber,
-      dayNumber,
-      decryptedCourseId,
       decryptedBatchId,
       onAnswerSubmit,
+      currentQuestion,
     ]
   );
 
@@ -199,37 +224,12 @@ const MCQContent: React.FC<MCQContentProps> = ({
   }
 
   // shuffledOptions is now from state
-  const score = currentQuestion.score;
   const questionId = currentQuestion.Qn_name;
+  // Use score from state if available (updated after submission), otherwise use question's score
+  const score = questionScores[questionId] || currentQuestion.score;
   const isAnswered =
     currentQuestion.entered_ans !== "" || answeredQuestions.has(questionId);
   const isCorrect = submittedAnswers[questionId];
-
-  // Function to trigger MCQ status API in loop
-  const triggerMCQStatusAPI = async (submissionData: any) => {
-    const statusUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/practice/mcq/status/`;
-    let maxAttempts = 3;
-    let attempt = 0;
-
-    while (attempt < maxAttempts) {
-      try {
-        const response = await getApiClient().put(statusUrl, submissionData);
-        if (response.data?.message === true) {
-          break;
-        } else {
-          attempt++;
-          if (attempt < maxAttempts) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          }
-        }
-      } catch (error: any) {
-        attempt++;
-        if (attempt < maxAttempts) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
-      }
-    }
-  };
 
   return (
     <div className="d-flex flex-grow-1 h-100" style={{ height: "100%" }}>

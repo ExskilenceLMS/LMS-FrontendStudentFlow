@@ -9,6 +9,14 @@ import CodingContent from "./CodingContent";
 import { getApiClient } from "../utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
+import { 
+  getProjectId, 
+  setProjectIds,
+  fetchProjectMCQQuestions, 
+  fetchProjectCodingQuestions,
+  MCQQuestion,
+  CodingQuestion
+} from "../utils/projectStorageUtils";
 
 // Data structure interfaces
 interface TaskData {
@@ -19,42 +27,13 @@ interface TaskData {
   subject_id?: string;
   is_mandatory: boolean;
   sub_topic_id?: string;
-  count?: {
-    level1: string;
-    level2: string;
-    level3: string;
-  };
-  selected?: {
-    level1: string;
-    level2: string;
-    level3: string;
-  };
+  subtask_name: string;
+  subtask_id: string;
 }
 
 interface Task {
   data: TaskData[];
   task_name: string;
-}
-
-interface MCQQuestion {
-  shuffledOptions: any;
-  questionId: string;
-  status: boolean;
-  score: string;
-  level: string;
-  question: string;
-  options: string[];
-  correct_answer: string;
-  Explanation?: string;
-  Qn_name: string;
-  entered_ans: string;
-}
-
-interface CodingQuestion {
-  id: number;
-  question: string;
-  score: string;
-  isSolved: boolean;
 }
 
 interface NoteData {
@@ -94,10 +73,23 @@ const ProjectTasks: React.FC = () => {
         const taskData = JSON.parse(taskDataStr);
         setTask(taskData.task);
         setTaskNumber(taskData.taskIndex !== undefined ? taskData.taskIndex + 1 : 0);
-        // Set first sub-task as active
+        
+        // Check if user has a current subtask ID (from learning modules API)
+        let initialSubTaskIndex = 0;
+        if (taskData.currentSubTaskId && taskData.task.data) {
+          // Find the index of the subtask with matching subtask_id
+          const subtaskIndex = taskData.task.data.findIndex(
+            (subTask: TaskData) => subTask.subtask_id === taskData.currentSubTaskId
+          );
+          if (subtaskIndex !== -1) {
+            initialSubTaskIndex = subtaskIndex;
+          }
+        }
+        
+        // Set the appropriate sub-task as active
         if (taskData.task.data && taskData.task.data.length > 0) {
-          setCurrentSubTaskIndex(0);
-          loadSubTaskContent(taskData.task.data[0], 0);
+          setCurrentSubTaskIndex(initialSubTaskIndex);
+          loadSubTaskContent(taskData.task.data[initialSubTaskIndex], initialSubTaskIndex);
         } else {
           setLoading(false);
         }
@@ -138,85 +130,29 @@ const ProjectTasks: React.FC = () => {
     }
   };
 
-  const fetchMCQQuestions = async (subTopicId: string) => {
+  const fetchMCQQuestions = async (subTask: TaskData) => {
     try {
-      const encryptedSubjectId = sessionStorage.getItem("SubjectId");
-      const decryptedSubjectId = CryptoJS.AES.decrypt(
-        encryptedSubjectId!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const subjectId = decryptedSubjectId;
-
-      const encryptedSubject = sessionStorage.getItem("Subject");
-      const decryptedSubject = CryptoJS.AES.decrypt(
-        encryptedSubject!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const subject = decryptedSubject;
-
-      const encryptedDayNumber = sessionStorage.getItem("DayNumber");
-      const decryptedDayNumber = CryptoJS.AES.decrypt(
-        encryptedDayNumber!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const dayNumber = decryptedDayNumber;
-
-      const encryptedWeekNumber = sessionStorage.getItem("WeekNumber");
-      const decryptedWeekNumber = CryptoJS.AES.decrypt(
-        encryptedWeekNumber!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const weekNumber = decryptedWeekNumber;
-
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicemcq/${studentId}/${subject}/${subjectId}/${dayNumber}/${weekNumber}/${subTopicId}/`;
-      const response = await getApiClient().get(url);
-      setMcqQuestions(response.data.questions);
+      if (!subTask.subtask_id) {
+        console.error("subtask_id is required for project tasks");
+        return;
+      }
+      
+      const questions = await fetchProjectMCQQuestions(studentId);
+      setMcqQuestions(questions);
     } catch (error) {
       console.error("Error fetching MCQ questions:", error);
     }
   };
 
-  const fetchCodingQuestions = async (subTopicId: string) => {
+  const fetchCodingQuestions = async (subTask: TaskData) => {
     try {
-      const encryptedSubjectId = sessionStorage.getItem("SubjectId");
-      const decryptedSubjectId = CryptoJS.AES.decrypt(
-        encryptedSubjectId!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const subjectId = decryptedSubjectId;
-
-      const encryptedSubject = sessionStorage.getItem("Subject");
-      const decryptedSubject = CryptoJS.AES.decrypt(
-        encryptedSubject!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const subject = decryptedSubject;
-
-      const encryptedDayNumber = sessionStorage.getItem("DayNumber");
-      const decryptedDayNumber = CryptoJS.AES.decrypt(
-        encryptedDayNumber!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const dayNumber = decryptedDayNumber;
-
-      const encryptedWeekNumber = sessionStorage.getItem("WeekNumber");
-      const decryptedWeekNumber = CryptoJS.AES.decrypt(
-        encryptedWeekNumber!,
-        secretKey
-      ).toString(CryptoJS.enc.Utf8);
-      const weekNumber = decryptedWeekNumber;
-
-      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/practicecoding/${studentId}/${subject}/${subjectId}/${dayNumber}/${weekNumber}/${subTopicId}/`;
-      const response = await getApiClient().get(url);
-      const codingQuestionsData = response.data.questions.map(
-        (question: any, index: number) => ({
-          id: index + 1,
-          question: question.Qn,
-          score: question.score,
-          isSolved: question.status,
-        })
-      );
-      setCodingQuestions(codingQuestionsData);
+      if (!subTask.subtask_id) {
+        console.error("subtask_id is required for project tasks");
+        return;
+      }
+      
+      const questions = await fetchProjectCodingQuestions(studentId, subTask.subtask_id);
+      setCodingQuestions(questions);
     } catch (error) {
       console.error("Error fetching coding questions:", error);
     }
@@ -248,11 +184,11 @@ const ProjectTasks: React.FC = () => {
             },
           }));
         }
-      } else if (subTask.type === "mcq" && subTask.sub_topic_id) {
-        await fetchMCQQuestions(subTask.sub_topic_id);
+      } else if (subTask.type === "mcq") {
+        await fetchMCQQuestions(subTask);
         setCurrentMCQIndex(0);
-      } else if (subTask.type === "coding" && subTask.sub_topic_id) {
-        await fetchCodingQuestions(subTask.sub_topic_id);
+      } else if (subTask.type === "coding") {
+        await fetchCodingQuestions(subTask);
       }
     } catch (err) {
       console.error("Error loading sub-task content:", err);
@@ -263,8 +199,25 @@ const ProjectTasks: React.FC = () => {
 
   const handleSubTaskClick = (index: number) => {
     if (task && task.data[index]) {
+      const subTask = task.data[index];
       setCurrentSubTaskIndex(index);
-      loadSubTaskContent(task.data[index], index);
+      
+      // Update all IDs in session storage when subtask changes
+      const projectId = getProjectId("projectId") || "";
+      const phaseId = getProjectId("phaseId") || "";
+      const partId = getProjectId("partId") || "";
+      const taskId = getProjectId("taskId") || "";
+      const subtaskId = subTask.subtask_id || "";
+      
+      setProjectIds({
+        projectId,
+        phaseId,
+        partId,
+        taskId,
+        subtaskId,
+      });
+      
+      loadSubTaskContent(subTask, index);
     }
   };
 
@@ -281,16 +234,50 @@ const ProjectTasks: React.FC = () => {
   const handlePreviousSubTask = () => {
     if (hasPreviousSubTask() && task) {
       const prevIndex = currentSubTaskIndex - 1;
+      const subTask = task.data[prevIndex];
       setCurrentSubTaskIndex(prevIndex);
-      loadSubTaskContent(task.data[prevIndex], prevIndex);
+      
+      // Update all IDs in session storage when subtask changes
+      const projectId = getProjectId("projectId") || "";
+      const phaseId = getProjectId("phaseId") || "";
+      const partId = getProjectId("partId") || "";
+      const taskId = getProjectId("taskId") || "";
+      const subtaskId = subTask.subtask_id || "";
+      
+      setProjectIds({
+        projectId,
+        phaseId,
+        partId,
+        taskId,
+        subtaskId,
+      });
+      
+      loadSubTaskContent(subTask, prevIndex);
     }
   };
 
   const handleNextSubTask = () => {
     if (hasNextSubTask() && task) {
       const nextIndex = currentSubTaskIndex + 1;
+      const subTask = task.data[nextIndex];
       setCurrentSubTaskIndex(nextIndex);
-      loadSubTaskContent(task.data[nextIndex], nextIndex);
+      
+      // Update all IDs in session storage when subtask changes
+      const projectId = getProjectId("projectId") || "";
+      const phaseId = getProjectId("phaseId") || "";
+      const partId = getProjectId("partId") || "";
+      const taskId = getProjectId("taskId") || "";
+      const subtaskId = subTask.subtask_id || "";
+      
+      setProjectIds({
+        projectId,
+        phaseId,
+        partId,
+        taskId,
+        subtaskId,
+      });
+      
+      loadSubTaskContent(subTask, nextIndex);
     } else {
       // Navigate back to project-roadmap when on last sub-task
       navigate("/project-roadmap");
@@ -313,6 +300,9 @@ const ProjectTasks: React.FC = () => {
                 taskIndex: taskIdx,
                 phaseName: phase.phase_name,
                 partName: part.part_name,
+                phaseId: phase.phase_id || phase.phase_name,
+                partId: part.part_id || part.part_name,
+                taskId: t.task_id || taskIdx.toString(),
               });
             });
           });
@@ -325,7 +315,7 @@ const ProjectTasks: React.FC = () => {
     return [];
   };
 
-  const handlePreviousTask = () => {
+  const handlePreviousTask = async () => {
     const taskDataStr = sessionStorage.getItem("currentTask");
     if (taskDataStr) {
       try {
@@ -340,6 +330,36 @@ const ProjectTasks: React.FC = () => {
           const projectDataStr = sessionStorage.getItem("currentProjectData");
           const projectData = projectDataStr ? JSON.parse(projectDataStr) : {};
           
+          // Get IDs for the previous task
+          const projectId = getProjectId("projectId") || sessionStorage.getItem("currentProjectId") || "";
+          const phaseId = prevTask.phaseId || prevTask.phaseName || "";
+          const partId = prevTask.partId || prevTask.partName || "";
+          const taskId = prevTask.taskId || prevTask.taskIndex.toString() || "";
+          // Always use the first subtask ID when changing tasks
+          const firstSubtaskId = prevTask.task?.data?.[0]?.subtask_id || "";
+          
+          // Check for current_sub_task_id from API (for progress tracking)
+          let currentSubTaskId: string | null = null;
+          try {
+            const learningModulesUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/project/learningmodules/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/`;
+            const response = await getApiClient().get(learningModulesUrl);
+            if (response.data?.current_sub_task_id) {
+              currentSubTaskId = response.data.current_sub_task_id;
+            }
+          } catch (err) {
+            console.error("Error fetching learning modules:", err);
+          }
+          
+          // Update all IDs in session storage - always use first subtask when changing tasks
+          setProjectIds({
+            projectId,
+            phaseId,
+            partId,
+            taskId,
+            subtaskId: firstSubtaskId,
+            currentSubTaskId: currentSubTaskId || undefined,
+          });
+          
           sessionStorage.setItem("currentTask", JSON.stringify({
             task: prevTask.task,
             taskIndex: prevTask.taskIndex,
@@ -347,6 +367,10 @@ const ProjectTasks: React.FC = () => {
             phaseName: prevTask.phaseName,
             partName: prevTask.partName,
             projectName: projectData.project_name,
+            phaseId,
+            partId,
+            taskId,
+            currentSubTaskId,
           }));
           // Reload the page data
           window.location.reload();
@@ -357,7 +381,7 @@ const ProjectTasks: React.FC = () => {
     }
   };
 
-  const handleNextTask = () => {
+  const handleNextTask = async () => {
     const taskDataStr = sessionStorage.getItem("currentTask");
     if (taskDataStr) {
       try {
@@ -372,6 +396,36 @@ const ProjectTasks: React.FC = () => {
           const projectDataStr = sessionStorage.getItem("currentProjectData");
           const projectData = projectDataStr ? JSON.parse(projectDataStr) : {};
           
+          // Get IDs for the next task
+          const projectId = getProjectId("projectId") || sessionStorage.getItem("currentProjectId") || "";
+          const phaseId = nextTask.phaseId || nextTask.phaseName || "";
+          const partId = nextTask.partId || nextTask.partName || "";
+          const taskId = nextTask.taskId || nextTask.taskIndex.toString() || "";
+          // Always use the first subtask ID when changing tasks
+          const firstSubtaskId = nextTask.task?.data?.[0]?.subtask_id || "";
+          
+          // Check for current_sub_task_id from API (for progress tracking)
+          let currentSubTaskId: string | null = null;
+          try {
+            const learningModulesUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/project/learningmodules/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/`;
+            const response = await getApiClient().get(learningModulesUrl);
+            if (response.data?.current_sub_task_id) {
+              currentSubTaskId = response.data.current_sub_task_id;
+            }
+          } catch (err) {
+            console.error("Error fetching learning modules:", err);
+          }
+          
+          // Update all IDs in session storage - always use first subtask when changing tasks
+          setProjectIds({
+            projectId,
+            phaseId,
+            partId,
+            taskId,
+            subtaskId: firstSubtaskId,
+            currentSubTaskId: currentSubTaskId || undefined,
+          });
+          
           sessionStorage.setItem("currentTask", JSON.stringify({
             task: nextTask.task,
             taskIndex: nextTask.taskIndex,
@@ -379,6 +433,10 @@ const ProjectTasks: React.FC = () => {
             phaseName: nextTask.phaseName,
             partName: nextTask.partName,
             projectName: projectData.project_name,
+            phaseId,
+            partId,
+            taskId,
+            currentSubTaskId,
           }));
           // Reload the page data
           window.location.reload();
@@ -516,8 +574,30 @@ const ProjectTasks: React.FC = () => {
         {/* Content Column */}
         <div className="col h-100 d-flex flex-column" style={{ minHeight: 0 }}>
           {/* Content Area */}
-          <div className="flex-grow-1 overflow-auto" style={{ minHeight: 0, height: 0 }}>
+          {(() => {
+            const taskDataStr = sessionStorage.getItem("currentTask");
+            if (taskDataStr) {
+              try {
+                const taskData = JSON.parse(taskDataStr);
+                const phaseName = taskData.phaseName || "";
+                const partName = taskData.partName || "";
+                if (phaseName && partName) {
+                  return (
+                    <p className="text-muted ms-2 my-2">
+                      {phaseName} / {partName}
+                    </p>
+                  );
+                }
+              } catch (err) {
+                console.error("Error parsing task data:", err);
+              }
+            }
+            return null;
+          })()}
+          <div className="flex-grow-1 d-flex" style={{ minHeight: 0, overflow: "hidden" }}>
+            <div className="p-2 mx-2 border-top border-muted d-flex flex-column" style={{ height: "100%", overflow: "auto", flex: "1 1 auto" }}>
             {renderContent()}
+            </div>
           </div>
 
           {/* Navigation Buttons */}

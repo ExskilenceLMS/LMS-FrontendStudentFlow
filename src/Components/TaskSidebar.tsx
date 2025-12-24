@@ -12,16 +12,8 @@ interface TaskData {
   subject_id?: string;
   is_mandatory: boolean;
   sub_topic_id?: string;
-  count?: {
-    level1: string;
-    level2: string;
-    level3: string;
-  };
-  selected?: {
-    level1: string;
-    level2: string;
-    level3: string;
-  };
+  subtask_name: string;
+  subtask_id: string;
 }
 
 interface Task {
@@ -43,6 +35,11 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
   onSubTaskClick,
 }) => {
   const getSubTaskLabel = (subTask: TaskData, index: number): string => {
+    // Use subtask_name if available, otherwise fallback to default labels
+    if (subTask.subtask_name) {
+      return subTask.subtask_name;
+    }
+    
     if (!task || !task.data) {
       return `Item ${index + 1}`;
     }
