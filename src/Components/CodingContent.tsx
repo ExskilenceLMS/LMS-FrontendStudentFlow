@@ -100,14 +100,14 @@ const CodingContent: React.FC<CodingContentProps> = ({
                     >
                       {(() => {
                         const maxLength = window.innerWidth < 600
-                          ? 50
+                          ? 20
                           : window.innerWidth < 1024
-                            ? 80
+                            ? 60
                             : window.innerWidth < 1200
-                              ? 100
+                              ? 70
                               : window.innerWidth < 1400
-                                ? 140
-                                : questionTitle.length;
+                                ? 80
+                                : 110;
                         return questionTitle.length > maxLength
                           ? `${questionTitle.substring(0, maxLength)}...`
                           : questionTitle;

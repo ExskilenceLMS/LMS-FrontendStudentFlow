@@ -31,6 +31,7 @@ export const navigationRules: NavigationRule[] = [
   { currentPath: '/Sql-editor', previousPath: '/Dashboard', description: 'SQLEditor -> Dashboard', allowBack: true },
   { currentPath: '/project-roadmap', previousPath: '/Dashboard', description: 'ProjectRoadmap -> Dashboard', allowBack: true },
   { currentPath: '/project-tasks', previousPath: '/project-roadmap', description: 'ProjectTasks -> ProjectRoadmap', allowBack: true },
+  { currentPath: '/editor', previousPath: '/project-tasks', description: 'UnifiedEditor -> ProjectTasks', allowBack: true },
 ];
 
 export const getPreviousPath = (currentPath: string): string => {

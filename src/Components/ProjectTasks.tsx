@@ -14,6 +14,7 @@ import {
   setProjectIds,
   fetchProjectMCQQuestions, 
   fetchProjectCodingQuestions,
+  transformToCodingQuestions,
   MCQQuestion,
   CodingQuestion
 } from "../utils/projectStorageUtils";
@@ -54,6 +55,8 @@ const ProjectTasks: React.FC = () => {
   const [notesData, setNotesData] = useState<{ [key: number]: NoteData }>({});
   const [mcqQuestions, setMcqQuestions] = useState<MCQQuestion[]>([]);
   const [codingQuestions, setCodingQuestions] = useState<CodingQuestion[]>([]);
+  const [loadedCodingSubtaskId, setLoadedCodingSubtaskId] = useState<string | null>(null);
+  const [loadedMCQSubtaskId, setLoadedMCQSubtaskId] = useState<string | null>(null);
   const [currentVideoId, setCurrentVideoId] = useState<number | null>(null);
   const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
   const [currentMCQIndex, setCurrentMCQIndex] = useState<number>(0);
@@ -137,8 +140,14 @@ const ProjectTasks: React.FC = () => {
         return;
       }
       
+      // Check if questions are already loaded for this subtask
+      if (loadedMCQSubtaskId === subTask.subtask_id && mcqQuestions.length > 0) {
+        return;
+      }
+      
       const questions = await fetchProjectMCQQuestions(studentId);
       setMcqQuestions(questions);
+      setLoadedMCQSubtaskId(subTask.subtask_id);
     } catch (error) {
       console.error("Error fetching MCQ questions:", error);
     }
@@ -151,8 +160,22 @@ const ProjectTasks: React.FC = () => {
         return;
       }
       
-      const questions = await fetchProjectCodingQuestions(studentId, subTask.subtask_id);
-      setCodingQuestions(questions);
+      // Check if questions are already loaded for this subtask
+      if (loadedCodingSubtaskId === subTask.subtask_id && codingQuestions.length > 0) {
+        return;
+      }
+      
+      // Fetch full questions (same API call, but we get all data)
+      const fullQuestions = await fetchProjectCodingQuestions(studentId, subTask.subtask_id);
+      
+      // Cache full questions for UnifiedEditor
+      const cachedQuestionsKey = `project_coding_questions_full_${subTask.subtask_id}`;
+      sessionStorage.setItem(cachedQuestionsKey, JSON.stringify(fullQuestions));
+      
+      // Transform to simplified format for CodingContent display
+      const simplifiedQuestions = transformToCodingQuestions(fullQuestions);
+      setCodingQuestions(simplifiedQuestions);
+      setLoadedCodingSubtaskId(subTask.subtask_id);
     } catch (error) {
       console.error("Error fetching coding questions:", error);
     }
@@ -199,6 +222,11 @@ const ProjectTasks: React.FC = () => {
 
   const handleSubTaskClick = (index: number) => {
     if (task && task.data[index]) {
+      // Check if this subtask is already selected - if so, don't reload
+      if (currentSubTaskIndex === index) {
+        return;
+      }
+      
       const subTask = task.data[index];
       setCurrentSubTaskIndex(index);
       

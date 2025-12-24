@@ -30,6 +30,7 @@ import DynamicCodingEditorWrapper from './Components/DynamicCodingEditorWrapper'
 import SubjectBasedCodingEditor from './Components/SubjectBasedCodingEditor';
 import ProjectRoadmap from './ProjectRoadmap';
 import ProjectTasks from './Components/ProjectTasks';
+import UnifiedEditor from './Components/UnifiedEditor';
 
 const AppRoutes = () => {
   const showMaintenance = process.env.REACT_APP_SHOW_MAINTENANCE === 'true';
@@ -67,6 +68,7 @@ const AppRoutes = () => {
         <Route path="/testing/coding/:subject_id" element={<Layout><SubjectBasedCodingEditor /></Layout>} />
         <Route path="/project-roadmap" element={<Layout><ProjectRoadmap /></Layout>} />
         <Route path="/project-tasks" element={<Layout><ProjectTasks /></Layout>} />
+        <Route path="/editor" element={<Layout><UnifiedEditor /></Layout>} />
       </Route>
     </Routes>
   );
