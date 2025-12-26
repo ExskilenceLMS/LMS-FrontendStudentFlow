@@ -48,7 +48,8 @@ const ProjectTasks: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [task, setTask] = useState<Task | null>(null);
   const [taskNumber, setTaskNumber] = useState<number>(0);
-  const [currentSubTaskIndex, setCurrentSubTaskIndex] = useState<number>(0);
+  const [currentSubTaskIndex, setCurrentSubTaskIndex] = useState<number | null>(null);
+
 
   // Content states
   const [videoData, setVideoData] = useState<{ [key: number]: { otp: string; playback_info: string } }>({});
@@ -67,48 +68,71 @@ const ProjectTasks: React.FC = () => {
     secretKey
   ).toString(CryptoJS.enc.Utf8);
   const studentId = decryptedStudentId;
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
 
+  const activateSubTask = async (subTask: TaskData, index: number) => {
+    setCurrentSubTaskIndex(index);
+    resetContentState(subTask.type);
+    updateProjectIdsForSubtask(subTask);
+    // --- Persist current subtask to sessionStorage ---
+    const currentTaskStr = sessionStorage.getItem("currentTask");
+    if (currentTaskStr) {
+      try {
+        const currentTaskObj = JSON.parse(currentTaskStr);
+        currentTaskObj.currentSubTaskId = subTask.subtask_id;
+        sessionStorage.setItem("currentTask", JSON.stringify(currentTaskObj));
+      } catch (e) {
+        // ignore corruption
+      }
+    }
+    await loadSubTaskContent(subTask, index);
+  };
+  
   useEffect(() => {
-    // Load task data from sessionStorage
-    const taskDataStr = sessionStorage.getItem("currentTask");
-    if (taskDataStr) {
+    const loadInitialSubTask = async () => {
+      const taskDataStr = sessionStorage.getItem("currentTask");
+      if (!taskDataStr) {
+        setError("Task data not found");
+        setInitialLoading(false);
+        return;
+      }
+  
       try {
         const taskData = JSON.parse(taskDataStr);
         setTask(taskData.task);
         setTaskNumber(taskData.taskIndex !== undefined ? taskData.taskIndex + 1 : 0);
-        
-        // Check if user has a current subtask ID (from learning modules API)
+  
+        if (!taskData.task.data || taskData.task.data.length === 0) {
+          setError("No subtasks available");
+          setInitialLoading(false);
+          return;
+        }
+  
+        // Default to first subtask
         let initialSubTaskIndex = 0;
-        if (taskData.currentSubTaskId && taskData.task.data) {
-          // Find the index of the subtask with matching subtask_id
-          const subtaskIndex = taskData.task.data.findIndex(
+  
+        // If session has a valid subtask, use it
+        if (taskData.currentSubTaskId) {
+          const index = taskData.task.data.findIndex(
             (subTask: TaskData) => subTask.subtask_id === taskData.currentSubTaskId
           );
-          if (subtaskIndex !== -1) {
-            initialSubTaskIndex = subtaskIndex;
-          }
+          if (index !== -1) initialSubTaskIndex = index;
         }
-        
-        // Set the appropriate sub-task as active
-        if (taskData.task.data && taskData.task.data.length > 0) {
-          setCurrentSubTaskIndex(initialSubTaskIndex);
-          loadSubTaskContent(taskData.task.data[initialSubTaskIndex], initialSubTaskIndex);
-        } else {
-          setLoading(false);
-        }
+  
+        // Await loading the subtask before rendering content
+        await activateSubTask(taskData.task.data[initialSubTaskIndex], initialSubTaskIndex);
+  
+        setInitialLoading(false); // done
       } catch (err) {
         console.error("Error parsing task data:", err);
         setError("Failed to load task data");
-        setLoading(false);
+        setInitialLoading(false);
       }
-    } else {
-      setError("Task data not found");
-      setLoading(false);
-    }
-    
-    // Task name is already stored in sessionStorage
+    };
+  
+    loadInitialSubTask();
   }, []);
-
+  
   const fetchVideoData = async (videoId: number): Promise<{ otp: string; playback_info: string }> => {
     try {
       const response = await getApiClient().get(
@@ -181,6 +205,34 @@ const ProjectTasks: React.FC = () => {
     }
   };
 
+  const resetContentState = (type: TaskData["type"]) => {
+    if (type === "coding") {
+      setCodingQuestions([]);
+      setLoadedCodingSubtaskId(null);
+    }
+    if (type === "mcq") {
+      setMcqQuestions([]);
+      setLoadedMCQSubtaskId(null);
+      setCurrentMCQIndex(0);
+    }
+  };
+
+  const updateProjectIdsForSubtask = (subTask: TaskData) => {
+    const projectId = getProjectId("projectId") || "";
+    const phaseId = getProjectId("phaseId") || "";
+    const partId = getProjectId("partId") || "";
+    const taskId = getProjectId("taskId") || "";
+    const subtaskId = subTask.subtask_id || "";
+  
+    setProjectIds({
+      projectId,
+      phaseId,
+      partId,
+      taskId,
+      subtaskId,
+    });
+  }; 
+  
   const loadSubTaskContent = async (subTask: TaskData, index: number) => {
     setLoading(true);
     try {
@@ -220,297 +272,39 @@ const ProjectTasks: React.FC = () => {
     }
   };
 
-  const handleSubTaskClick = (index: number) => {
-    if (task && task.data[index]) {
-      // Check if this subtask is already selected - if so, don't reload
-      if (currentSubTaskIndex === index) {
-        return;
-      }
-      
-      const subTask = task.data[index];
-      setCurrentSubTaskIndex(index);
-      
-      // Update all IDs in session storage when subtask changes
-      const projectId = getProjectId("projectId") || "";
-      const phaseId = getProjectId("phaseId") || "";
-      const partId = getProjectId("partId") || "";
-      const taskId = getProjectId("taskId") || "";
-      const subtaskId = subTask.subtask_id || "";
-      
-      setProjectIds({
-        projectId,
-        phaseId,
-        partId,
-        taskId,
-        subtaskId,
-      });
-      
-      loadSubTaskContent(subTask, index);
-    }
-  };
-
   const hasPreviousSubTask = (): boolean => {
-    if (!task || !task.data) return false;
+    if (!task || currentSubTaskIndex === null) return false;
     return currentSubTaskIndex > 0;
   };
-
+  
   const hasNextSubTask = (): boolean => {
-    if (!task || !task.data) return false;
+    if (!task || currentSubTaskIndex === null) return false;
     return currentSubTaskIndex < task.data.length - 1;
-  };
+  };  
 
+  const handleSubTaskClick = (index: number) => {
+    if (!task || !task.data[index] || currentSubTaskIndex === index) return;
+    activateSubTask(task.data[index], index);
+  };
+  
   const handlePreviousSubTask = () => {
-    if (hasPreviousSubTask() && task) {
-      const prevIndex = currentSubTaskIndex - 1;
-      const subTask = task.data[prevIndex];
-      setCurrentSubTaskIndex(prevIndex);
-      
-      // Update all IDs in session storage when subtask changes
-      const projectId = getProjectId("projectId") || "";
-      const phaseId = getProjectId("phaseId") || "";
-      const partId = getProjectId("partId") || "";
-      const taskId = getProjectId("taskId") || "";
-      const subtaskId = subTask.subtask_id || "";
-      
-      setProjectIds({
-        projectId,
-        phaseId,
-        partId,
-        taskId,
-        subtaskId,
-      });
-      
-      loadSubTaskContent(subTask, prevIndex);
-    }
+    if (!task || currentSubTaskIndex === null || currentSubTaskIndex <= 0) return;
+    const prevIndex = currentSubTaskIndex - 1;
+    activateSubTask(task.data[prevIndex], prevIndex);
   };
-
+  
   const handleNextSubTask = () => {
-    if (hasNextSubTask() && task) {
-      const nextIndex = currentSubTaskIndex + 1;
-      const subTask = task.data[nextIndex];
-      setCurrentSubTaskIndex(nextIndex);
-      
-      // Update all IDs in session storage when subtask changes
-      const projectId = getProjectId("projectId") || "";
-      const phaseId = getProjectId("phaseId") || "";
-      const partId = getProjectId("partId") || "";
-      const taskId = getProjectId("taskId") || "";
-      const subtaskId = subTask.subtask_id || "";
-      
-      setProjectIds({
-        projectId,
-        phaseId,
-        partId,
-        taskId,
-        subtaskId,
-      });
-      
-      loadSubTaskContent(subTask, nextIndex);
+    if (!task || currentSubTaskIndex === null) return;
+    const nextIndex = currentSubTaskIndex + 1;
+    if (nextIndex < task.data.length) {
+      activateSubTask(task.data[nextIndex], nextIndex);
     } else {
-      // Navigate back to project-roadmap when on last sub-task
       navigate("/project-roadmap");
     }
   };
 
-  const getAllTasks = (): any[] => {
-    try {
-      const projectDataStr = sessionStorage.getItem("currentProjectData");
-      if (projectDataStr) {
-        const projectData = JSON.parse(projectDataStr);
-        const allTasks: any[] = [];
-        
-        // Collect all tasks from all parts
-        projectData.content?.forEach((phase: any) => {
-          phase.parts?.forEach((part: any) => {
-            part.tasks?.forEach((t: any, taskIdx: number) => {
-              allTasks.push({
-                task: t,
-                taskIndex: taskIdx,
-                phaseName: phase.phase_name,
-                partName: part.part_name,
-                phaseId: phase.phase_id || phase.phase_name,
-                partId: part.part_id || part.part_name,
-                taskId: t.task_id || taskIdx.toString(),
-              });
-            });
-          });
-        });
-        return allTasks;
-      }
-    } catch (err) {
-      console.error("Error getting all tasks:", err);
-    }
-    return [];
-  };
-
-  const handlePreviousTask = async () => {
-    const taskDataStr = sessionStorage.getItem("currentTask");
-    if (taskDataStr) {
-      try {
-        const taskData = JSON.parse(taskDataStr);
-        const allTasks = getAllTasks();
-        const currentTaskIndex = allTasks.findIndex(
-          (t) => t.task.task_name === taskData.task.task_name
-        );
-
-        if (currentTaskIndex > 0) {
-          const prevTask = allTasks[currentTaskIndex - 1];
-          const projectDataStr = sessionStorage.getItem("currentProjectData");
-          const projectData = projectDataStr ? JSON.parse(projectDataStr) : {};
-          
-          // Get IDs for the previous task
-          const projectId = getProjectId("projectId") || sessionStorage.getItem("currentProjectId") || "";
-          const phaseId = prevTask.phaseId || prevTask.phaseName || "";
-          const partId = prevTask.partId || prevTask.partName || "";
-          const taskId = prevTask.taskId || prevTask.taskIndex.toString() || "";
-          // Always use the first subtask ID when changing tasks
-          const firstSubtaskId = prevTask.task?.data?.[0]?.subtask_id || "";
-          
-          // Check for current_sub_task_id from API (for progress tracking)
-          let currentSubTaskId: string | null = null;
-          try {
-            const learningModulesUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/project/learningmodules/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/`;
-            const response = await getApiClient().get(learningModulesUrl);
-            if (response.data?.current_sub_task_id) {
-              currentSubTaskId = response.data.current_sub_task_id;
-            }
-          } catch (err) {
-            console.error("Error fetching learning modules:", err);
-          }
-          
-          // Update all IDs in session storage - always use first subtask when changing tasks
-          setProjectIds({
-            projectId,
-            phaseId,
-            partId,
-            taskId,
-            subtaskId: firstSubtaskId,
-            currentSubTaskId: currentSubTaskId || undefined,
-          });
-          
-          sessionStorage.setItem("currentTask", JSON.stringify({
-            task: prevTask.task,
-            taskIndex: prevTask.taskIndex,
-            taskName: prevTask.task.task_name,
-            phaseName: prevTask.phaseName,
-            partName: prevTask.partName,
-            projectName: projectData.project_name,
-            phaseId,
-            partId,
-            taskId,
-            currentSubTaskId,
-          }));
-          // Reload the page data
-          window.location.reload();
-        }
-      } catch (err) {
-        console.error("Error navigating to previous task:", err);
-      }
-    }
-  };
-
-  const handleNextTask = async () => {
-    const taskDataStr = sessionStorage.getItem("currentTask");
-    if (taskDataStr) {
-      try {
-        const taskData = JSON.parse(taskDataStr);
-        const allTasks = getAllTasks();
-        const currentTaskIndex = allTasks.findIndex(
-          (t) => t.task.task_name === taskData.task.task_name
-        );
-
-        if (currentTaskIndex < allTasks.length - 1) {
-          const nextTask = allTasks[currentTaskIndex + 1];
-          const projectDataStr = sessionStorage.getItem("currentProjectData");
-          const projectData = projectDataStr ? JSON.parse(projectDataStr) : {};
-          
-          // Get IDs for the next task
-          const projectId = getProjectId("projectId") || sessionStorage.getItem("currentProjectId") || "";
-          const phaseId = nextTask.phaseId || nextTask.phaseName || "";
-          const partId = nextTask.partId || nextTask.partName || "";
-          const taskId = nextTask.taskId || nextTask.taskIndex.toString() || "";
-          // Always use the first subtask ID when changing tasks
-          const firstSubtaskId = nextTask.task?.data?.[0]?.subtask_id || "";
-          
-          // Check for current_sub_task_id from API (for progress tracking)
-          let currentSubTaskId: string | null = null;
-          try {
-            const learningModulesUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/project/learningmodules/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/`;
-            const response = await getApiClient().get(learningModulesUrl);
-            if (response.data?.current_sub_task_id) {
-              currentSubTaskId = response.data.current_sub_task_id;
-            }
-          } catch (err) {
-            console.error("Error fetching learning modules:", err);
-          }
-          
-          // Update all IDs in session storage - always use first subtask when changing tasks
-          setProjectIds({
-            projectId,
-            phaseId,
-            partId,
-            taskId,
-            subtaskId: firstSubtaskId,
-            currentSubTaskId: currentSubTaskId || undefined,
-          });
-          
-          sessionStorage.setItem("currentTask", JSON.stringify({
-            task: nextTask.task,
-            taskIndex: nextTask.taskIndex,
-            taskName: nextTask.task.task_name,
-            phaseName: nextTask.phaseName,
-            partName: nextTask.partName,
-            projectName: projectData.project_name,
-            phaseId,
-            partId,
-            taskId,
-            currentSubTaskId,
-          }));
-          // Reload the page data
-          window.location.reload();
-        }
-      } catch (err) {
-        console.error("Error navigating to next task:", err);
-      }
-    }
-  };
-
-  const hasPreviousTask = (): boolean => {
-    const taskDataStr = sessionStorage.getItem("currentTask");
-    if (taskDataStr) {
-      try {
-        const taskData = JSON.parse(taskDataStr);
-        const allTasks = getAllTasks();
-        const currentTaskIndex = allTasks.findIndex(
-          (t) => t.task.task_name === taskData.task.task_name
-        );
-        return currentTaskIndex > 0;
-      } catch (err) {
-        console.error("Error checking previous task:", err);
-      }
-    }
-    return false;
-  };
-
-  const hasNextTask = (): boolean => {
-    const taskDataStr = sessionStorage.getItem("currentTask");
-    if (taskDataStr) {
-      try {
-        const taskData = JSON.parse(taskDataStr);
-        const allTasks = getAllTasks();
-        const currentTaskIndex = allTasks.findIndex(
-          (t) => t.task.task_name === taskData.task.task_name
-        );
-        return currentTaskIndex < allTasks.length - 1;
-      } catch (err) {
-        console.error("Error checking next task:", err);
-      }
-    }
-    return false;
-  };
-
   const renderContent = () => {
-    if (!task || !task.data[currentSubTaskIndex]) {
+    if (currentSubTaskIndex === null || !task || !task.data[currentSubTaskIndex]) {
       return (
         <div className="d-flex justify-content-center align-items-center h-100">
           <p className="text-muted">No content available</p>
@@ -544,7 +338,7 @@ const ProjectTasks: React.FC = () => {
           currentIndex={currentMCQIndex}
           totalQuestions={mcqQuestions.length}
           onQuestionChange={(index) => setCurrentMCQIndex(index)}
-          loading={loading && mcqQuestions.length === 0}
+          loading={loading}
         />
       );
     } else if (currentSubTask.type === "coding") {
@@ -561,7 +355,7 @@ const ProjectTasks: React.FC = () => {
           totalQuestions={codingQuestions.length}
           onQuestionChange={() => {}}
           subject={decryptedSubject}
-          loading={loading && codingQuestions.length === 0}
+          loading={loading}
         />
       );
     }
@@ -591,12 +385,19 @@ const ProjectTasks: React.FC = () => {
       <div className="row g-0 h-100">
         {/* Sidebar Column */}
         <div className="col-auto h-100">
-          <TaskSidebar
-            task={task}
-            taskNumber={taskNumber}
-            currentSubTaskIndex={currentSubTaskIndex}
-            onSubTaskClick={handleSubTaskClick}
-          />
+        {task && task.data ? (
+  <TaskSidebar
+    task={task}
+    taskNumber={taskNumber}
+    currentSubTaskIndex={currentSubTaskIndex ?? -1}
+    onSubTaskClick={handleSubTaskClick}
+  />
+) : (
+  <div className="p-3">
+    <Spinner animation="border" size="sm" /> Loading tasks...
+  </div>
+)}
+
         </div>
 
         {/* Content Column */}
