@@ -602,6 +602,7 @@ const ProjectTasks: React.FC = () => {
         {/* Content Column */}
         <div className="col h-100 d-flex flex-column" style={{ minHeight: 0 }}>
           {/* Content Area */}
+        <div className="border-bottom border-muted px-3 py-2">
           {(() => {
             const taskDataStr = sessionStorage.getItem("currentTask");
             if (taskDataStr) {
@@ -611,9 +612,9 @@ const ProjectTasks: React.FC = () => {
                 const partName = taskData.partName || "";
                 if (phaseName && partName) {
                   return (
-                    <p className="text-muted ms-2 my-2">
-                      {phaseName} / {partName}
-                    </p>
+                    <h6 className="mb-0 text-muted">
+                      {sessionStorage.getItem("currentProjectName")} / {phaseName} / {partName}
+                    </h6>
                   );
                 }
               } catch (err) {
@@ -622,8 +623,9 @@ const ProjectTasks: React.FC = () => {
             }
             return null;
           })()}
+        </div>
           <div className="flex-grow-1 d-flex" style={{ minHeight: 0, overflow: "hidden" }}>
-            <div className="p-2 mx-2 border-top border-muted d-flex flex-column" style={{ height: "100%", overflow: "auto", flex: "1 1 auto" }}>
+            <div className="p-2 mx-2 d-flex flex-column" style={{ height: "100%", overflow: "auto", flex: "1 1 auto" }}>
             {renderContent()}
             </div>
           </div>

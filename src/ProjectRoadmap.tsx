@@ -248,7 +248,7 @@ const ProjectRoadmapContent: React.FC = () => {
         }}
       >
         <div className="border-bottom border-muted px-3 py-2">
-          <h6 className="mb-0 fw-semibold">
+          <h6 className="mb-0 text-muted">
             {projectData?.project_name} / {selectedPart?.phaseName} / {selectedPart?.partName}
           </h6>
         </div>
