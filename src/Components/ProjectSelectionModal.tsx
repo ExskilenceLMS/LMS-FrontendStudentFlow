@@ -10,12 +10,14 @@ interface ProjectSelectionModalProps {
   show: boolean;
   internship: any | null;
   onClose: () => void;
+  initialSelectedProjectId?: string | number;
 }
 
 const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
   show,
   internship,
-  onClose
+  onClose,
+  initialSelectedProjectId
 }) => {
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
@@ -31,6 +33,10 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
   const [viewingProject, setViewingProject] = useState<any | null>(null);
   const [modalView, setModalView] = useState<"list" | "details">("list");
 
+  // Grab currently selected project ID (if any)
+  const currentProjectId = internship?.project_id;
+
+
   const getBatchId = () => {
     const encryptedBatchId = sessionStorage.getItem('BatchId');
     if (!encryptedBatchId) return '';
@@ -44,9 +50,28 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
   useEffect(() => {
     if (show && internship) {
       resetState();
-      fetchData();
+      fetchData().then(() => {
+        // After projects are fetched, if assigned project exists, set filters for it
+        setTimeout(() => {
+          if (internship?.project_id && allProjects.length > 0) {
+            const assigned = allProjects.find(p => String(p.project_id) === String(internship.project_id));
+            if (assigned) {
+              setSelectedCompany(assigned.company_id);
+              setSelectedDomain(assigned.industry);
+            }
+          }
+        }, 0);
+      });
     }
   }, [show, internship]);
+
+  // When initialSelectedProjectId is given, set selectedProject state accordingly
+  useEffect(() => {
+    if (show && initialSelectedProjectId && allProjects.length > 0) {
+      const match = allProjects.find(p => String(p.project_id) === String(initialSelectedProjectId));
+      if (match) setSelectedProject(match);
+    }
+  }, [show, initialSelectedProjectId, allProjects]);
 
   useEffect(() => {
     filterProjects();
@@ -186,14 +211,23 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
             {projects.map((project) => (
               <div key={project.project_id} className="col-md-6">
                 <Card 
-                  className={`h-100 ${selectedProject?.project_id === project.project_id ? "border-primary" : ""}`}
+                  className={`h-100 
+                    ${String(currentProjectId) === String(project.project_id) ? "border-success border-3" : selectedProject?.project_id === project.project_id ? "border-primary" : ""}
+                    ${(parseInt(project.slots_left) <= 0 && String(currentProjectId) !== String(project.project_id)) ? "border-danger border-2 opacity-50" : ""}
+                  `}
                   style={{ 
-                    cursor: "pointer",
+                    cursor: (parseInt(project.slots_left) > 0 || String(currentProjectId) === String(project.project_id)) ? "pointer" : "not-allowed",
                     transition: "all 0.3s ease",
-                    minHeight: "150px"
+                    minHeight: "150px",
+                    filter: (parseInt(project.slots_left) <= 0 && String(currentProjectId) !== String(project.project_id)) ? "grayscale(70%)" : undefined,
                   }}
-                  onClick={() => setSelectedProject(project)}
+                  onClick={() => {
+                    // Prevent selecting if slots full, or already your project
+                    if (parseInt(project.slots_left) <= 0) return;
+                    setSelectedProject(project);
+                  }}
                   onMouseEnter={(e) => {
+                    if (parseInt(project.slots_left) <= 0 || currentProjectId === project.project_id) return;
                     e.currentTarget.style.transform = "translateY(-5px)";
                     e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
                   }}
@@ -210,7 +244,8 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
                       >
                         {project.project_name}
                       </Card.Title>
-                      {selectedProject?.project_id === project.project_id && (
+                      {/* Show check-circle only for currently selected, but not if it is already assigned */}
+                      {selectedProject?.project_id === project.project_id && String(currentProjectId) !== String(project.project_id) && (
                         <i className="bi bi-check-circle-fill text-primary"></i>
                       )}
                     </div>
@@ -220,7 +255,7 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
                         : project.project_description}
                     </Card.Text>
                     <div className="d-flex justify-content-between align-items-center gap-2 mt-auto">
-                      {project.slots_left && (
+                      {typeof project.slots_left !== 'undefined' && (
                         <span 
                           className={`badge rounded-pill px-2 py-1 ${
                             parseInt(project.slots_left) > 0 ? "bg-success text-white" : "bg-secondary text-white"
@@ -320,7 +355,7 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
             </Button>
             <Button 
               variant="primary" 
-              disabled={!selectedProject || submitting}
+              disabled={!selectedProject || submitting || parseInt(selectedProject?.slots_left || '1') <= 0}
               onClick={handleSelectProject}
             >
               {submitting ? (

@@ -477,6 +477,7 @@ const Courses: React.FC = () => {
         show={showProjectModal}
         internship={selectedInternship}
         onClose={handleCloseModal}
+        initialSelectedProjectId={selectedInternship?.project_id ?? undefined}
       />
     </div>
   );
