@@ -126,7 +126,7 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
     try {
       await getApiClient().post(`${process.env.REACT_APP_BACKEND_URL}api/student/select-project/`, {
         student_id: studentId,
-        project_id: selectedProject.project_id || selectedProject.id
+        project_id: Number(selectedProject.project_id)
       });
       
       // Refetch the courses API after successful project selection

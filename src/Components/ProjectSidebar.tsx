@@ -17,7 +17,21 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
 
   useEffect(() => {
     const phases = projectData?.project_data || projectData?.content || [];
-    if (phases.length > 0) {
+    // Try to restore last selected part from sessionStorage
+    const saved = sessionStorage.getItem("selectedProjectPart");
+    if (phases.length > 0 && saved) {
+      try {
+        const { phaseName, partName } = JSON.parse(saved);
+        const phaseIdx = phases.findIndex((p: any) => p.phase_name === phaseName);
+        if (phaseIdx !== -1) {
+          setActiveKey(phaseIdx.toString());
+          const part = phases[phaseIdx].parts.find((p: any) => p.part_name === partName);
+          if (part) {
+            setSelectedPart({ phaseName, partName, tasks: part.tasks });
+          }
+        }
+      } catch {}
+    } else if (phases.length > 0) {
       setActiveKey("0");
     }
   }, [projectData]);
@@ -32,7 +46,10 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
     const projectId = getProjectId("projectId") || sessionStorage.getItem("currentProjectId") || "";
     const currentPhaseId = phaseId || phaseName;
     const currentPartId = partId || partName;
-    
+
+    // Persist selected part to sessionStorage
+    sessionStorage.setItem("selectedProjectPart", JSON.stringify({ phaseName, partName }));
+
     // Get the first subtask ID from the first task of this part
     const firstTask = tasks && tasks.length > 0 ? tasks[0] : null;
     const firstSubtaskId = firstTask?.data && firstTask.data.length > 0 
