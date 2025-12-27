@@ -5,6 +5,8 @@ import { getApiClient } from "../utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "../constants";
 import { mutate } from "swr";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheckCircle } from "@fortawesome/free-solid-svg-icons";
 
 interface ProjectSelectionModalProps {
   show: boolean;
@@ -245,6 +247,11 @@ const ProjectSelectionModal: React.FC<ProjectSelectionModalProps> = ({
                         {project.project_name}
                       </Card.Title>
                       {/* Show check-circle only for currently selected, but not if it is already assigned */}
+                      {String(currentProjectId) === String(project.project_id) && (
+                        <span title="Selected Project">
+                          <FontAwesomeIcon icon={faCheckCircle} style={{ color: 'green', fontSize: '1.25em' }} />
+                        </span> 
+                      )}
                       {selectedProject?.project_id === project.project_id && String(currentProjectId) !== String(project.project_id) && (
                         <i className="bi bi-check-circle-fill text-primary"></i>
                       )}

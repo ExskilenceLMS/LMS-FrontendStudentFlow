@@ -273,26 +273,29 @@ const Courses: React.FC = () => {
             className="d-flex flex-column h-100 w-100"
             style={{ minHeight: "130px" }}
           >
-            <h6
-              className="p-1 mt-2 d-flex justify-content-between"
-              style={{
-                backgroundColor: cardColor,
-                color: "black",
-                borderRadius: "4px",
-                width: "200px",
-                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
-              }}
-              title={titleTooltip && titleTooltip.length > 20 ? titleTooltip : ""}
-            >
-              {title}
-              <FontAwesomeIcon
-                icon={faCircleRight}
-                style={{
-                  color: "#009dff",
-                  fontSize: "18px"
-                }}
-              />
-            </h6>
+                <h6
+                  className="p-1 mt-2 d-flex justify-content-between align-items-center"
+                  style={{
+                    backgroundColor: cardColor,
+                    color: "black",
+                    borderRadius: "4px",
+                    width: "200px",
+                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                  title={titleTooltip || title}
+                >
+                  <span style={{ display: 'block', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+                  <FontAwesomeIcon
+                    icon={faCircleRight}
+                    style={{
+                      color: "#009dff",
+                      fontSize: "18px"
+                    }}
+                  />
+                </h6>
             <div className="text-dark small w-100">
               <div className="d-flex align-items-center gap-2">
                 <FaClock className="mb-1" />
