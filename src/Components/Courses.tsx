@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Card, ProgressBar, Button } from "react-bootstrap";
 import { FaClock } from "react-icons/fa";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleRight, faExchangeAlt } from "@fortawesome/free-solid-svg-icons";
+import { faCircleRight, faExchangeAlt, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import CryptoJS from "crypto-js";
@@ -409,6 +409,12 @@ const Courses: React.FC = () => {
                     {item.time_left && item.can_change === true ? (
                       <span className="text-danger fw-semibold">
                         {item.time_left}
+                        <FontAwesomeIcon
+                        className="ms-1 text-black"
+                      icon={faInfoCircle}
+                      style={{ cursor: 'pointer' }}
+                      title="Select Project"
+                    />
                       </span>
                     ) : (
                       <span></span>
