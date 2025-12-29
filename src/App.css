@@ -76,3 +76,8 @@
 .coding-button-unsolved:hover {
   background-color: #D0D0D0 !important;
 }
+
+/* Notes Content Font Family */
+.notes-font-family {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
