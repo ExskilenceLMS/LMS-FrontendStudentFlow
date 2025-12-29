@@ -57,3 +57,22 @@
   height: 0px !important;
   width: 0px !important;
 }
+
+/* Coding Content Button Styles */
+.coding-button-solved {
+  background-color: #12B500 !important;
+  transition: background-color 0.2s ease;
+}
+
+.coding-button-solved:hover {
+  background-color: #10A000 !important;
+}
+
+.coding-button-unsolved {
+  background-color: #E0E0E0 !important;
+  transition: background-color 0.2s ease;
+}
+
+.coding-button-unsolved:hover {
+  background-color: #D0D0D0 !important;
+}

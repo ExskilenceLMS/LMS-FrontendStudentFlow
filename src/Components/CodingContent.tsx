@@ -139,22 +139,12 @@ const CodingContent: React.FC<CodingContentProps> = ({
 
             {/* ACTION BUTTON */}
             <button
-              className="btn fw-semibold position-relative d-flex align-items-center justify-content-center border-0 text-white shadow-sm"
+              className={`btn fw-semibold position-relative d-flex align-items-center justify-content-center border-0 text-white shadow-sm ${
+                isSolved ? "coding-button-solved" : "coding-button-unsolved"
+              }`}
               style={{
                 minWidth: "90px",
-                backgroundColor: isSolved ? "#12B500" : "#E0E0E0",
                 borderRadius: "0 0.5rem 0.5rem 0",
-                transition: "background-color 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = isSolved
-                  ? "#10A000"
-                  : "#D0D0D0";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = isSolved
-                  ? "#12B500"
-                  : "#E0E0E0";
               }}
               onClick={() => {
                 sessionStorage.setItem(
