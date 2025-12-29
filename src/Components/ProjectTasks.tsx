@@ -480,6 +480,23 @@ const ProjectTasks: React.FC = () => {
   const hasNextSubTask = (): boolean => {
     if (!task || currentSubTaskIndex === null) return false;
     return currentSubTaskIndex < task.data.length - 1;
+  };
+
+  // Check if current subtask is MCQ and has multiple questions
+  const isMCQSubtask = (): boolean => {
+    if (!task || currentSubTaskIndex === null) return false;
+    const currentSubTask = task.data[currentSubTaskIndex];
+    return currentSubTask?.type === "mcq" && mcqQuestions.length > 0;
+  };
+
+  // Check if there's a previous MCQ question in current subtask
+  const hasPreviousMCQ = (): boolean => {
+    return isMCQSubtask() && currentMCQIndex > 0;
+  };
+
+  // Check if there's a next MCQ question in current subtask
+  const hasNextMCQ = (): boolean => {
+    return isMCQSubtask() && currentMCQIndex < mcqQuestions.length - 1;
   };  
 
   const handleSubTaskClick = async (index: number) => {
@@ -589,6 +606,38 @@ const ProjectTasks: React.FC = () => {
       // Navigate back to roadmap
       navigate("/project-roadmap");
     }
+  };
+
+  // Combined handler for Previous button (MCQ navigation or subtask navigation)
+  const handlePrevious = async () => {
+    // If MCQ subtask and has previous MCQ question, navigate to previous MCQ
+    if (hasPreviousMCQ()) {
+      setCurrentMCQIndex(currentMCQIndex - 1);
+      return;
+    }
+    // Otherwise, navigate to previous subtask
+    await handlePreviousSubTask();
+  };
+
+  // Combined handler for Next button (MCQ navigation or subtask navigation)
+  const handleNext = async () => {
+    // If MCQ subtask and has next MCQ question, navigate to next MCQ
+    if (hasNextMCQ()) {
+      setCurrentMCQIndex(currentMCQIndex + 1);
+      return;
+    }
+    // Otherwise, navigate to next subtask
+    await handleNextSubTask();
+  };
+
+  // Check if Previous button should be disabled
+  const isPreviousDisabled = (): boolean => {
+    // If MCQ, check if there's previous MCQ or previous subtask
+    if (isMCQSubtask()) {
+      return !hasPreviousMCQ() && !hasPreviousSubTask();
+    }
+    // Otherwise, check only previous subtask
+    return !hasPreviousSubTask();
   };
 
   const renderContent = () => {
@@ -746,18 +795,18 @@ const ProjectTasks: React.FC = () => {
           <div className="d-flex justify-content-between p-3 border-top">
             <button
               className="btn btn-primary"
-              onClick={handlePreviousSubTask}
-              disabled={!hasPreviousSubTask()}
+              onClick={handlePrevious}
+              disabled={isPreviousDisabled()}
               style={{
-                cursor: !hasPreviousSubTask() ? "not-allowed" : "pointer",
-                opacity: !hasPreviousSubTask() ? 0.6 : 1,
+                cursor: isPreviousDisabled() ? "not-allowed" : "pointer",
+                opacity: isPreviousDisabled() ? 0.6 : 1,
               }}
             >
               Previous
             </button>
             <button
               className="btn btn-primary"
-              onClick={handleNextSubTask}
+              onClick={handleNext}
               style={{
                 cursor: "pointer",
               }}
