@@ -2,7 +2,7 @@ import React from "react";
 import { Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import CryptoJS from "crypto-js";
-import { secretKey, LEVEL_TO_DIFFICULTY, DIFFICULTY_COLORS } from "../constants";
+import { secretKey, LEVEL_TO_DIFFICULTY, DIFFICULTY_COLORS, getQuestionTitleMaxLength } from "../constants";
 import { CodingQuestion } from "../utils/projectStorageUtils";
 
 interface CodingContentProps {
@@ -104,14 +104,7 @@ const CodingContent: React.FC<CodingContentProps> = ({
                   title={questionTitle}
                 >
                   {(() => {
-                    const maxLength =
-                      window.innerWidth < 600
-                        ? 22
-                        : window.innerWidth < 1024
-                        ? 55
-                        : window.innerWidth < 1400
-                        ? 75
-                        : 110;
+                    const maxLength = getQuestionTitleMaxLength();
 
                     return questionTitle.length > maxLength
                       ? `${questionTitle.substring(0, maxLength)}...`
