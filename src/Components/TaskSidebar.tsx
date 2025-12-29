@@ -26,6 +26,7 @@ interface TaskSidebarProps {
   taskNumber?: number;
   currentSubTaskIndex: number;
   onSubTaskClick: (index: number) => void;
+  highestAllowedSubtaskIndex?: number;
 }
 
 const TaskSidebar: React.FC<TaskSidebarProps> = ({
@@ -33,6 +34,7 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
   taskNumber,
   currentSubTaskIndex,
   onSubTaskClick,
+  highestAllowedSubtaskIndex = 0,
 }) => {
   const getSubTaskLabel = (subTask: TaskData, index: number): string => {
     // Use subtask_name if available, otherwise fallback to default labels
@@ -115,15 +117,17 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
           {task.data.map((subTask, index) => {
             const isSelected = currentSubTaskIndex === index;
             const isLast = index === task.data.length - 1;
+            // Disable subtasks beyond the highest allowed index (restriction managed by useSubtaskRestrictions hook)
+            const isDisabled = index > highestAllowedSubtaskIndex;
             return (
               <div
                 key={index}
-                onClick={() => onSubTaskClick(index)}
+                onClick={() => !isDisabled && onSubTaskClick(index)}
                 className="px-3"
                 style={{
-                  cursor: "pointer",
+                  cursor: isDisabled ? "not-allowed" : "pointer",
                   backgroundColor: "#fff",
-                  color: isSelected ? "#350190FF" : "#000",
+                  color: isDisabled ? "#999" : (isSelected ? "#350190FF" : "#000"),
                   position: "relative",
                   borderLeft: isSelected ? "3px solid #350190FF" : "3px solid transparent",
                   marginLeft: "8px",
@@ -132,7 +136,8 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
                   marginBottom: isLast ? "0" : "4px",
                   borderRadius: "8px",
                   paddingTop: "10px",
-                  paddingBottom: "10px"
+                  paddingBottom: "10px",
+                  opacity: isDisabled ? 0.5 : 1
                 }}
                 role="button"
               >

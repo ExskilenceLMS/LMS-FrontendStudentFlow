@@ -127,7 +127,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                   >
                     <div className="d-flex align-items-center justify-content-between" style={{ width: "100%" }}>
                       <span
-                        className="fw-bold"
+                        className={`${isPhaseSelected ? "fw-bold" : ""}`}
                         style={{
                           fontSize: "14px",
                           color: "#000",

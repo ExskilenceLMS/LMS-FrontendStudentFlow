@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Spinner } from "react-bootstrap";
+import { Spinner, Button } from "react-bootstrap";
 import { getApiClient } from "./utils/apiAuth";
 import CryptoJS from "crypto-js";
 import { secretKey } from "./constants";
@@ -56,12 +56,22 @@ interface ProjectSidebarResponse {
   content: Phase[];
 }
 
+interface RoadmapStatus {
+  current_phase_id: string;
+  current_part_id: string;
+  current_task_id: string;
+  current_subtask_id: string;
+  status: "start" | "resume" | "completed";
+}
+
 const ProjectRoadmapContent: React.FC = () => {
   const navigate = useNavigate();
   const { setProjectData, selectedPart, setSelectedPart } = useProjectContext();
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [projectData, setLocalProjectData] = useState<ProjectSidebarResponse | null>(null);
+  const [roadmapStatus, setRoadmapStatus] = useState<RoadmapStatus | null>(null);
+  const [taskLoading, setTaskLoading] = useState<string | null>(null);
 
   const encryptedStudentId = sessionStorage.getItem("StudentId") || "";
   const decryptedStudentId = CryptoJS.AES.decrypt(
@@ -76,6 +86,55 @@ const ProjectRoadmapContent: React.FC = () => {
     secretKey
   ).toString(CryptoJS.enc.Utf8);
   const batchId = decryptedBatchId;
+
+  const fetchRoadmapStatus = async (projectId: string, projectContent?: Phase[]): Promise<RoadmapStatus | null> => {
+    try {
+      const url = `${process.env.REACT_APP_BACKEND_URL}api/student/project/roadmap/status/${studentId}/${projectId}`;
+      const response = await getApiClient().get(url);
+      if (response.data) {
+        let status = response.data;
+        
+        // If all IDs are empty and status is "start", default to first phase/part/task
+        if (
+          status.status === "start" &&
+          (!status.current_phase_id || status.current_phase_id === "") &&
+          (!status.current_part_id || status.current_part_id === "") &&
+          (!status.current_task_id || status.current_task_id === "") &&
+          projectContent &&
+          projectContent.length > 0
+        ) {
+          const firstPhase = projectContent[0];
+          if (firstPhase.parts && firstPhase.parts.length > 0) {
+            const firstPart = firstPhase.parts[0];
+            if (firstPart.tasks && firstPart.tasks.length > 0) {
+              const firstTask = firstPart.tasks[0];
+              status = {
+                ...status,
+                current_phase_id: firstPhase.phase_id,
+                current_part_id: firstPart.part_id,
+                current_task_id: firstTask.task_id,
+                current_subtask_id: firstTask.data && firstTask.data.length > 0 ? firstTask.data[0].subtask_id : "",
+              };
+            }
+          }
+        }
+        
+        setRoadmapStatus(status);
+        
+        // Store current_subtask_id in sessionStorage if present
+        if (status.current_subtask_id && status.current_subtask_id !== "") {
+          sessionStorage.setItem("currentRoadmapSubtaskId", status.current_subtask_id);
+        }
+        
+        return status;
+      }
+      return null;
+    } catch (err) {
+      console.error("Error fetching roadmap status:", err);
+      // Don't set error, just continue without status
+      return null;
+    }
+  };
 
   useEffect(() => {
     const fetchProjectData = async () => {
@@ -107,15 +166,78 @@ const ProjectRoadmapContent: React.FC = () => {
           content: response.data.content,
         });
 
-        // Auto-select first part
+        // Fetch roadmap status (pass content to handle empty IDs case)
+        const status = await fetchRoadmapStatus(project_id, response.data.content);
+
+        // Auto-select part based on roadmap status, or default to first part
         if (response.data.content && response.data.content.length > 0) {
-          const firstPhase = response.data.content[0];
-          if (firstPhase.parts && firstPhase.parts.length > 0) {
-            const firstPart = firstPhase.parts[0];
+          let phaseToSelect = response.data.content[0];
+          let partToSelect = phaseToSelect.parts?.[0];
+          
+          // Check if current task is completed and find next task
+          const isCompleted = status?.status === "completed" && 
+                             status?.current_subtask_id === "completed";
+          
+          if (isCompleted && status) {
+            // Find next task
+            const currentPhaseIndex = response.data.content.findIndex(
+              (p: Phase) => p.phase_id === status.current_phase_id
+            );
+            if (currentPhaseIndex !== -1) {
+              const currentPhase = response.data.content[currentPhaseIndex];
+              const currentPartIndex = currentPhase.parts.findIndex(
+                (p: Part) => p.part_id === status.current_part_id
+              );
+              if (currentPartIndex !== -1) {
+                const currentPart = currentPhase.parts[currentPartIndex];
+                const currentTaskIndex = currentPart.tasks.findIndex(
+                  (t: Task) => t.task_id === status.current_task_id
+                );
+
+                // Check next task in same part
+                if (currentTaskIndex !== -1 && currentTaskIndex < currentPart.tasks.length - 1) {
+                  phaseToSelect = currentPhase;
+                  partToSelect = currentPart;
+                }
+                // Check next part in same phase
+                else if (currentPartIndex < currentPhase.parts.length - 1) {
+                  const nextPart = currentPhase.parts[currentPartIndex + 1];
+                  if (nextPart.tasks.length > 0) {
+                    phaseToSelect = currentPhase;
+                    partToSelect = nextPart;
+                  }
+                }
+                // Check next phase's first part
+                else if (currentPhaseIndex < response.data.content.length - 1) {
+                  const nextPhase = response.data.content[currentPhaseIndex + 1];
+                  if (nextPhase.parts.length > 0) {
+                    phaseToSelect = nextPhase;
+                    partToSelect = nextPhase.parts[0];
+                  }
+                }
+              }
+            }
+          } else if (status?.current_phase_id && status?.current_part_id) {
+            // If not completed, use current phase/part from status
+            const statusPhase = response.data.content.find(
+              (p: Phase) => p.phase_id === status.current_phase_id
+            );
+            if (statusPhase) {
+              phaseToSelect = statusPhase;
+              const statusPart = statusPhase.parts?.find(
+                (p: Part) => p.part_id === status.current_part_id
+              );
+              if (statusPart) {
+                partToSelect = statusPart;
+              }
+            }
+          }
+          
+          if (partToSelect) {
             setSelectedPart({
-              phaseName: firstPhase.phase_name,
-              partName: firstPart.part_name,
-              tasks: firstPart.tasks,
+              phaseName: phaseToSelect.phase_name,
+              partName: partToSelect.part_name,
+              tasks: partToSelect.tasks,
             });
           }
         }
@@ -129,6 +251,67 @@ const ProjectRoadmapContent: React.FC = () => {
 
     fetchProjectData();
   }, []);
+
+  const findNextTask = (): { phase: Phase; part: Part; task: Task; taskIndex: number } | null => {
+    if (!projectData || !roadmapStatus) return null;
+
+    const currentPhaseIndex = projectData.content.findIndex(
+      (p) => p.phase_id === roadmapStatus.current_phase_id
+    );
+    if (currentPhaseIndex === -1) return null;
+
+    const currentPhase = projectData.content[currentPhaseIndex];
+    const currentPartIndex = currentPhase.parts.findIndex(
+      (p) => p.part_id === roadmapStatus.current_part_id
+    );
+    if (currentPartIndex === -1) return null;
+
+    const currentPart = currentPhase.parts[currentPartIndex];
+    const currentTaskIndex = currentPart.tasks.findIndex(
+      (t) => t.task_id === roadmapStatus.current_task_id
+    );
+
+    // Check next task in same part
+    if (currentTaskIndex !== -1 && currentTaskIndex < currentPart.tasks.length - 1) {
+      return {
+        phase: currentPhase,
+        part: currentPart,
+        task: currentPart.tasks[currentTaskIndex + 1],
+        taskIndex: currentTaskIndex + 1,
+      };
+    }
+
+    // Check next part in same phase
+    if (currentPartIndex < currentPhase.parts.length - 1) {
+      const nextPart = currentPhase.parts[currentPartIndex + 1];
+      if (nextPart.tasks.length > 0) {
+        return {
+          phase: currentPhase,
+          part: nextPart,
+          task: nextPart.tasks[0],
+          taskIndex: 0,
+        };
+      }
+    }
+
+    // Check next phase's first part's first task
+    if (currentPhaseIndex < projectData.content.length - 1) {
+      const nextPhase = projectData.content[currentPhaseIndex + 1];
+      if (nextPhase.parts.length > 0) {
+        const firstPart = nextPhase.parts[0];
+        if (firstPart.tasks.length > 0) {
+          return {
+            phase: nextPhase,
+            part: firstPart,
+            task: firstPart.tasks[0],
+            taskIndex: 0,
+          };
+        }
+      }
+    }
+
+    return null;
+  };
 
   const handleTaskClick = async (task: Task, taskIndex: number) => {
     try {
@@ -159,23 +342,95 @@ const ProjectRoadmapContent: React.FC = () => {
         setError("Missing required project information. Please try again.");
         return;
       }
+
+      // Check if this task matches the current task from roadmap status
+      const isCurrentTask = roadmapStatus?.current_task_id === taskId;
+      const taskStatus = roadmapStatus?.status;
+
+      // Check if current task is completed and find next task
+      const isCurrentTaskCompleted = roadmapStatus?.status === "completed" && 
+                                    roadmapStatus?.current_subtask_id === "completed";
+      const nextTask = isCurrentTaskCompleted ? findNextTask() : null;
+      const isNextTask = nextTask && 
+                         nextTask.phase.phase_id === phaseId &&
+                         nextTask.part.part_id === partId &&
+                         nextTask.task.task_id === taskId;
+
+      // Trigger learning modules API if:
+      // 1. Current task with "start" status, OR
+      // 2. Next task after completion (new task to start)
+      const shouldTriggerAPI = (taskStatus === "start" && isCurrentTask) || isNextTask;
       
-      // Call the learning modules API to check if user has started this task
-      const learningModulesUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/project/learningmodules/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/`;
       let currentSubTaskId: string | null = null;
-      
-      try {
-        const response = await getApiClient().get(learningModulesUrl);
-        if (response.data?.current_sub_task_id) {
-          currentSubTaskId = response.data.current_sub_task_id;
+      if (shouldTriggerAPI) {
+        setTaskLoading(taskId);
+        try {
+          const learningModulesUrl = `${process.env.REACT_APP_BACKEND_URL}api/student/project/learningmodules/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/`;
+          const response = await getApiClient().get(learningModulesUrl);
+          
+          // Check HTTP status code - navigate if status is 200 (success), even if current_sub_task is empty
+          if (response.status >= 200 && response.status < 300) {
+            // Check if current_sub_task or current_sub_task_id is empty
+            const apiSubTaskId = response.data?.current_sub_task_id || response.data?.current_sub_task || "";
+            if (apiSubTaskId && apiSubTaskId !== "") {
+              currentSubTaskId = apiSubTaskId;
+            } else {
+              // If current_sub_task is empty, use first subtask to navigate to next page
+              if (task.data && task.data.length > 0) {
+                currentSubTaskId = task.data[0].subtask_id;
+              }
+            }
+            setTaskLoading(null);
+            
+            // Store current subtask ID from roadmap status if available
+            if (currentSubTaskId) {
+              sessionStorage.setItem("currentRoadmapSubtaskId", currentSubTaskId);
+            }
+            
+            // Store all IDs in session storage using utility function
+            setProjectIds({
+              projectId,
+              phaseId,
+              partId,
+              taskId,
+              subtaskId: currentSubTaskId || task?.data?.[0]?.subtask_id || "",
+              currentSubTaskId: currentSubTaskId || undefined,
+            });
+            
+            // Store task data in sessionStorage for TaskView
+            sessionStorage.setItem("currentTask", JSON.stringify({
+              task,
+              taskIndex,
+              taskName: task.task_name,
+              phaseName: selectedPart?.phaseName,
+              partName: selectedPart?.partName,
+              projectName: projectData?.project_name,
+              phaseId,
+              partId,
+              taskId,
+              currentSubTaskId: currentSubTaskId || undefined,
+            }));
+            
+            // Navigate immediately after API success
+            navigate(`/project-tasks`, { replace: true });
+            return; // Exit early after navigation
+          } else {
+            setTaskLoading(null);
+            return; // Don't navigate if status is not success
+          }
+        } catch (err) {
+          setTaskLoading(null);
+          return; // Don't navigate if API fails
         }
-      } catch (err) {
-        console.error("Error fetching learning modules:", err);
-        // Continue even if API fails
+      } else if (isCurrentTask && roadmapStatus?.current_subtask_id) {
+        // For current task with resume/completed status, use subtask from roadmap status
+        currentSubTaskId = roadmapStatus.current_subtask_id;
       }
-      
-      // Always use the first subtask ID when clicking on a task (changing task)
-      const firstSubtaskId = task?.data?.[0]?.subtask_id || "";
+
+      // Use subtask_id from roadmap status if this is the current task, otherwise use first subtask
+      const subtaskId = (isCurrentTask && roadmapStatus?.current_subtask_id) 
+        ? roadmapStatus.current_subtask_id 
+        : (task?.data?.[0]?.subtask_id || "");
       
       // Store all IDs in session storage using utility function
       setProjectIds({
@@ -183,9 +438,15 @@ const ProjectRoadmapContent: React.FC = () => {
         phaseId,
         partId,
         taskId,
-        subtaskId: firstSubtaskId, // Always use first subtask when changing tasks
-        currentSubTaskId: currentSubTaskId || undefined, // Keep for progress tracking
+        subtaskId: currentSubTaskId || subtaskId,
+        currentSubTaskId: currentSubTaskId || roadmapStatus?.current_subtask_id || undefined,
       });
+      
+      // Store current subtask ID from roadmap status if available
+      const finalSubTaskId = currentSubTaskId || roadmapStatus?.current_subtask_id || undefined;
+      if (finalSubTaskId) {
+        sessionStorage.setItem("currentRoadmapSubtaskId", finalSubTaskId);
+      }
       
       // Store task data in sessionStorage for TaskView
       sessionStorage.setItem("currentTask", JSON.stringify({
@@ -198,13 +459,14 @@ const ProjectRoadmapContent: React.FC = () => {
         phaseId,
         partId,
         taskId,
-        currentSubTaskId, // Store the current subtask ID if available
+        currentSubTaskId: finalSubTaskId,
       }));
       
       // Navigate to project tasks page (no parameters, data stored in sessionStorage)
       navigate(`/project-tasks`, { replace: true });
     } catch (error) {
       console.error("Error handling task click:", error);
+      setTaskLoading(null);
       // Still navigate even if there's an error
       sessionStorage.setItem("currentTask", JSON.stringify({
         task,
@@ -238,6 +500,11 @@ const ProjectRoadmapContent: React.FC = () => {
     );
     if (!part) return null;
 
+    // Check if current task is completed and find next task
+    const isCurrentTaskCompleted = roadmapStatus?.status === "completed" && 
+                                   roadmapStatus?.current_subtask_id === "completed";
+    const nextTask = isCurrentTaskCompleted ? findNextTask() : null;
+
     return (
       <div
         className=" d-flex flex-column"
@@ -253,37 +520,148 @@ const ProjectRoadmapContent: React.FC = () => {
           </h6>
         </div>
         <div className="flex-grow-1 p-3" style={{ overflow: "auto" }}>
-          {part.tasks.map((task, taskIndex) => (
-            <div
-              key={taskIndex}
-              className="border border-muted rounded-2 p-3 mb-3"
-              style={{
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "#F5F5F5";
-                e.currentTarget.style.boxShadow = "0px 2px 8px rgba(0,0,0,0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.boxShadow = "none";
-              }}
-              onClick={() => handleTaskClick(task, taskIndex)}
-            >
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 className="mb-1 fw-semibold">Task {taskIndex + 1}: {task.task_name}</h6>
-                  <div className="text-muted small">
-                    {task.data.length} item{task.data.length !== 1 ? "s" : ""}
+          {part.tasks.map((task, taskIndex) => {
+            // Determine task status
+            const isCurrentTask = roadmapStatus?.current_task_id === task.task_id;
+            const isCurrentPhase = roadmapStatus?.current_phase_id === phase.phase_id;
+            const isCurrentPart = roadmapStatus?.current_part_id === part.part_id;
+            
+            // Check if this task is before the current task (including previous parts and phases)
+            let isPreviousTask = false;
+            if (roadmapStatus && projectData) {
+              // Find current phase, part, and task indices
+              const currentPhaseIndex = projectData.content.findIndex(
+                (p: Phase) => p.phase_id === roadmapStatus.current_phase_id
+              );
+              const currentPhase = currentPhaseIndex !== -1 ? projectData.content[currentPhaseIndex] : null;
+              const currentPartIndex = currentPhase 
+                ? currentPhase.parts.findIndex((p: Part) => p.part_id === roadmapStatus.current_part_id)
+                : -1;
+              const currentPart = currentPartIndex !== -1 && currentPhase 
+                ? currentPhase.parts[currentPartIndex] 
+                : null;
+              const currentTaskIndex = currentPart
+                ? currentPart.tasks.findIndex((t: Task) => t.task_id === roadmapStatus.current_task_id)
+                : -1;
+
+              // Find this task's phase, part, and task indices
+              const thisPhaseIndex = projectData.content.findIndex(
+                (p: Phase) => p.phase_id === phase.phase_id
+              );
+              const thisPhase = thisPhaseIndex !== -1 ? projectData.content[thisPhaseIndex] : null;
+              const thisPartIndex = thisPhase
+                ? thisPhase.parts.findIndex((p: Part) => p.part_id === part.part_id)
+                : -1;
+              const thisTaskIndex = taskIndex;
+
+              // Check if this task is before the current task
+              // Only proceed if we found valid indices for both current and this task
+              if (currentPhaseIndex !== -1 && currentPartIndex !== -1 && currentTaskIndex !== -1 &&
+                  thisPhaseIndex !== -1 && thisPartIndex !== -1) {
+                // Previous phase - all tasks in previous phases are previous
+                if (thisPhaseIndex < currentPhaseIndex) {
+                  isPreviousTask = true;
+                }
+                // Same phase, previous part - all tasks in previous parts are previous
+                else if (thisPhaseIndex === currentPhaseIndex && thisPartIndex < currentPartIndex) {
+                  isPreviousTask = true;
+                }
+                // Same phase, same part, previous task
+                else if (thisPhaseIndex === currentPhaseIndex && thisPartIndex === currentPartIndex) {
+                  if (thisTaskIndex < currentTaskIndex) {
+                    isPreviousTask = true;
+                  }
+                }
+              }
+            }
+            
+            // Check if this is the next task to show "Start" button
+            const isNextTask = nextTask && 
+                               nextTask.phase.phase_id === phase.phase_id &&
+                               nextTask.part.part_id === part.part_id &&
+                               nextTask.task.task_id === task.task_id;
+            
+            // Determine button text and visibility
+            let buttonText = "";
+            let showButton = false;
+            let isClickable = false;
+            
+            // Check if current task is completed
+            const isCurrentTaskCompleted = roadmapStatus?.status === "completed" && 
+                                          roadmapStatus?.current_subtask_id === "completed";
+            
+            if (isNextTask) {
+              // Next task after completed - show start
+              buttonText = "start";
+              showButton = true;
+              isClickable = true;
+            } else if (isCurrentTask && isCurrentPhase && isCurrentPart && !isCurrentTaskCompleted) {
+              // Current task - show start or resume (only if not completed)
+              buttonText = roadmapStatus?.status === "start" ? "start" : roadmapStatus?.status === "resume" ? "resume" : "";
+              showButton = roadmapStatus?.status === "start" || roadmapStatus?.status === "resume";
+              isClickable = true;
+            } else if (isPreviousTask || (isCurrentTask && isCurrentPhase && isCurrentPart && isCurrentTaskCompleted)) {
+              // Previous task OR current task if completed - show completed (clickable to view)
+              buttonText = "completed";
+              showButton = true;
+              isClickable = true;
+            }
+            // Other tasks - no button (showButton remains false)
+
+            const isLoading = taskLoading === task.task_id;
+
+            return (
+              <div
+                key={taskIndex}
+                className="border border-muted rounded-2 p-3 mb-3"
+                style={{
+                  cursor: isClickable ? "pointer" : "default",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  if (isClickable) {
+                    e.currentTarget.style.backgroundColor = "#F5F5F5";
+                    e.currentTarget.style.boxShadow = "0px 2px 8px rgba(0,0,0,0.1)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+                onClick={() => isClickable && handleTaskClick(task, taskIndex)}
+              >
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 className="mb-1 fw-semibold">Task {taskIndex + 1}: {task.task_name}</h6>
+                    <div className="text-muted small">
+                      {task.data.length} item{task.data.length !== 1 ? "s" : ""}
+                    </div>
                   </div>
-                </div>
-                <div className="text-primary">
-                  <span style={{ fontSize: "20px" }}>→</span>
+                  {showButton && (
+                    <Button
+                      variant={buttonText === "completed" ? "success" : "primary"}
+                      size="sm"
+                      disabled={isLoading || !isClickable}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isClickable) {
+                          handleTaskClick(task, taskIndex);
+                        }
+                      }}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Spinner animation="border" size="sm" className="me-2" />
+                        </>
+                      ) : (
+                        buttonText.charAt(0).toUpperCase() + buttonText.slice(1)
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
