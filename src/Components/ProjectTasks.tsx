@@ -113,30 +113,15 @@ const ProjectTasks: React.FC = () => {
     }
   };
 
-  // Get taskId from sessionStorage for task-specific restrictions
-  // Memoize to avoid parsing JSON on every render
-  const currentTaskId = useMemo((): string | undefined => {
-    try {
-      const currentTaskStr = sessionStorage.getItem("currentTask");
-      if (currentTaskStr) {
-        const taskData = JSON.parse(currentTaskStr);
-        return taskData.taskId;
-      }
-    } catch (e) {
-      // ignore
-    }
-    return undefined;
-  }, []); // Only parse once on mount
-
-  // Use subtask restrictions hook
+  // Use subtask restrictions hook (no taskId needed - using single storage key)
   const {
     highestAllowedIndex: highestAllowedSubtaskIndex,
+    setHighestAllowedIndex,
     clearRestrictions,
     completeSubtask,
     initializeHighestAllowed,
     isSubtaskAccessible,
   } = useSubtaskRestrictions({
-    taskId: currentTaskId,
     onAccessDenied: (message) => {
       setStatusModalMessage(message);
       setShowStatusModal(true);
@@ -196,9 +181,6 @@ const ProjectTasks: React.FC = () => {
         setTask(taskData.task);
         setTaskNumber(taskData.taskIndex !== undefined ? taskData.taskIndex + 1 : 0);
 
-        // Clear previous task's restrictions when task changes
-        clearRestrictions();
-
         if (!taskData.task.data || taskData.task.data.length === 0) {
           if (isMountedRef.current) {
             setError("No subtasks available");
@@ -206,6 +188,25 @@ const ProjectTasks: React.FC = () => {
           }
           return;
         }
+
+        // Use single storage key for all tasks (not task-specific)
+        const STORAGE_KEY = "highestAllowedSubtask";
+        const maxSubtaskIndex = taskData.task.data.length - 1;
+        
+        // IMPORTANT: Check if task is completed BEFORE clearing (to preserve completion status)
+        // Check if stored value >= max index for THIS task
+        // This value might have been set by ProjectRoadmap if the task was completed
+        const storedHighestIndexBeforeClear = sessionStorage.getItem(STORAGE_KEY);
+        const storedIndexValue = storedHighestIndexBeforeClear ? parseInt(storedHighestIndexBeforeClear, 10) : -1;
+        
+        // Task is completed if stored value >= max index for THIS task
+        // This ensures we only consider it completed if the stored value matches this task's max
+        const isCompletedTask = storedIndexValue >= maxSubtaskIndex && storedIndexValue >= 0;
+        
+        // IMPORTANT: Clear restrictions when task changes (ensures value decreases when switching tasks)
+        // This ensures that when switching from a task with higher index to a task with lower index,
+        // the value will be reset properly
+        clearRestrictions();
 
         // Default to first subtask
         let initialSubTaskIndex = 0;
@@ -237,8 +238,18 @@ const ProjectTasks: React.FC = () => {
 
         if (!isMountedRef.current) return; // Check before state updates
 
-        // Initialize highest allowed index (ensures at least current subtask is allowed)
-        initializeHighestAllowed(initialSubTaskIndex);
+        // For completed tasks, set max index directly (e.g., if 5 subtasks, set to 4)
+        // For non-completed tasks, start from 0 (restrictions cleared above)
+        if (isCompletedTask) {
+          // Set max index directly (e.g., if 5 subtasks, set to 4)
+          sessionStorage.setItem(STORAGE_KEY, maxSubtaskIndex.toString());
+          setHighestAllowedIndex(maxSubtaskIndex);
+        } else {
+          // For non-completed tasks, start from 0 (already cleared above)
+          // The value will be updated as subtasks are completed via completeSubtask
+          setHighestAllowedIndex(0);
+          sessionStorage.setItem(STORAGE_KEY, "0");
+        }
 
         // Load initial subtask (fetch content first, then check status)
         const initialSubTask = taskData.task.data[initialSubTaskIndex];

@@ -7,7 +7,6 @@ interface LessonStatusResponse {
 }
 
 interface UseSubtaskRestrictionsOptions {
-  taskId?: string;
   onAccessDenied?: (message: string) => void;
   updateLessonStatus: (subtaskId: string, status: boolean) => Promise<LessonStatusResponse | null>;
 }
@@ -15,19 +14,17 @@ interface UseSubtaskRestrictionsOptions {
 /**
  * Custom hook to manage subtask access restrictions
  * Centralizes all logic for determining which subtasks are accessible
+ * Uses a single storage key "highestAllowedSubtask" for all tasks
  */
 export const useSubtaskRestrictions = ({
-  taskId,
   onAccessDenied,
   updateLessonStatus,
 }: UseSubtaskRestrictionsOptions) => {
+  // Use single storage key for all tasks (not task-specific)
   const STORAGE_KEY = "highestAllowedSubtask";
   
-  // Memoize storage key based on taskId (optimized: single source of truth)
-  const storageKey = useMemo(
-    () => taskId ? `highestAllowedSubtask_${taskId}` : STORAGE_KEY,
-    [taskId]
-  );
+  // Always use the same storage key (not task-specific)
+  const storageKey = useMemo(() => STORAGE_KEY, []);
 
   // Get highest allowed subtask index from sessionStorage
   const getHighestAllowedIndex = useCallback((): number => {

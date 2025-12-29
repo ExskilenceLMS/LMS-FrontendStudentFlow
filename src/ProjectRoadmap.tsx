@@ -356,6 +356,60 @@ const ProjectRoadmapContent: React.FC = () => {
                          nextTask.part.part_id === partId &&
                          nextTask.task.task_id === taskId;
 
+      // Check if this is a completed task (previous task or current task with completed status)
+      // Determine if this task is a previous task
+      let isPreviousTask = false;
+      if (roadmapStatus && projectData) {
+        const currentPhaseIndex = projectData.content.findIndex(
+          (p: Phase) => p.phase_id === roadmapStatus.current_phase_id
+        );
+        const currentPhase = currentPhaseIndex !== -1 ? projectData.content[currentPhaseIndex] : null;
+        const currentPartIndex = currentPhase 
+          ? currentPhase.parts.findIndex((p: Part) => p.part_id === roadmapStatus.current_part_id)
+          : -1;
+        const currentPart = currentPartIndex !== -1 && currentPhase 
+          ? currentPhase.parts[currentPartIndex] 
+          : null;
+        const currentTaskIndex = currentPart
+          ? currentPart.tasks.findIndex((t: Task) => t.task_id === roadmapStatus.current_task_id)
+          : -1;
+
+        const thisPhaseIndex = projectData.content.findIndex(
+          (p: Phase) => p.phase_id === phaseId
+        );
+        const thisPhase = thisPhaseIndex !== -1 ? projectData.content[thisPhaseIndex] : null;
+        const thisPartIndex = thisPhase
+          ? thisPhase.parts.findIndex((p: Part) => p.part_id === partId)
+          : -1;
+        const thisTaskIndex = taskIndex;
+
+        if (currentPhaseIndex !== -1 && currentPartIndex !== -1 && currentTaskIndex !== -1 &&
+            thisPhaseIndex !== -1 && thisPartIndex !== -1) {
+          if (thisPhaseIndex < currentPhaseIndex) {
+            isPreviousTask = true;
+          } else if (thisPhaseIndex === currentPhaseIndex && thisPartIndex < currentPartIndex) {
+            isPreviousTask = true;
+          } else if (thisPhaseIndex === currentPhaseIndex && thisPartIndex === currentPartIndex) {
+            if (thisTaskIndex < currentTaskIndex) {
+              isPreviousTask = true;
+            }
+          }
+        }
+      }
+      
+      const isCompletedTask = isPreviousTask || (isCurrentTask && isCurrentTaskCompleted);
+      
+      // Clear restrictions first when task changes (will be set appropriately in ProjectTasks.tsx)
+      // This ensures the value decreases when switching to a new task
+      sessionStorage.removeItem("highestAllowedSubtask");
+      
+      // If this is a completed task, set highest allowed subtask index to max directly (e.g., if 5 subtasks, set to 4)
+      // This will be set in ProjectTasks.tsx, but we can set it here too for immediate effect
+      if (isCompletedTask && task.data && task.data.length > 0) {
+        const maxSubtaskIndex = task.data.length - 1;
+        sessionStorage.setItem("highestAllowedSubtask", maxSubtaskIndex.toString());
+      }
+
       // Trigger learning modules API if:
       // 1. Current task with "start" status, OR
       // 2. Next task after completion (new task to start)
@@ -422,15 +476,22 @@ const ProjectRoadmapContent: React.FC = () => {
           setTaskLoading(null);
           return; // Don't navigate if API fails
         }
-      } else if (isCurrentTask && roadmapStatus?.current_subtask_id) {
-        // For current task with resume/completed status, use subtask from roadmap status
+      } else if (isCurrentTask && roadmapStatus?.current_subtask_id && !isCompletedTask) {
+        // For current task with resume status (not completed), use subtask from roadmap status
         currentSubTaskId = roadmapStatus.current_subtask_id;
       }
 
-      // Use subtask_id from roadmap status if this is the current task, otherwise use first subtask
-      const subtaskId = (isCurrentTask && roadmapStatus?.current_subtask_id) 
-        ? roadmapStatus.current_subtask_id 
-        : (task?.data?.[0]?.subtask_id || "");
+      // For completed tasks, always use first subtask; otherwise use roadmap status or first subtask
+      const subtaskId = isCompletedTask 
+        ? (task?.data?.[0]?.subtask_id || "")
+        : ((isCurrentTask && roadmapStatus?.current_subtask_id) 
+          ? roadmapStatus.current_subtask_id 
+          : (task?.data?.[0]?.subtask_id || ""));
+      
+      // For completed tasks, ensure we use the first subtask
+      const finalSubTaskId = isCompletedTask 
+        ? (task?.data?.[0]?.subtask_id || undefined)
+        : (currentSubTaskId || roadmapStatus?.current_subtask_id || undefined);
       
       // Store all IDs in session storage using utility function
       setProjectIds({
@@ -438,12 +499,9 @@ const ProjectRoadmapContent: React.FC = () => {
         phaseId,
         partId,
         taskId,
-        subtaskId: currentSubTaskId || subtaskId,
-        currentSubTaskId: currentSubTaskId || roadmapStatus?.current_subtask_id || undefined,
+        subtaskId: finalSubTaskId || subtaskId,
+        currentSubTaskId: finalSubTaskId,
       });
-      
-      // Store current subtask ID from roadmap status if available
-      const finalSubTaskId = currentSubTaskId || roadmapStatus?.current_subtask_id || undefined;
       if (finalSubTaskId) {
         sessionStorage.setItem("currentRoadmapSubtaskId", finalSubTaskId);
       }

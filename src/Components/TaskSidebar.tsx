@@ -117,8 +117,12 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
           {task.data.map((subTask, index) => {
             const isSelected = currentSubTaskIndex === index;
             const isLast = index === task.data.length - 1;
-            // Disable subtasks beyond the highest allowed index (restriction managed by useSubtaskRestrictions hook)
-            const isDisabled = index > highestAllowedSubtaskIndex;
+            // Check if task is completed (all subtasks accessible)
+            // Task is completed if highestAllowedSubtaskIndex >= total subtasks - 1
+            const isTaskCompleted = highestAllowedSubtaskIndex >= task.data.length - 1;
+            // Disable subtasks beyond the highest allowed index (unless task is completed)
+            // If task is completed, all subtasks are accessible
+            const isDisabled = !isTaskCompleted && index > highestAllowedSubtaskIndex;
             return (
               <div
                 key={index}
