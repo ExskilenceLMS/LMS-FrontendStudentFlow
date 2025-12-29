@@ -189,20 +189,37 @@ export const fetchProjectMCQQuestions = async (
     const response = await getApiClient().get(url);
     const questions = response.data.questions || [];
     
+    // Shuffle function for options
+    const shuffleArray = <T>(array: T[]): T[] => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+    
     // Transform API response to match MCQQuestion interface
-    return questions.map((q: any) => ({
-      shuffledOptions: q.shuffledOptions || q.options || [],
-      questionId: q.questionId || q.Qn_name || q.id || '',
-      status: q.status || false,
-      score: q.score || '0/10',
-      level: q.level || '',
-      question: q.question || q.Qn || '',
-      options: q.options || [],
-      correct_answer: q.correct_answer || '',
-      Explanation: q.Explanation || q.explanation,
-      Qn_name: q.Qn_name || q.questionId || q.id || '',
-      entered_ans: q.entered_ans || q.entered_answer || '',
-    }));
+    return questions.map((q: any) => {
+      // Get original options
+      const originalOptions = q.options || [];
+      // Shuffle the options
+      const shuffled = shuffleArray(originalOptions);
+      
+      return {
+        shuffledOptions: shuffled,
+        questionId: q.questionId || q.Qn_name || q.id || '',
+        status: q.status || false,
+        score: q.score || '0/10',
+        level: q.level || '',
+        question: q.question || q.Qn || '',
+        options: q.options || [],
+        correct_answer: q.correct_answer || '',
+        Explanation: q.Explanation || q.explanation,
+        Qn_name: q.Qn_name || q.questionId || q.id || '',
+        entered_ans: q.entered_ans || q.entered_answer || '',
+      };
+    });
   } catch (error) {
     console.error("Error fetching project MCQ questions:", error);
     throw error;
