@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Card, ProgressBar } from "react-bootstrap";
+import { Card, ProgressBar, Button } from "react-bootstrap";
 import { FaClock } from "react-icons/fa";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleRight } from "@fortawesome/free-solid-svg-icons";
+import { faCircleRight, faExchangeAlt, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import CryptoJS from "crypto-js";
@@ -10,6 +10,7 @@ import { secretKey } from "../constants";
 import './Courses.css';
 import CourseImage from "../Components/images/CourseImage.png";
 import { useApiLoading } from "../Dashboard";
+import ProjectSelectionModal from "./ProjectSelectionModal";
 
 interface Course {
   title: string;
@@ -26,13 +27,52 @@ interface Course {
   status: string;
 }
 
+interface Internship {
+  title: string;
+  image: string;
+  duration: string;
+  status: string;
+  progress?: {
+    student_progress: number;
+    progress: number;
+  };
+  can_change?: boolean | null;
+  time_left?: string | null;
+  project_id?: number | string | null; // Project ID for navigation to project roadmap
+  subject_id?: string; // For internships that come from subjects array
+  slots_open_time?: string | null;
+  slots_close_time?: string | null;
+}
+
 interface CoursesResponse {
   subjects: Course[];
+  internships: Internship[];
+}
+
+interface LearningCardProps {
+  keyProp: string;
+  image: string;
+  title: string;
+  titleTooltip?: string;
+  duration: string;
+  progress?: {
+    student_progress: number;
+    progress: number;
+  };
+  status?: string;
+  cardColor: string;
+  onClick?: () => void;
+  extraRow?: React.ReactNode;
+  actionArea?: React.ReactNode;
+  imageAlt: string;
 }
 
 const Courses: React.FC = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [internships, setInternships] = useState<Internship[]>([]);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [selectedInternship, setSelectedInternship] = useState<Internship | null>(null);
   const [scrollPosition, setScrollPosition] = useState({
     canScrollLeft: false,
     canScrollRight: false,
@@ -72,19 +112,55 @@ const Courses: React.FC = () => {
     });
   };
 
+  const handleInternshipClick = (internship: Internship) => {
+    if (internship.status === "select") {
+      // Open modal for project selection
+      setSelectedInternship(internship);
+      setShowProjectModal(true);
+    } else if (internship.status === "Open") {
+      // Navigate to project roadmap if project_id is available
+      if (internship.project_id) {
+        // Store project_id and project_name in sessionStorage for API calls
+        sessionStorage.setItem("currentProjectId", internship.project_id.toString());
+        sessionStorage.setItem("currentProjectName", internship.title || "Project");
+        navigate(`/project-roadmap`, {
+          replace: true
+        });
+      }
+    }
+  };
+
+  const handleChangeProject = (internship: Internship, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    setSelectedInternship(internship);
+    setShowProjectModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowProjectModal(false);
+    setSelectedInternship(null);
+  };
+
   // Use the context instead of making our own API call
   const { coursesData, coursesError, isCoursesApiLoaded } = useApiLoading();
 
   useEffect(() => {
     if (coursesData && isCoursesApiLoaded) {
       const availableColors = ["#B6BAFE","#F0DC54","#B5FEB5","#B6FEB5","#B6BAFE","#FFB5B5"];
-      // Assign different colors to each course, cycling through the color array
-      const courseData = (coursesData?.subjects || []).map((course: any, index: number) => ({
-        ...course,
+      
+      const allSubjects = coursesData?.subjects || [];
+
+      const allItemsWithColors = allSubjects.map((item: any, index: number) => ({
+        ...item,
         color: availableColors[index % availableColors.length],
+        isInternship: item.project_id !== null || item.subject_id?.startsWith("project_") || item.status === "select"
       }));
 
-      setCourses(courseData);
+      const subjects = allItemsWithColors.filter((item: any) => !item.isInternship);
+      const internships = allItemsWithColors.filter((item: any) => item.isInternship);
+
+      setCourses(subjects);
+      setInternships(internships);
 
       setTimeout(checkScrollStatus, 100);
     }
@@ -121,7 +197,7 @@ const Courses: React.FC = () => {
       }
       window.removeEventListener('resize', checkScrollStatus);
     };
-  }, [courses.length]);
+  }, [courses.length, internships.length]);
 
   const scrollLeft = () => {
     if (scrollContainerRef.current && scrollPosition.canScrollLeft) {
@@ -142,6 +218,128 @@ const Courses: React.FC = () => {
       });
     }
   };
+
+  const renderLearningCard = ({
+    keyProp,
+    image,
+    title,
+    titleTooltip,
+    duration,
+    progress,
+    status,
+    cardColor,
+    onClick,
+    extraRow,
+    actionArea,
+    imageAlt
+  }: LearningCardProps) => (
+    <Card
+      key={keyProp}
+      className={`${status === "Open" ? "open-course" : "closed-course"} mb-2`}
+      style={{
+        width: "350px",
+        height: "155px",
+        minWidth: "350px",
+        marginRight: "1rem",
+        boxShadow: "8px 8px 8px rgba(0, 0, 0, 0.2)",
+        cursor: onClick ? "pointer" : "default"
+      }}
+      onClick={onClick}
+    >
+      <Card.Body className="p-1 rounded-2">
+        <div className="d-flex p-0">
+          <div className="d-flex flex-column align-items-center me-3">
+            <div
+              className="preview-image ms-2 mt-1 mb-2 border rounded-2"
+              style={{
+                width: "90px",
+                height: "130px",
+                overflow: "hidden",
+              }}
+            >
+              <img
+                src={image}
+                alt={imageAlt}
+                className="img"
+                style={{
+                  objectFit: "cover",
+                  width: "100%",
+                  height: "100%",
+                }}
+              />
+            </div>
+          </div>
+          <div
+            className="d-flex flex-column h-100 w-100"
+            style={{ minHeight: "130px" }}
+          >
+                <h6
+                  className="p-1 mt-2 d-flex justify-content-between align-items-center"
+                  style={{
+                    backgroundColor: cardColor,
+                    color: "black",
+                    borderRadius: "4px",
+                    width: "200px",
+                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                  title={titleTooltip || title}
+                >
+                  <span style={{ display: 'block', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+                  <FontAwesomeIcon
+                    icon={faCircleRight}
+                    style={{
+                      color: "#009dff",
+                      fontSize: "18px"
+                    }}
+                  />
+                </h6>
+            <div className="text-dark small w-100">
+              <div className="d-flex align-items-center gap-2">
+                <FaClock className="mb-1" />
+                <span className="text-secondary">Duration</span>
+              </div>
+              <div className="fw-normal">{duration}</div>
+              {extraRow}
+            </div>
+            {actionArea}
+            {progress && (
+              <div className="mt-auto" style={{ width: "200px" }}>
+                <ProgressBar
+                  className="border-dark border rounded-1"
+                  style={{
+                    width: "200px",
+                    height: "10px",
+                    borderRadius: "4px",
+                    borderColor: "#74C0FC",
+                    backgroundColor: "white",
+                  }}
+                >
+                  <ProgressBar
+                    style={{ color: "#37D447", background: "#37D447" }}
+                    now={progress.student_progress}
+                    key={1}
+                  />
+                  <ProgressBar
+                    now={progress.progress - progress.student_progress}
+                    key={2}
+                    style={{ backgroundColor: "white" }}
+                  />
+                </ProgressBar>
+                {progress.student_progress === 0 && (
+                  <span className="d-flex justify-content-center align-items-center text-center pt-1 text-muted" style={{ fontSize: "0.7rem" }}>
+                    Not Started
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </Card.Body>
+    </Card>
+  );
 
   return (
     <div className="row rounded-2">
@@ -180,215 +378,116 @@ const Courses: React.FC = () => {
         }}
         onLoad={checkScrollStatus}
       >
-        {!courses.length ? (
+        {!courses.length && !internships.length ? (
           <div className="d-flex flex-nowrap justify-content-around">
-            {dummyCourses.map((dummyCourse, i) => (
-              <Card
-                key={i}
-                className="closed-course mb-2"
-                style={{
-                  width: "350px",
-                  height: "150px",
-                  minWidth: "350px",
-                  marginRight: i !== dummyCourses.length - 1 ? "1rem" : "0",
-                  boxShadow: "8px 8px 8px rgba(0, 0, 0, 0.2)",
-                }}
-              >
-                <Card.Body className="p-1 rounded-2">
-                  <div className="d-flex p-0">
-                    <div className="d-flex flex-column align-items-center me-3">
-                      <div
-                        className="preview-image ms-2 mt-1 mb-2 border rounded-2"
-                        style={{
-                          width: "90px",
-                          height: "130px",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <img
-                          src={dummyCourse.image}
-                          alt={`${dummyCourse.title} Preview`}
-                          className="img"
-                          style={{
-                            objectFit: "cover",
-                            width: "100%",
-                            height: "100%",
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div className="d-flex flex-column">
-                      <h6
-                        className="p-1 mt-2 me-3"
-                        style={{
-                          backgroundColor: dummyCourse.color,
-                          color: "black",
-                          borderRadius: "4px",
-                          width: "200px",
-                          boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        {dummyCourse.title}
-                        <FontAwesomeIcon
-                          icon={faCircleRight}
-                          style={{
-                            color: "#009dff",
-                            fontSize: "18px",
-                          }}
-                        />
-                      </h6>
-                      <span style={{ fontSize: "14px", color: "black" }}>
-                        <span>
-                          <FaClock className="mb-1" />
-                          <span className="text-secondary ps-2">Duration</span>
-                        </span>
-                        <br />
-                        <span>{dummyCourse.duration}</span>
-                        <ProgressBar
-                          className="me-3 border-dark border rounded-1"
-                          style={{
-                            flexGrow: 1,
-                            marginTop: "30px",
-                            height: "10px",
-                            borderRadius: "4px",
-                            borderColor: "#74C0FC",
-                            backgroundColor: "white",
-                          }}
-                        >
-                          <ProgressBar
-                            style={{ color: "#37D447", background: "#37D447" }}
-                            now={dummyCourse.progress.student_progress}
-                            key={1}
-                          />
-                          <ProgressBar
-                            now={dummyCourse.progress.progress - dummyCourse.progress.student_progress}
-                            key={2}
-                            style={{ backgroundColor: "white" }}
-                          />
-                        </ProgressBar>
-                        {dummyCourse.progress.student_progress === 0 && (
-                          <span className="d-flex justify-content-center align-items-center text-center pt-1" style={{ fontSize: "8px" }}>
-                            Not Started
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </Card.Body>
-              </Card>
-            ))}
+            {dummyCourses.map((dummyCourse, i) =>
+              renderLearningCard({
+                keyProp: `dummy-${i}`,
+                image: dummyCourse.image,
+                title: dummyCourse.subject,
+                titleTooltip: dummyCourse.title,
+                duration: dummyCourse.duration,
+                progress: dummyCourse.progress,
+                status: dummyCourse.status,
+                cardColor: dummyCourse.color,
+                imageAlt: `${dummyCourse.title} Preview`,
+              })
+            )}
           </div>
         ) : (
-          courses.map((course, index) => (
-            <Card
-              key={index}
-              className={`${course.status === "Open" ? "open-course" : "closed-course"} mb-2`}
-              style={{
-                width: "350px",
-                height: "150px",
-                minWidth: "350px",
-                marginRight: index !== courses.length - 1 ? "1rem" : "0",
-                boxShadow: "8px 8px 8px rgba(0, 0, 0, 0.2)",
-              }}
-            >
-              <Card.Body className="p-1 rounded-2">
-                <div className="d-flex p-0">
-                  <div className="d-flex flex-column align-items-center me-3">
-                    <div
-                      className="preview-image ms-2 mt-1 mb-2 border rounded-2"
-                      style={{
-                        width: "90px",
-                        height: "130px",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <img
-                        src={course.image}
-                        alt={`${course.title} Preview`}
-                        className="img"
-                        style={{
-                          objectFit: "cover",
-                          width: "100%",
-                          height: "100%",
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="d-flex flex-column">
-                    <h6
-                      className="p-1 mt-2 me-3"
-                      style={{
-                        backgroundColor: course.color,
-                        color: "black",
-                        borderRadius: "4px",
-                        width: "200px",
-                        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        cursor: "pointer"
-                      }}
-                      title={course.title.length > 20 ? course.title : ""}
-                      onClick={() => {
-                        if (course.status === 'Open') {
-                          handleCourseClick(course.subject_id, course.subject, course.title);
-                        }
-                      }}
-                    >
-                      {course.title.length > 20
-                        ? `${course.title.slice(0, 20)}...`
-                        : course.title}
-                      <FontAwesomeIcon
-                        icon={faCircleRight}
-                        style={{
-                          color: "#009dff",
-                          fontSize: "18px"
-                        }}
-                      />
-                    </h6>
-                    <span style={{ fontSize: "14px", color: "black" }}>
-                      <span>
-                        <FaClock className="mb-1" />
-                        <span className="text-secondary ps-2">Duration</span>
+          <>
+            {/* Render all items in original API order */}
+            {coursesData?.subjects?.map((item: any, index: number) => {
+              const availableColors = ["#B6BAFE","#F0DC54","#B5FEB5","#B6FEB5","#B6BAFE","#FFB5B5"];
+              const itemColor = availableColors[index % availableColors.length];
+              const isInternship = item.project_id !== null || item.subject_id?.startsWith("project_") || item.status === "select";
+              
+              const displayTitle = item.subject?.trim() ? item.subject : item.title;
+              const truncatedTitle = displayTitle.length > 20 ? `${displayTitle.slice(0, 20)}...` : displayTitle;
+
+              if (isInternship) {
+                // Render as internship
+                const extraRow = (item.can_change === true) ? (
+                  <div className="d-flex justify-content-between align-items-center" style={{ width: "200px" }}>
+                    {item.time_left && item.can_change === true ? (
+                      <span className="text-danger fw-semibold">
+                        {item.time_left}
+                        <FontAwesomeIcon
+                        className="ms-1 text-black"
+                      icon={faInfoCircle}
+                      style={{ cursor: 'pointer' }}
+                      title="Select Project"
+                    />
                       </span>
-                      <br />
-                      <span>{course.duration}</span>
-                      <ProgressBar
-                        className="me-3 border-dark border rounded-1"
-                        style={{
-                          flexGrow: 1,
-                          marginTop: "30px",
-                          height: "10px",
-                          borderRadius: "4px",
-                          borderColor: "#74C0FC",
-                          backgroundColor: "white",
-                        }}
-                      >
-                        <ProgressBar
-                          style={{ color: "#37D447", background: "#37D447" }}
-                          now={course.progress.student_progress}
-                          key={1}
-                        />
-                        <ProgressBar
-                          now={course.progress.progress - course.progress.student_progress}
-                          key={2}
-                          style={{ backgroundColor: "white" }}
-                        />
-                      </ProgressBar>
-                      {course.progress.student_progress === 0 && (
-                        <span className="d-flex justify-content-center align-items-center text-center pt-1" style={{ fontSize: "8px" }}>
-                          Not Started
-                        </span>
-                      )}
-                    </span>
+                    ) : (
+                      <span></span>
+                    )}
+                    <FontAwesomeIcon
+                      icon={faExchangeAlt}
+                      role="button"
+                      onClick={(e) => handleChangeProject(item, e)}
+                      title="Change Project"
+                      className="text-primary"
+                    />
                   </div>
-                </div>
-              </Card.Body>
-            </Card>
-          ))
+                ) : null;
+
+                const actionArea = item.status === "select" ? (
+                  <div style={{ width: "200px" }}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="w-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInternshipClick(item);
+                      }}
+                    >
+                      Select Project
+                    </Button>
+                  </div>
+                ) : undefined;
+
+                return renderLearningCard({
+                  keyProp: `item-${index}`,
+                  image: item.image,
+                  title: truncatedTitle,
+                  titleTooltip: item.title,
+                  duration: item.duration,
+                  progress: item.status === "select" ? undefined : item.progress,
+                  status: item.status,
+                  cardColor: itemColor,
+                  onClick: item.status === "Open" || item.status === "select" ? () => handleInternshipClick(item) : undefined,
+                  extraRow,
+                  actionArea,
+                  imageAlt: `${item.title} Preview`,
+                });
+              } else {
+                // Render as regular course
+                return renderLearningCard({
+                  keyProp: `item-${index}`,
+                  image: item.image,
+                  title: truncatedTitle,
+                  titleTooltip: item.title,
+                  duration: item.duration,
+                  progress: item.progress,
+                  status: item.status,
+                  cardColor: itemColor,
+                  onClick: item.status === "Open" ? () => handleCourseClick(item.subject_id, item.subject, item.title) : undefined,
+                  imageAlt: `${item.title} Preview`,
+                });
+              }
+            })}
+          </>
         )}
       </div>
+      
+      <ProjectSelectionModal
+        show={showProjectModal}
+        internship={selectedInternship}
+        onClose={handleCloseModal}
+        initialSelectedProjectId={selectedInternship?.project_id ?? undefined}
+      />
     </div>
   );
 };
