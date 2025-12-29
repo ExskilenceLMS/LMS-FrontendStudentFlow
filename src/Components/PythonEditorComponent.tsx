@@ -176,20 +176,6 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
     return bytes.toString(CryptoJS.enc.Utf8);
   };
 
-  // Load Skulpt
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = "https://cdn.jsdelivr.net/npm/skulpt@latest/dist/skulpt.min.js";
-    script.async = true;
-    script.onload = () => {
-      const builtinScript = document.createElement('script');
-      builtinScript.src = "https://cdn.jsdelivr.net/npm/skulpt@1.1.0/dist/skulpt-stdlib.js";
-      builtinScript.async = true;
-      document.body.appendChild(builtinScript);
-    };
-    document.body.appendChild(script);
-  }, []);
-
   const getUserCodeKey = (qnName: string) => {
     if (isProjectContext) {
       return `project_userCode_${qnName}`;
