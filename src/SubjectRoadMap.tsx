@@ -16,6 +16,8 @@ import { CiSquareChevUp } from "react-icons/ci";
 import { FaExclamationTriangle } from "react-icons/fa";
 import { BsListTask } from "react-icons/bs";
 import { useAPISWR } from "./utils/swrConfig";
+import VideoContent from "./Components/VideoContent";
+import NotesContent from "./Components/NotesContent";
 // import backend_response from './response.json';
 interface NoteSection {
   heading: string;
@@ -170,28 +172,7 @@ const SubjectRoadMap: React.FC = () => {
     [key: number]: { otp: string; playback_info: string };
   }>({});
   
-  // VdoCipher time tracking state
-  const [videoTimeTracking, setVideoTimeTracking] = useState<{
-    totalPlayed: number;
-    totalCovered: number;
-    isTracking: boolean;
-  }>({
-    totalPlayed: 0,
-    totalCovered: 0,
-    isTracking: false
-  });
-
-  // Store video time in localStorage for App.tsx to access
-  useEffect(() => {
-    if (videoTimeTracking.isTracking && currentVideoId) {
-      const videoTrackingData = {
-        videoId: currentVideoId,
-        totalPlayed: videoTimeTracking.totalPlayed,
-        timestamp: Date.now()
-      };
-      localStorage.setItem('currentVideoTracking', JSON.stringify(videoTrackingData));
-    }
-  }, [videoTimeTracking.totalPlayed, videoTimeTracking.isTracking, currentVideoId]);
+  // VideoContent component handles VdoCipher time tracking and localStorage storage
   
   const navigate = useNavigate();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -294,14 +275,6 @@ const SubjectRoadMap: React.FC = () => {
     return useAPISWR<{ otp: string; playback_info: string }>(url);
   };
 
-  const isDirectVideoUrl = (url: string): boolean => {
-    return (
-      url.includes(".mp4") ||
-      url.includes(".webm") ||
-      url.includes(".ogg") ||
-      url.includes(".mov")
-    );
-  };
 
   // Helper function to get dynamic label for content type
   const getContentLabel = (
@@ -348,69 +321,8 @@ const SubjectRoadMap: React.FC = () => {
     return chapters[0].sub_topic_data[currentSubTopicIndex].sub_topic;
   };
 
-  // VdoCipher time tracking functions
-  const initializeVdoCipherTimeTracking = useCallback((iframe: HTMLIFrameElement) => {
-    if (!iframe || !(window as any).VdoPlayer) {
-      return null;
-    }
-
-    try {
-      const player = new (window as any).VdoPlayer(iframe);
-      
-      // Store player instance on iframe for global access (fullscreen control)
-      (iframe as any).vdocipherPlayer = player;
-      
-      // Start time tracking
-      setVideoTimeTracking(prev => ({ ...prev, isTracking: true }));
-      
-      // Set up interval to track time every second
-      const timeTrackingInterval = setInterval(() => {
-        if (player.api) {
-          player.api.getTotalPlayed().then((tp: number) => {
-            setVideoTimeTracking(prev => ({ ...prev, totalPlayed: tp }));
-          }).catch((error: any) => {
-            console.error('VdoCipher: Error getting total played time:', error);
-          });
-          
-          player.api.getTotalCovered().then((tc: number) => {
-            setVideoTimeTracking(prev => ({ ...prev, totalCovered: tc }));
-          }).catch((error: any) => {
-            console.error('VdoCipher: Error getting total covered time:', error);
-          });
-        }
-      }, 1000);
-      
-      // Return cleanup function
-      return () => {
-        clearInterval(timeTrackingInterval);
-        setVideoTimeTracking(prev => ({ ...prev, isTracking: false }));
-        // Clean up player reference
-        delete (iframe as any).vdocipherPlayer;
-      };
-    } catch (error) {
-      console.error('VdoCipher: Error initializing player:', error);
-      return null;
-    }
-  }, []);
-
-  // Manual trigger for testing time tracking (can be called from console)
-  const manualTriggerTimeTracking = useCallback(() => {
-    const iframe = document.querySelector(`iframe[src*="player.vdocipher.com"]`);
-    if (iframe) {
-      const cleanup = initializeVdoCipherTimeTracking(iframe as HTMLIFrameElement);
-      if (cleanup) {
-        // Store cleanup function for later use
-        (window as any).cleanupVdoCipherTracking = cleanup;
-      }
-    }
-  }, [initializeVdoCipherTimeTracking]);
-
-  // Expose function globally for testing
+  // Expose fullscreen exit function globally for App.tsx to call
   useEffect(() => {
-    (window as any).manualTriggerTimeTracking = manualTriggerTimeTracking;
-    (window as any).getVideoTimeTracking = () => videoTimeTracking;
-    
-    // Expose fullscreen exit function globally for App.tsx to call
     (window as any).exitVideoFullscreen = () => {
       // Find all VdoCipher iframes and exit fullscreen if any are in fullscreen mode
       const iframes = document.querySelectorAll('iframe[src*="player.vdocipher.com"]');
@@ -457,11 +369,9 @@ const SubjectRoadMap: React.FC = () => {
     };
     
     return () => {
-      delete (window as any).manualTriggerTimeTracking;
-      delete (window as any).getVideoTimeTracking;
       delete (window as any).exitVideoFullscreen;
     };
-  }, [manualTriggerTimeTracking, videoTimeTracking]);
+  }, []);
 
   // Helper function to get content type icon
   const getContentTypeIcon = (
@@ -1515,170 +1425,25 @@ const SubjectRoadMap: React.FC = () => {
     if (typeof currentLesson === "number") {
       // Format 1: Array of integers - need to fetch video data
       const currentVideoId = currentLesson;
-
-      // Check if we have cached video data for this video ID
-      const hasCachedVideoData = videoData[currentVideoId];
-
-      // If we don't have cached data, show loading
-      if (!hasCachedVideoData) {
-        // Show loading while fetching
-        return (
-          <div
-            className="d-flex justify-content-center align-items-center"
-            style={{ height: "calc(100% - 60px)" }}
-          >
-            <div className="text-center">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p className="mt-2">Loading video...</p>
-            </div>
-          </div>
-        );
-      }
-
-      // Build video URL from cached data
       const videoDataForCurrentVideo = videoData[currentVideoId];
-      const videoUrl = `https://player.vdocipher.com/v2/?otp=${videoDataForCurrentVideo.otp}&playbackInfo=${videoDataForCurrentVideo.playback_info}`;
-
-      if (!videoUrl) {
-        return (
-          <div
-            className="d-flex justify-content-center align-items-center"
-            style={{ height: "calc(100% - 60px)" }}
-          >
-            <div className="text-center">
-              <p>Video not available</p>
-            </div>
-          </div>
-        );
-      }
 
       return (
-        <div
-          className="h-100 overflow-hidden p-0"
-          style={{ backgroundColor: "transparent", height: "100%" }}
-        >
-          {isDirectVideoUrl(videoUrl) ? (
-            <video
-              className="w-100 h-100"
-              controls
-              autoPlay={false}
-              muted={false}
-              preload="metadata"
-              style={{
-                boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-                borderRadius: "0px",
-                objectFit: "cover",
-                backgroundColor: "transparent",
-              }}
-            >
-              <source src={videoUrl} type="video/mp4" />
-              <source src={videoUrl} type="video/webm" />
-              <source src={videoUrl} type="video/ogg" />
-              Your browser does not support the video tag.
-            </video>
-          ) : (
-            <iframe
-              ref={(iframe) => {
-                if (iframe && videoTimeTracking.isTracking === false) {
-                  // Initialize time tracking when iframe loads
-                  setTimeout(() => {
-                    const cleanup = initializeVdoCipherTimeTracking(iframe);
-                    if (cleanup) {
-                      // Store cleanup function for this video
-                      (window as any).cleanupVdoCipherTracking = cleanup;
-                    }
-                  }, 2000); // Wait 2 seconds for iframe to fully load
-                }
-              }}
-              className="w-100 h-100"
-              src={videoUrl}
-              title="Video Player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerPolicy="strict-origin-when-cross-origin"
-              allowFullScreen
-              style={{
-                boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-                borderRadius: "0px",
-                backgroundColor: "transparent",
-              }}
-            />
-          )}
-        </div>
+        <VideoContent
+          videoId={currentVideoId}
+          videoData={videoDataForCurrentVideo || null}
+          loading={!videoDataForCurrentVideo}
+        />
       );
     } else {
       // Format 2: Object with video data - use directly
       const videoLesson = currentLesson as VideoLesson;
-      const videoUrl = `https://player.vdocipher.com/v2/?otp=${videoLesson.otp}&playbackInfo=${videoLesson.playback_info}`;
-
-      if (!videoUrl) {
-        return (
-          <div
-            className="d-flex justify-content-center align-items-center"
-            style={{ height: "calc(100% - 60px)" }}
-          >
-            <div className="text-center">
-              <p>Video not available</p>
-            </div>
-          </div>
-        );
-      }
 
       return (
-        <div
-          className="h-100 overflow-hidden p-0"
-          style={{ backgroundColor: "transparent", height: "100%" }}
-        >
-          {isDirectVideoUrl(videoUrl) ? (
-            <video
-              className="w-100 h-100"
-              controls
-              autoPlay={false}
-              muted={false}
-              preload="metadata"
-              style={{
-                boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-                borderRadius: "0px",
-                objectFit: "cover",
-                backgroundColor: "transparent",
-              }}
-            >
-              <source src={videoUrl} type="video/mp4" />
-              <source src={videoUrl} type="video/webm" />
-              <source src={videoUrl} type="video/ogg" />
-              Your browser does not support the video tag.
-            </video>
-          ) : (
-            <iframe
-              ref={(iframe) => {
-                if (iframe && videoTimeTracking.isTracking === false) {
-                  // Initialize time tracking when iframe loads
-                  setTimeout(() => {
-                    const cleanup = initializeVdoCipherTimeTracking(iframe);
-                    if (cleanup) {
-                      // Store cleanup function for this video
-                      (window as any).cleanupVdoCipherTracking = cleanup;
-                    }
-                  }, 2000); // Wait 2 seconds for iframe to fully load
-                }
-              }}
-              className="w-100 h-100"
-              src={videoUrl}
-              title="Video Player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerPolicy="strict-origin-when-cross-origin"
-              allowFullScreen
-              style={{
-                boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
-                borderRadius: "0px",
-                backgroundColor: "transparent",
-              }}
-            />
-          )}
-        </div>
+        <VideoContent
+          videoId={null}
+          videoData={videoLesson}
+          loading={false}
+        />
       );
     }
   };
@@ -1702,73 +1467,7 @@ const SubjectRoadMap: React.FC = () => {
     const noteId = subTopic.notes[currentNotesIndex];
     const noteData = notesData[noteId];
 
-    if (!noteData) {
-      return (
-        <div className="d-flex justify-content-center align-items-center h-100">
-          <Skeleton count={6} height={20} />
-        </div>
-      );
-    }
-
-    // Display HTML content directly in div using dangerouslySetInnerHTML
-    return (
-      <div
-        className="p-0 m-0 ps-3 scrollable-content"
-        style={{
-          fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-          fontSize: "16px",
-          lineHeight: "1.6",
-          padding: "20px",
-          color: "#333",
-          minHeight: "100%",
-          overflow: "auto",
-        }}
-        dangerouslySetInnerHTML={{
-          __html: `
-                    <style>
-                        h1, h2 {
-                            font-weight: 600;
-                            color: #2C3E50;
-                            
-                        }
-                        ul {
-                            margin: 10px 0 20px 20px;
-                        }
-                        li {
-                            margin-bottom: 8px;
-                        }
-                        code {
-                            background-color: #F4F4F4;
-                            padding: 4px 6px;
-                            font-family: Consolas, monospace;
-                            border-radius: 4px;
-                        }
-                        table {
-                            border-collapse: collapse;
-                            width: 100%;
-                            margin: 20px 0;
-                        }
-                        th, td {
-                            border: 1px solid #ddd;
-                            padding: 12px;
-                            text-align: left;
-                        }
-                        th {
-                            background-color: #F0F0F0;
-                        }
-                        pre {
-                            background-color: #F8F8F8;
-                            padding: 12px;
-                            border-left: 3px solid #ccc;
-                            font-size: 15px;
-                            overflow-x: auto;
-                        }
-                    </style>
-                    ${noteData.content}
-                `,
-        }}
-      />
-    );
+    return <NotesContent noteData={noteData || null} loading={!noteData} />;
   };
 
   const renderMCQContent = () => {
@@ -3087,30 +2786,7 @@ const SubjectRoadMap: React.FC = () => {
     }
   }, [chapters, currentSubTopicIndex]);
   
-  // Cleanup VdoCipher time tracking when video changes
-  useEffect(() => {
-    return () => {
-      // Cleanup time tracking when component unmounts or video changes
-      if ((window as any).cleanupVdoCipherTracking) {
-        (window as any).cleanupVdoCipherTracking();
-        delete (window as any).cleanupVdoCipherTracking;
-      }
-      
-      // Clean up any stored player references on iframes
-      const iframes = document.querySelectorAll('iframe[src*="player.vdocipher.com"]');
-      iframes.forEach((iframe) => {
-        if ((iframe as any).vdocipherPlayer) {
-          delete (iframe as any).vdocipherPlayer;
-        }
-      });
-      
-      setVideoTimeTracking({
-        totalPlayed: 0,
-        totalCovered: 0,
-        isTracking: false
-      });
-    };
-  }, [currentVideoId, currentLessonIndex]);
+  // VideoContent component handles its own cleanup - no cleanup needed here
 
   return (
     <div

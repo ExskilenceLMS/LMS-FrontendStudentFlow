@@ -81,3 +81,8 @@
 .notes-font-family {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+
+/* Progress Bar Color */
+.progress-color {
+  background-color: #12B500 !important;
+}
