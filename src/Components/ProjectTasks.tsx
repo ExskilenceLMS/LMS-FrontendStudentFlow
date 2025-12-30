@@ -232,21 +232,31 @@ const ProjectTasks: React.FC = () => {
 
         // Validate initial subtask index is within bounds
         if (initialSubTaskIndex < 0 || initialSubTaskIndex >= taskData.task.data.length) {
-          console.error("Invalid initial subtask index:", initialSubTaskIndex);
           initialSubTaskIndex = 0; // Fallback to first subtask
+        }
+        
+        // Edge case: Task with 0 subtasks
+        if (taskData.task.data.length === 0) {
+          if (isMountedRef.current) {
+            setError("Task has no subtasks available");
+            setInitialLoading(false);
+          }
+          return;
         }
 
         if (!isMountedRef.current) return; // Check before state updates
 
         // For completed tasks, set max index directly (e.g., if 5 subtasks, set to 4)
         // For non-completed tasks, start from 0 (restrictions cleared above)
+        // The value will be updated based on status API response and as subtasks are completed
         if (isCompletedTask) {
           // Set max index directly (e.g., if 5 subtasks, set to 4)
           sessionStorage.setItem(STORAGE_KEY, maxSubtaskIndex.toString());
           setHighestAllowedIndex(maxSubtaskIndex);
         } else {
           // For non-completed tasks, start from 0 (already cleared above)
-          // The value will be updated as subtasks are completed via completeSubtask
+          // The value will be updated based on status API response (current_subtask_id)
+          // and as subtasks are completed via completeSubtask
           setHighestAllowedIndex(0);
           sessionStorage.setItem(STORAGE_KEY, "0");
         }
@@ -263,12 +273,47 @@ const ProjectTasks: React.FC = () => {
 
         if (!isMountedRef.current) return; // Check before navigation
 
+        // Update highestAllowedSubtaskIndex based on initialSubTaskIndex
+        // This ensures the user can access the subtask they're currently on
+        // Example: If user is on subtask2 (index 1), set to at least 1
+        if (initialSubTaskIndex >= 0) {
+          const STORAGE_KEY = "highestAllowedSubtask";
+          const currentHighest = sessionStorage.getItem(STORAGE_KEY);
+          const currentHighestIndex = currentHighest ? parseInt(currentHighest, 10) : 0;
+          
+          // Always update if the initial subtask index is greater than or equal to the stored value
+          if (initialSubTaskIndex >= currentHighestIndex) {
+            setHighestAllowedIndex(initialSubTaskIndex);
+          }
+        }
+
         // Load content first (this shows loader)
         await activateSubTask(initialSubTask, initialSubTaskIndex);
         
         // Then check status (NO loader - status=false never shows loader)
         if (isMountedRef.current) {
           const statusResponse = await updateLessonStatus(initialSubTask.subtask_id, false); // status=false - no loader
+          
+          // Also try to update highestAllowedSubtaskIndex based on current_subtask_id from status response
+          // This is a fallback in case the status response has more accurate information
+          if (statusResponse && statusResponse.current_subtask_id) {
+            const currentSubtaskIdFromResponse = statusResponse.current_subtask_id;
+            const currentSubtaskIndex = taskData.task.data.findIndex(
+              (subTask: TaskData) => subTask.subtask_id === currentSubtaskIdFromResponse
+            );
+            
+            // If we found the subtask index, update highestAllowedSubtaskIndex to at least that index
+            if (currentSubtaskIndex !== -1 && currentSubtaskIndex >= 0) {
+              const STORAGE_KEY = "highestAllowedSubtask";
+              const currentHighest = sessionStorage.getItem(STORAGE_KEY);
+              const currentHighestIndex = currentHighest ? parseInt(currentHighest, 10) : 0;
+              
+              // Always update if the current subtask index is greater than or equal to the stored value
+              if (currentSubtaskIndex >= currentHighestIndex) {
+                setHighestAllowedIndex(currentSubtaskIndex);
+              }
+            }
+          }
           
           // If status is false, show modal but don't block (content is already loaded)
           if (statusResponse && (statusResponse.status === false || statusResponse.status === "false")) {
@@ -527,6 +572,12 @@ const ProjectTasks: React.FC = () => {
       return;
     }
     
+    // Ensure highestAllowedSubtaskIndex is at least the index we're navigating to
+    // The hook will prevent it from decreasing, but we want to ensure it's updated if needed
+    if (index > highestAllowedSubtaskIndex) {
+      setHighestAllowedIndex(index);
+    }
+    
     // Access granted, proceed with navigation and fetch content (no status API)
     await activateSubTask(targetSubTask, index);
   };
@@ -540,6 +591,12 @@ const ProjectTasks: React.FC = () => {
       console.error("Invalid previous subtask data");
       return;
     }
+    
+    // Ensure highestAllowedSubtaskIndex doesn't decrease when navigating to previous
+    // It should only increase or stay the same (preserve the maximum value)
+    // Since we're going to a previous subtask, we don't need to update the index
+    // but we should ensure it doesn't get reduced below the current value
+    
     // Navigate to previous subtask and fetch content (no status check needed for previous)
     await activateSubTask(prevSubTask, prevIndex);
   };
@@ -582,6 +639,8 @@ const ProjectTasks: React.FC = () => {
       
       // Step 2: Successfully completed, navigate to next subtask and fetch content
       // This will show loader while fetching content
+      // Note: completeSubtask already updated highestAllowedSubtaskIndex to nextIndex
+      // The hook ensures it never decreases, so we don't need to check again
       await activateSubTask(nextSubTask, nextIndex);
       
       // Step 3: After content is loaded, check status of next subtask (NO loader - status=false)
@@ -595,27 +654,47 @@ const ProjectTasks: React.FC = () => {
         }
       }
     } else {
-      // Last subtask - complete it before navigating back
+      // Last subtask - check status before navigating back
       // Step 1: Check status with status=true (SHOW loader)
       setStatusChecking(true); // Loader for status=true API call
-      const completionResult = await completeSubtask(
-        currentSubTask.subtask_id,
-        currentSubTaskIndex,
-        currentSubTaskIndex // Unlock current (last) subtask
-      );
+      
+      // Call status API directly to check actual status
+      const statusResponse = await updateLessonStatus(currentSubTask.subtask_id, true);
       setStatusChecking(false); // Hide loader after status=true API call
       
       if (!isMountedRef.current) return; // Check after async operation
       
-      if (!completionResult.success) {
-        // Show modal if last subtask cannot be completed
-        setStatusModalMessage(completionResult.message || "Cannot complete this subtask");
-        setShowStatusModal(true);
-        return;
+      // Only navigate if status is actually true
+      if (statusResponse) {
+        const isStatusFalse = statusResponse.status === false || statusResponse.status === "false";
+        const isStatusTrue = statusResponse.status === true || statusResponse.status === "true";
+        
+        if (isStatusFalse) {
+          // Show modal if last subtask cannot be completed
+          setStatusModalMessage(statusResponse.message || "Sub task questions are not completed");
+          setShowStatusModal(true);
+          return;
+        }
+        
+        if (isStatusTrue) {
+          // Status is true, complete the subtask and navigate
+          const completionResult = await completeSubtask(
+            currentSubTask.subtask_id,
+            currentSubTaskIndex,
+            currentSubTaskIndex // Unlock current (last) subtask
+          );
+          
+          if (completionResult.success) {
+            // Navigate back to roadmap only if status was true
+            navigate("/project-roadmap");
+          }
+          return;
+        }
       }
       
-      // Navigate back to roadmap
-      navigate("/project-roadmap");
+      // If no response or unclear status, show modal and stay on page
+      setStatusModalMessage("Unable to verify subtask completion. Please try again.");
+      setShowStatusModal(true);
     }
   };
 
