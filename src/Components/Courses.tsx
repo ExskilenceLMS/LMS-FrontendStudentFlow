@@ -318,7 +318,7 @@ const Courses: React.FC = () => {
                   }}
                 >
                   <ProgressBar
-                    style={{ color: "#37D447", background: "#37D447" }}
+                    className="progress-color"
                     now={progress.student_progress}
                     key={1}
                   />

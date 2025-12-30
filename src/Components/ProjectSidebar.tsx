@@ -4,16 +4,65 @@ import { Accordion } from "react-bootstrap";
 import { useProjectContext } from "./ProjectContext";
 import { MdKeyboardArrowUp, MdKeyboardArrowDown } from "react-icons/md";
 import { setProjectIds, getProjectId } from "../utils/projectStorageUtils";
+import { getApiClient } from "../utils/apiAuth";
+import CryptoJS from "crypto-js";
+import { secretKey } from "../constants";
 
 interface ProjectSidebarProps {
   projectId?: string;
   projectName?: string;
 }
 
+interface PartStatus {
+  phase_id: string;
+  parts: {
+    part_id: string;
+    sub_tasks_total: number;
+    sub_tasks_completed: number;
+  }[];
+}
+
+interface PartsStatusResponse {
+  phases: PartStatus[];
+}
+
 const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName }) => {
   const navigate = useNavigate();
   const { projectData, selectedPart, setSelectedPart } = useProjectContext();
   const [activeKey, setActiveKey] = useState<string | null>("0");
+  const [partsStatus, setPartsStatus] = useState<PartsStatusResponse | null>(null);
+  // Fetch parts status from API
+  useEffect(() => {
+    const fetchPartsStatus = async () => {
+      try {
+        const currentProjectId = projectId || getProjectId("projectId") || sessionStorage.getItem("currentProjectId") || "";
+        if (!currentProjectId) {
+          return;
+        }
+
+        const encryptedStudentId = sessionStorage.getItem("StudentId") || "";
+        if (!encryptedStudentId) {
+          return;
+        }
+
+        const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId, secretKey).toString(CryptoJS.enc.Utf8);
+        const studentId = decryptedStudentId;
+
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/project/roadmap/parts/status/${studentId}/${currentProjectId}`;
+        const response = await getApiClient().get(url);
+        
+        if (response.data) {
+          setPartsStatus(response.data);
+        }
+      } catch (error) {
+        console.error("Error fetching parts status:", error);
+      }
+    };
+
+    if (projectData) {
+      fetchPartsStatus();
+    }
+  }, [projectData, projectId]);
 
   useEffect(() => {
     const phases = projectData?.project_data || projectData?.content || [];
@@ -34,7 +83,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
     } else if (phases.length > 0) {
       setActiveKey("0");
     }
-  }, [projectData]);
+  }, [projectData, setSelectedPart]);
 
   const handlePartClick = (phaseName: string, partName: string, tasks: any[], phaseId?: string, partId?: string) => {
     // Check if this part is already selected - if so, don't do anything
@@ -227,11 +276,30 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                       
                       const daysLeft = calculateDaysLeft();
                       
-                      // Calculate progress percentage (default to 0 if not provided)
-                      // Progress should be between 0-100
-                      const progress = part.progress !== undefined && part.progress !== null
-                        ? Math.min(100, Math.max(0, part.progress))
-                        : 0;
+                      // Get progress from API response
+                      let progress = 0;
+                      
+                      if (partsStatus) {
+                        const phaseStatus = partsStatus.phases.find(
+                          (p: PartStatus) => p.phase_id === (phase as any).phase_id
+                        );
+                        if (phaseStatus) {
+                          const partStatus = phaseStatus.parts.find(
+                            (p) => p.part_id === (part as any).part_id
+                          );
+                          if (partStatus && partStatus.sub_tasks_total > 0) {
+                            progress = Math.round(
+                              (partStatus.sub_tasks_completed / partStatus.sub_tasks_total) * 100
+                            );
+                            progress = Math.min(100, Math.max(0, progress));
+                          }
+                        }
+                      } else {
+                        // Fallback to part.progress if API data not available
+                        progress = part.progress !== undefined && part.progress !== null
+                          ? Math.min(100, Math.max(0, part.progress))
+                          : 0;
+                      }
                       
                       return (
                         <div
@@ -285,10 +353,10 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                             }}
                           >
                             <div
+                              className={progress > 0 ? "progress-color" : ""}
                               style={{
                                 width: `${progress}%`,
                                 height: "100%",
-                                backgroundColor: progress > 0 ? "#12B500" : "transparent",
                                 transition: "width 0.3s ease, background-color 0.3s ease"
                               }}
                             />
