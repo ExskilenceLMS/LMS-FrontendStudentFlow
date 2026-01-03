@@ -118,6 +118,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
   // Check if we're in project context
   const projectId = getProjectId("projectId");
   const isProjectContext = !!projectId;
+  const isTestingContext = window.location.pathname.includes('/testing/coding/');
 
   // Get subject data (for non-project context)
   const encryptedSubjectId = sessionStorage.getItem('SubjectId');
@@ -818,23 +819,25 @@ Write your Code here.`}
                 RUN CODE
               </button>
               
-              <button
-                className="btn btn-sm btn-light me-2 processingDivButton"
-                style={{
-                  backgroundColor: "#FBEFA5DB",
-                  whiteSpace: "nowrap",
-                  fontSize: "12px",
-                  minWidth: "70px",
-                  boxShadow: "#888 1px 2px 5px 0px",
-                  height: "30px"
-                }}
-                onClick={handleSubmit}
-                disabled={isSubmitted || processing || status || !canSubmitCode()}
-              >
-                {(isSubmitted || status) ? "SUBMITTED" : "SUBMIT CODE"}
-              </button>
+              {!isTestingContext && (
+                <button
+                  className="btn btn-sm btn-light me-2 processingDivButton"
+                  style={{
+                    backgroundColor: "#FBEFA5DB",
+                    whiteSpace: "nowrap",
+                    fontSize: "12px",
+                    minWidth: "70px",
+                    boxShadow: "#888 1px 2px 5px 0px",
+                    height: "30px"
+                  }}
+                  onClick={handleSubmit}
+                  disabled={isSubmitted || processing || status || !canSubmitCode()}
+                >
+                  {(isSubmitted || status) ? "SUBMITTED" : "SUBMIT CODE"}
+                </button>
+              )}
               
-              {(isSubmitted || status) &&
+              {!isTestingContext && (isSubmitted || status) &&
                 <button
                   className="btn btn-sm btn-light processingDivButton"
                   style={{

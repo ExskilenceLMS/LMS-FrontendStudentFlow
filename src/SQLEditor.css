@@ -25,6 +25,11 @@
       margin-right: 15px !important; 
       padding: 5px 10px !important;
     }
+
+    .processingDivStyle {
+      height: 8% !important;
+      padding: 5px 10px !important;
+    }
   
     .processingDivHeadingTag {
       font-size: 16px !important;

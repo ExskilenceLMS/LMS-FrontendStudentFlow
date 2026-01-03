@@ -467,24 +467,8 @@ const SubjectRoadMap: React.FC = () => {
     sessionStorage.getItem("currentSubTopicId"),
     sessionStorage.getItem("lastContentType"),
   ]);
-
-  const url = (subject: string): string => {
-    if (subject.toLowerCase().includes("python")) {
-      return "/py-editor";
-    } else if (subject.toLowerCase().includes("sql")) {
-      return "/sql-editor";
-    } else if (
-      subject.toLowerCase().includes("html") ||
-      subject.toLowerCase().includes("css") ||
-      subject.toLowerCase().includes("javascript") ||
-      subject.toLowerCase().includes("js")
-    ) {
-      return "/html-css-editor";
-    } 
-    return "/html-css-editor";
-  };
-
-  const navigateTo = url(subject);
+  // Editor selection is based on the 'editor' key in each question
+  const navigateTo = "/practice-coding/";
 
   useEffect(() => {
     const fetchRoadmapData = async () => {
