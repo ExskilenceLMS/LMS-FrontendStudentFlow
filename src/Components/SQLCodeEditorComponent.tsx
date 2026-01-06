@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import AceEditor from "react-ace";
 import { getApiClient } from "../utils/apiAuth";
 import { useAPISWR } from "../utils/swrConfig";
+import { resetEditorUndoManager } from "../utils/editorUtils";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
@@ -215,26 +216,30 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
 
   const onEditorLoad = (editor: any) => {
     editorRef.current = editor;
-    
-    const session = editor.getSession();
-    
-    // Create a completely new undo manager to ensure no history from previous questions
-    const UndoManager = (window as any).ace.require("ace/undomanager").UndoManager;
-    const newUndoManager = new UndoManager();
-    
-    // Set merge delay to 0 for character-by-character undo
-    if (typeof newUndoManager.setMergeDelay === 'function') {
-      newUndoManager.setMergeDelay(0);
-    }
-    
-    // Set merge interval property if available
-    if ('mergeInterval' in newUndoManager) {
-      newUndoManager.mergeInterval = 0;
-    }
-    
-    // Replace the session's undo manager with the new one
-    session.setUndoManager(newUndoManager);
+    // Reset undo manager immediately when editor loads
+    resetEditorUndoManager(editor);
+    // Also reset after a brief delay to ensure it's fully initialized
+    setTimeout(() => {
+      resetEditorUndoManager(editor);
+    }, 10);
   };
+
+  // Reset undo manager when question index changes
+  useEffect(() => {
+    // Reset immediately if editor is already loaded
+    if (editorRef.current) {
+      resetEditorUndoManager(editorRef.current);
+    }
+    
+    // Also reset after a short delay to catch cases where editor loads after state update
+    const timer = setTimeout(() => {
+      if (editorRef.current) {
+        resetEditorUndoManager(editorRef.current);
+      }
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [questionIndex]);
 
   const handleRun = async () => {
     if (!sqlQuery.trim()) {
@@ -518,13 +523,13 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
 
       <div className="bg-white" style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", minWidth: 0 }}>
         <div className="bg-white" style={{ height: "45%", backgroundColor: "#E5E5E533", padding: "10px" }}>
-                      <AceEditor
-                        key={question?.Qn_name}
-                        mode="sql"
-                        theme="dreamweaver"
-                        onChange={handleCodeChange}
-                        onLoad={onEditorLoad}
-                        value={sqlQuery}
+                        <AceEditor
+                          key={`editor-${questionIndex}`}
+                          mode="sql"
+                          theme="dreamweaver"
+                          onChange={handleCodeChange}
+                          onLoad={onEditorLoad}
+                          value={sqlQuery}
                         fontSize={14}
                         placeholder="Write all SQL commands/clauses in UPPERCASE"
                         showPrintMargin={false}
