@@ -22,7 +22,6 @@ import Layout from './Components/Layout';
 import EditProfile from './Components/EditProfile';
 import TestSQLCoding from './TestSQLCoding';
 import TestingMCQS from './Components/TestingMCQS';
-import PythonContentTester from './PythonContentTester';
 import DynamicCodingEditorWrapper from './Components/DynamicCodingEditorWrapper';
 import SubjectBasedCodingEditor from './Components/SubjectBasedCodingEditor';
 import CourseCoding from './Components/CourseCoding';
@@ -38,8 +37,6 @@ const AppRoutes = () => {
           <Routes>
         <Route path="/" element={showMaintenance ? <Maintenance /> : <Login />} />
         {showMaintenance && <Route path={`/${loginPath}/login`} element={<Login />} />}
-        {/* Public route for Python content testing - no login required */}
-        <Route path="/python-content-tester" element={<PythonContentTester />} />
         <Route element={<ProtectedRoute />}>
         <Route path="/Dashboard" element={<Layout><Dashboard /></Layout>} />
         <Route path="/SubjectOverview" element={<Layout><SubjectOverview /></Layout>} />
