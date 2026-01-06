@@ -43,11 +43,18 @@ export const useSubtaskRestrictions = ({
   );
 
   // Set highest allowed subtask index
+  // IMPORTANT: Only update if new index is greater than current value
+  // This prevents reducing the value for completed tasks when navigating between subtasks
   const setHighestAllowedIndex = useCallback((index: number) => {
     try {
       const validIndex = Math.max(0, index);
-      sessionStorage.setItem(storageKey, validIndex.toString());
-      setHighestAllowedIndexState(validIndex);
+      // Use functional update to get current state value
+      setHighestAllowedIndexState((currentIndex) => {
+        // Only update if new index is greater than current (prevents reduction for completed tasks)
+        const newIndex = Math.max(currentIndex, validIndex);
+        sessionStorage.setItem(storageKey, newIndex.toString());
+        return newIndex;
+      });
     } catch (error) {
       console.error("Error setting highest allowed subtask index:", error);
     }
