@@ -464,35 +464,15 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
       const result = await pollExecutionStatus(submissionId, 15);
       
       // Auto-save on run (only in practice mode, not in testing or project context)
-      console.log('[AUTOSAVE DEBUG] Checking autosave conditions:', {
-        status,
-        isProjectContext,
-        isTestingContext,
-        questionName: question.Qn_name,
-        hasCode: !!Ans
-      });
-      
       if (!status) {
         if (isProjectContext) {
-          console.log('[AUTOSAVE DEBUG] Project context - saving to sessionStorage only');
           // For project context, save to session storage only
           const codeKey = getUserCodeKey(question.Qn_name);
           sessionStorage.setItem(codeKey, Ans);
         } else if (!isTestingContext) {
-          console.log('[AUTOSAVE DEBUG] Practice mode - triggering autoSaveCode API');
           // Auto-save in practice mode when code runs and not submitted
           autoSaveCode(Ans, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
-            .then(() => {
-              console.log('[AUTOSAVE DEBUG] autoSaveCode API call completed successfully');
-            })
-            .catch((error) => {
-              console.error('[AUTOSAVE DEBUG] autoSaveCode API call failed:', error);
-            });
-        } else {
-          console.log('[AUTOSAVE DEBUG] Testing context - skipping autosave');
         }
-      } else {
-        console.log('[AUTOSAVE DEBUG] Question already submitted (status=true) - skipping autosave');
       }
 
       if (result.result.success) {
