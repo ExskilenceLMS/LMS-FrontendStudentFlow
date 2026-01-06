@@ -190,6 +190,11 @@ const CourseCoding: React.FC = () => {
     };
   };
 
+  // Show loading state first
+  if (loading) {
+    return <CodingEditorLoader />;
+  }
+
   // Get current question
   const currentQuestion = questions[currentQuestionIndex];
   
@@ -218,11 +223,6 @@ const CourseCoding: React.FC = () => {
         return <PythonEditorComponent key={editorKey} {...commonProps} question={currentQuestion as any} />;
     }
   };
-
-  // Show loading state
-  if (loading) {
-    return <CodingEditorLoader />;
-  }
 
   // Show error if no questions
   if (!questions || questions.length === 0) {
