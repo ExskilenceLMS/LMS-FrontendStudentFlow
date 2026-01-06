@@ -262,8 +262,8 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
       
       const sendData = {
         student_id: studentId,
-        week_number: weekNumber,
-        day_number: dayNumber,
+        week_number: isTestingContext ? null : weekNumber,
+        day_number: isTestingContext ? null : dayNumber,
         subject: subject,
         subject_id: subjectId,
         Qn: question.Qn_name,

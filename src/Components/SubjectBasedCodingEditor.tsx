@@ -49,6 +49,7 @@ interface Question {
   defaulttemplate?: string;
   image_urls?: Array<{ actualUrl: string; expectedUrl: string }>;
   question_id?: string;
+  FunctionCall?: string;
 }
 
 interface TransformedQuestion {
@@ -160,7 +161,7 @@ const SubjectBasedCodingEditor: React.FC = () => {
             LastUpdated: q.LastUpdated || q.CreatedOn || '',
             MultiSelect: q.MultiSelect || '0',
             Explanations: q.Explanations || q.Expl || [],
-            FunctionCall: '',
+            FunctionCall: q.FunctionCall || '',
             QuestionType: q.type || '',
             subject_id: subject_id,
             topic_id: q.subtopic_id || '',

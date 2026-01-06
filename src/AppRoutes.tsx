@@ -61,7 +61,7 @@ const AppRoutes = () => {
         <Route path="/practice-coding/" element={<Layout><CourseCoding /></Layout>} />
         <Route path="/project-roadmap" element={<Layout><ProjectRoadmap /></Layout>} />
         <Route path="/project-tasks" element={<Layout><ProjectTasks /></Layout>} />
-        <Route path="/editor" element={<Layout><UnifiedEditor /></Layout>} />
+        <Route path="/coding-challenges-editor" element={<Layout><UnifiedEditor /></Layout>} />
       </Route>
     </Routes>
   );

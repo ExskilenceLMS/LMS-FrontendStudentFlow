@@ -29,7 +29,7 @@ export const navigationRules: NavigationRule[] = [
   { currentPath: '/Online-Session', previousPath: '/Dashboard', description: 'OnlineSession -> Dashboard', allowBack: true },
   { currentPath: '/project-roadmap', previousPath: '/Dashboard', description: 'ProjectRoadmap -> Dashboard', allowBack: true },
   { currentPath: '/project-tasks', previousPath: '/project-roadmap', description: 'ProjectTasks -> ProjectRoadmap', allowBack: true },
-  { currentPath: '/editor', previousPath: '/project-tasks', description: 'UnifiedEditor -> ProjectTasks', allowBack: true },
+  { currentPath: '/coding-challenges-editor', previousPath: '/project-tasks', description: 'UnifiedEditor -> ProjectTasks', allowBack: true },
 ];
 
 export const getPreviousPath = (currentPath: string): string => {

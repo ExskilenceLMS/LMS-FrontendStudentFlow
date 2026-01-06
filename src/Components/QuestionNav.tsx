@@ -16,7 +16,7 @@ const QuestionNav: React.FC<QuestionNavProps> = ({
   return (
     <div
       className="d-flex flex-column align-items-center"
-      style={{ width: "80px", overflowY: "auto", maxHeight: "100%" }}
+      style={{ width: "65px", overflowY: "auto", maxHeight: "100%" }}
     >
       {Array.from({ length: totalQuestions }).map((_, index) => (
         <button
