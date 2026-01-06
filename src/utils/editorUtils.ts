@@ -36,8 +36,10 @@ export const resetEditorUndoManager = (editor: any): void => {
     // Replace the session's undo manager with the new one
     session.setUndoManager(newUndoManager);
     
-    // Mark the document as clean to prevent undo history accumulation
-    session.markClean();
+    // Mark the document as clean to prevent undo history accumulation (if method exists)
+    if (typeof session.markClean === 'function') {
+      session.markClean();
+    }
   } catch (error) {
     console.error('Error resetting undo manager:', error);
   }

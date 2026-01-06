@@ -103,7 +103,6 @@ const CourseCoding: React.FC = () => {
   useEffect(() => {
     const fetchQuestions = async () => {
       if (!actualStudentId || !subject || !subjectId || !dayNumber || !weekNumber) {
-        console.error("Missing required session storage data");
         setLoading(false);
         return;
       }
@@ -114,10 +113,26 @@ const CourseCoding: React.FC = () => {
         
         const response = await getApiClient().get(url);
         const questionsData = response.data.questions;
+        
+        // Check if there's a saved question index in sessionStorage
+        // First check 'currentQuestionIndex' (from SubjectRoadMap), then 'practiceCodingCurrentQuestionIndex' (from navigation)
+        const savedIndexFromRoadmap = sessionStorage.getItem('currentQuestionIndex');
+        const savedIndexFromNav = sessionStorage.getItem('practiceCodingCurrentQuestionIndex');
+        const savedIndex = savedIndexFromRoadmap || savedIndexFromNav;
+        const initialIndex = savedIndex ? parseInt(savedIndex, 10) : 0;
+        
         setQuestions(questionsData);
         
         if (questionsData.length > 0) {
-          setCurrentQuestionIndex(0);
+          if (initialIndex >= 0 && initialIndex < questionsData.length) {
+            setCurrentQuestionIndex(initialIndex);
+            // Clear the roadmap index after using it
+            if (savedIndexFromRoadmap) {
+              sessionStorage.removeItem('currentQuestionIndex');
+            }
+          } else {
+            setCurrentQuestionIndex(0);
+          }
         }
       } catch (error) {
         console.error("Error fetching questions:", error);
@@ -132,8 +147,9 @@ const CourseCoding: React.FC = () => {
   }, [tablesData, actualStudentId, subject, subjectId, dayNumber, weekNumber]);
 
   const handleQuestionChange = (index: number) => {
-    if (index >= 0 && index < questions.length) {
+    if (index >= 0 && questions && questions.length > 0 && index < questions.length) {
       setCurrentQuestionIndex(index);
+      sessionStorage.setItem('practiceCodingCurrentQuestionIndex', index.toString());
     }
   };
 
@@ -174,28 +190,32 @@ const CourseCoding: React.FC = () => {
     };
   };
 
-  // Determine which editor to render based on editor field from current question
+  // Get current question
+  const currentQuestion = questions[currentQuestionIndex];
+  
+  if (!currentQuestion) {
+    return null;
+  }
+  
+  const editorType = currentQuestion.editor || 'python_coding';
+  const editorKey = `editor-${currentQuestionIndex}-${currentQuestion.Qn_name}`;
+  const commonProps = {
+    questionIndex: currentQuestionIndex,
+    totalQuestions: questions.length,
+    onNext: handleNext,
+    onQuestionChange: handleQuestionChange,
+  };
+  
   const renderEditor = () => {
-    const currentQuestion = questions[currentQuestionIndex];
-    if (!currentQuestion) return null;
-
-    const editorType = currentQuestion.editor || 'python_coding';
-    const commonProps = {
-      questionIndex: currentQuestionIndex,
-      totalQuestions: questions.length,
-      onNext: handleNext,
-      onQuestionChange: handleQuestionChange,
-    };
-
     switch (editorType) {
       case 'python_coding':
-        return <PythonEditorComponent {...commonProps} question={currentQuestion as any} />;
+        return <PythonEditorComponent key={editorKey} {...commonProps} question={currentQuestion as any} />;
       case 'frontend_coding':
-        return <FrontendEditorComponent {...commonProps} question={mapToQuestionData(currentQuestion)} />;
+        return <FrontendEditorComponent key={editorKey} {...commonProps} question={mapToQuestionData(currentQuestion)} />;
       case 'sql_coding':
-        return <SQLCodeEditorComponent {...commonProps} question={currentQuestion as any} />;
+        return <SQLCodeEditorComponent key={editorKey} {...commonProps} question={currentQuestion as any} />;
       default:
-        return <PythonEditorComponent {...commonProps} question={currentQuestion as any} />;
+        return <PythonEditorComponent key={editorKey} {...commonProps} question={currentQuestion as any} />;
     }
   };
 

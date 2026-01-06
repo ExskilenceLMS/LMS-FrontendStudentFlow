@@ -171,7 +171,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
       const submissionStatus = sessionStorage.getItem(statusKey);
       setIsSubmitted(submissionStatus ? decryptData(submissionStatus) === "submitted" : question.status);
     }
-  }, [question?.Qn_name, question?.Query, question?.entered_ans, question.Ans, questionIndex, isTestingContext]);
+  }, [question?.Qn_name, question?.Query, question?.entered_ans, question?.Ans, questionIndex, isTestingContext, subject, weekNumber, dayNumber]);
 
   // Initialize tables
   useEffect(() => {

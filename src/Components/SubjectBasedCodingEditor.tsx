@@ -287,6 +287,7 @@ const SubjectBasedCodingEditor: React.FC = () => {
       score: q.score,
       entered_ans: q.entered_ans,
       image_urls: q.image_urls,
+      question_id: q.question_id || '',
     };
   };
 

@@ -279,7 +279,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
           setAns(codeToSet);
       }
     }
-  }, [question.Qn_name, question?.question_id, questionIndex]);
+  }, [question?.Qn_name, question?.question_id, question?.Ans, question?.entered_ans, question?.Template, question?.FunctionCall, questionIndex, isTestingContext, isProjectContext]);
 
   const generateEditorValue = () => {
     const template = question?.Template || "";
@@ -870,11 +870,6 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
             className="pe-3"
             style={{ width: "95%", height: "calc(100% - 20px)", marginTop: "20px", margin: '15px' }}
             editorProps={{ $blockScrolling: true }}
-            setOptions={{
-              enableBasicAutocompletion: false,
-              enableLiveAutocompletion: false,
-              enableSnippets: false,
-            }}
             placeholder={question?.Template || question?.FunctionCall ? "" : `Instructions :
 1. Don't use input() function. 
 2. It is mandatory to use the exact variable names provided in the question or example [variable names are case-sensitive ]
