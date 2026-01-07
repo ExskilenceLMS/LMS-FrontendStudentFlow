@@ -30,9 +30,22 @@ export const useSubtaskRestrictions = ({
   const getHighestAllowedIndex = useCallback((): number => {
     try {
       const stored = sessionStorage.getItem(storageKey);
-      return stored ? Math.max(0, parseInt(stored, 10)) : 0;
+      if (!stored) return 0;
+      
+      // Parse and validate the stored value
+      const parsed = parseInt(stored, 10);
+      
+      // Check if parsing resulted in NaN or invalid number
+      if (isNaN(parsed) || !isFinite(parsed)) {
+        sessionStorage.removeItem(storageKey);
+        return 0;
+      }
+      
+      // Ensure non-negative and reasonable (cap at 1000 to prevent abuse)
+      return Math.max(0, Math.min(1000, Math.floor(parsed)));
     } catch (error) {
       console.error("Error reading highest allowed subtask index:", error);
+      // If sessionStorage is unavailable (e.g., private browsing), return 0
       return 0;
     }
   }, [storageKey]);
@@ -43,39 +56,61 @@ export const useSubtaskRestrictions = ({
   );
 
   // Set highest allowed subtask index
-  // IMPORTANT: Only update if new index is greater than current value
-  // This prevents reducing the value for completed tasks when navigating between subtasks
+  // IMPORTANT: This should only increase or stay the same, never decrease
+  // This ensures that once a user has access to a subtask, they don't lose that access
   const setHighestAllowedIndex = useCallback((index: number) => {
     try {
-      const validIndex = Math.max(0, index);
-      // Use functional update to get current state value
-      setHighestAllowedIndexState((currentIndex) => {
-        // Only update if new index is greater than current (prevents reduction for completed tasks)
-        const newIndex = Math.max(currentIndex, validIndex);
-        sessionStorage.setItem(storageKey, newIndex.toString());
-        return newIndex;
-      });
+      // Validate index is a number and non-negative
+      if (typeof index !== 'number' || isNaN(index)) {
+        return;
+      }
+      
+      const validIndex = Math.max(0, Math.min(1000, Math.floor(index))); // Ensure integer, non-negative, and reasonable max
+      const currentHighest = getHighestAllowedIndex();
+      
+      // Only update if the new index is greater than or equal to the current value
+      // This prevents the index from decreasing when navigating
+      if (validIndex >= currentHighest) {
+        try {
+          sessionStorage.setItem(storageKey, validIndex.toString());
+          setHighestAllowedIndexState(validIndex);
+        } catch (error: any) {
+          // Handle sessionStorage quota exceeded or other errors
+          // Still update state even if sessionStorage fails
+          setHighestAllowedIndexState(validIndex);
+        }
+      }
     } catch (error) {
       console.error("Error setting highest allowed subtask index:", error);
+      // On error, don't update - preserve current state
     }
-  }, [storageKey]);
+  }, [storageKey, getHighestAllowedIndex]);
 
   // Clear restrictions (called when task changes)
+  // IMPORTANT: This should only be called when switching tasks, not during navigation
   const clearRestrictions = useCallback(() => {
     try {
       sessionStorage.removeItem(storageKey);
       setHighestAllowedIndexState(0);
     } catch (error) {
       console.error("Error clearing subtask restrictions:", error);
+      // Even if sessionStorage fails, reset state
+      setHighestAllowedIndexState(0);
     }
   }, [storageKey]);
 
   // Check if a subtask index is accessible
   const isSubtaskAccessible = useCallback((index: number, currentIndex?: number): boolean => {
+    // Validate index is a valid number
+    if (typeof index !== 'number' || isNaN(index) || index < 0 || !isFinite(index)) {
+      return false;
+    }
+    
     // Current subtask is always accessible
     if (currentIndex !== undefined && index === currentIndex) {
       return true;
     }
+    
     // Check against highest allowed index
     return index <= highestAllowedIndex;
   }, [highestAllowedIndex]);
@@ -128,9 +163,17 @@ export const useSubtaskRestrictions = ({
     nextIndex: number
   ): Promise<{ success: boolean; message?: string }> => {
     try {
+      // Validate indices
+      if (typeof currentIndex !== 'number' || typeof nextIndex !== 'number' || 
+          isNaN(currentIndex) || isNaN(nextIndex) || nextIndex < 0) {
+        return { success: false, message: "Invalid subtask indices." };
+      }
+
       const response = await updateLessonStatus(currentSubtaskId, true);
       
       if (!response) {
+        // If no response, still unlock next subtask (fallback behavior)
+        setHighestAllowedIndex(nextIndex);
         return { success: true };
       }
 
@@ -144,6 +187,14 @@ export const useSubtaskRestrictions = ({
       }
 
       if (isStatusFalse) {
+        // Even if status is false, if user has already accessed nextIndex, allow it
+        // This handles edge case where API says no but user already has access
+        const currentHighest = getHighestAllowedIndex();
+        if (nextIndex <= currentHighest) {
+          // User already has access, allow navigation
+          return { success: true };
+        }
+        
         return {
           success: false,
           message: response.message || "This subtask cannot be completed yet.",
@@ -155,9 +206,14 @@ export const useSubtaskRestrictions = ({
       return { success: true };
     } catch (error) {
       console.error("Error completing subtask:", error);
-      return { success: true }; // Fallback: allow
+      // On error, check if user already has access to nextIndex
+      const currentHighest = getHighestAllowedIndex();
+      if (nextIndex <= currentHighest) {
+        return { success: true }; // User already has access, allow navigation
+      }
+      return { success: true }; // Fallback: allow (better UX than blocking)
     }
-  }, [updateLessonStatus, setHighestAllowedIndex]);
+  }, [updateLessonStatus, setHighestAllowedIndex, getHighestAllowedIndex]);
 
   // Initialize highest allowed index (e.g., on component mount)
   const initializeHighestAllowed = useCallback((initialIndex: number) => {
