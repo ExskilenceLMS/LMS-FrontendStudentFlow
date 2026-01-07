@@ -524,7 +524,7 @@ const ProjectRoadmapContent: React.FC = () => {
         partId,
         taskId,
         subtaskId: finalSubTaskId || "",
-        currentSubTaskId: finalSubTaskId,
+        currentSubTaskId: finalSubTaskId
       });
       if (finalSubTaskId) {
         sessionStorage.setItem("currentRoadmapSubtaskId", finalSubTaskId);
