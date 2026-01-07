@@ -7,7 +7,7 @@ import { secretKey } from "./constants";
 import ProjectSidebar from "./Components/ProjectSidebar";
 import { ProjectProvider, useProjectContext } from "./Components/ProjectContext";
 import { setProjectIds } from "./utils/projectStorageUtils";
-
+import LoaderComponent from "./Components/LoaderComponent";
 // Data structure interfaces
 interface TaskData {
   id?: string;
@@ -751,14 +751,7 @@ const ProjectRoadmapContent: React.FC = () => {
 
   if (loading) {
     return (
-      <div
-        className="d-flex justify-content-center align-items-center bg-white"
-        style={{ height: "100vh" }}
-      >
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </div>
+      <LoaderComponent />
     );
   }
 
