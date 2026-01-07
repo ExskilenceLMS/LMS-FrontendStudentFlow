@@ -346,6 +346,7 @@ const ProjectRoadmapContent: React.FC = () => {
       // Check if this task matches the current task from roadmap status
       const isCurrentTask = roadmapStatus?.current_task_id === taskId;
       const taskStatus = roadmapStatus?.status;
+      const currentSubtaskIdFromStatus = roadmapStatus?.current_subtask_id || "";
 
       // Check if current task is completed and find next task
       const isCurrentTaskCompleted = roadmapStatus?.status === "completed" && 
@@ -399,13 +400,21 @@ const ProjectRoadmapContent: React.FC = () => {
       
       const isCompletedTask = isPreviousTask || (isCurrentTask && isCurrentTaskCompleted);
       
+      // Determine if this is a new task starting (status "start" with empty subtask_id OR next task after completion)
+      const isNewTaskStarting = (taskStatus === "start" && isCurrentTask && (!currentSubtaskIdFromStatus || currentSubtaskIdFromStatus === "")) || isNextTask;
+      
       // Clear restrictions first when task changes (will be set appropriately in ProjectTasks.tsx)
       // This ensures the value decreases when switching to a new task
       sessionStorage.removeItem("highestAllowedSubtask");
       
-      // If this is a completed task, set highest allowed subtask index to max directly (e.g., if 5 subtasks, set to 4)
-      // This will be set in ProjectTasks.tsx, but we can set it here too for immediate effect
-      if (isCompletedTask && task.data && task.data.length > 0) {
+      // Priority: Next task after completion should start at 0, not max
+      // If this is a new task starting (status "start" with empty subtask_id OR next task after completion), set to 0
+      // If this is a completed task (but NOT the next task), set to max to allow viewing all subtasks
+      if (isNewTaskStarting) {
+        // New task starting - set to 0 (first subtask index)
+        sessionStorage.setItem("highestAllowedSubtask", "0");
+      } else if (isCompletedTask && task.data && task.data.length > 0) {
+        // Completed task (for viewing) - set highest allowed subtask index to max
         const maxSubtaskIndex = task.data.length - 1;
         sessionStorage.setItem("highestAllowedSubtask", maxSubtaskIndex.toString());
       }
@@ -426,7 +435,13 @@ const ProjectRoadmapContent: React.FC = () => {
           if (response.status >= 200 && response.status < 300) {
             // Check if current_sub_task or current_sub_task_id is empty
             const apiSubTaskId = response.data?.current_sub_task_id || response.data?.current_sub_task || "";
-            if (apiSubTaskId && apiSubTaskId !== "") {
+            
+            // For new tasks starting (status "start" with empty subtask_id OR next task), always use first subtask (index 0)
+            if (isNewTaskStarting) {
+              if (task.data && task.data.length > 0) {
+                currentSubTaskId = task.data[0].subtask_id;
+              }
+            } else if (apiSubTaskId && apiSubTaskId !== "") {
               currentSubTaskId = apiSubTaskId;
             } else {
               // If current_sub_task is empty, use first subtask to navigate to next page
@@ -481,17 +496,26 @@ const ProjectRoadmapContent: React.FC = () => {
         currentSubTaskId = roadmapStatus.current_subtask_id;
       }
 
-      // For completed tasks, always use first subtask; otherwise use roadmap status or first subtask
-      const subtaskId = isCompletedTask 
-        ? (task?.data?.[0]?.subtask_id || "")
-        : ((isCurrentTask && roadmapStatus?.current_subtask_id) 
-          ? roadmapStatus.current_subtask_id 
-          : (task?.data?.[0]?.subtask_id || ""));
+      // Determine final subtask ID:
+      // 1. For completed tasks, always use first subtask
+      // 2. For new tasks starting (status "start" with empty subtask_id), use first subtask (index 0)
+      // 3. For current task with resume status, use subtask from roadmap status
+      // 4. Otherwise, use first subtask as default
+      let finalSubTaskId: string | undefined;
       
-      // For completed tasks, ensure we use the first subtask
-      const finalSubTaskId = isCompletedTask 
-        ? (task?.data?.[0]?.subtask_id || undefined)
-        : (currentSubTaskId || roadmapStatus?.current_subtask_id || undefined);
+      if (isCompletedTask) {
+        // Completed task - use first subtask
+        finalSubTaskId = task?.data?.[0]?.subtask_id || undefined;
+      } else if (isNewTaskStarting) {
+        // New task starting - use first subtask (index 0)
+        finalSubTaskId = task?.data?.[0]?.subtask_id || undefined;
+      } else if (isCurrentTask && currentSubtaskIdFromStatus && currentSubtaskIdFromStatus !== "" && currentSubtaskIdFromStatus !== "completed") {
+        // Current task with resume status - use subtask from roadmap status
+        finalSubTaskId = currentSubtaskIdFromStatus;
+      } else {
+        // Default to first subtask
+        finalSubTaskId = task?.data?.[0]?.subtask_id || undefined;
+      }
       
       // Store all IDs in session storage using utility function
       setProjectIds({
@@ -499,7 +523,7 @@ const ProjectRoadmapContent: React.FC = () => {
         phaseId,
         partId,
         taskId,
-        subtaskId: finalSubTaskId || subtaskId,
+        subtaskId: finalSubTaskId || "",
         currentSubTaskId: finalSubTaskId,
       });
       if (finalSubTaskId) {
