@@ -54,7 +54,7 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
   const dayNumber = decryptSessionValue('DayNumber');
   
   const projectId = getProjectId("projectId");
-  const isProjectContext = !!projectId;
+  const isProjectContext = !!projectId && window.location.pathname.includes('/coding-challenges-editor');
   const isTestingContext = window.location.pathname.includes('/testing/coding/');
 
   // Use custom hook for editor state
@@ -125,18 +125,31 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
       // Initialize file contents from Code_Validation
       const fileContents: {[key: string]: string} = {};
       
-      Object.keys(question.Code_Validation).forEach(fileName => {
-        if (question.status === true && question.entered_ans && question.entered_ans[fileName]) {
-          fileContents[fileName] = question.entered_ans[fileName];
-        } else if (fileName === 'index.html') {
-          const defaultTemplate = question.Template || question.defaulttemplate || '';
-          fileContents[fileName] = defaultTemplate;
-        } else {
-          fileContents[fileName] = '';
-        }
-      });
+      // In testing context, load Ans directly from Code_Validation
+      if (isTestingContext) {
+        Object.keys(question.Code_Validation).forEach(fileName => {
+          const codeValidation = question.Code_Validation[fileName];
+          if (codeValidation && codeValidation.Ans !== undefined) {
+            fileContents[fileName] = codeValidation.Ans;
+          } else {
+            fileContents[fileName] = '';
+          }
+        });
+      } else {
+        // Normal flow: use entered_ans, template, or empty
+        Object.keys(question.Code_Validation).forEach(fileName => {
+          if (question.status === true && question.entered_ans && question.entered_ans[fileName]) {
+            fileContents[fileName] = question.entered_ans[fileName];
+          } else if (fileName === 'index.html') {
+            const defaultTemplate = question.Template || question.defaulttemplate || '';
+            fileContents[fileName] = defaultTemplate;
+          } else {
+            fileContents[fileName] = '';
+          }
+        });
+      }
       
-      // Check session storage for saved code
+      // Check session storage for saved code (only if not in testing context or if testing context but no Ans in Code_Validation)
       const sessionKey = isProjectContext
         ? `project_userCode_${question.Qn_name}`
         : isTestingContext 
@@ -144,7 +157,7 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
           : `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
       const encryptedSessionCode = sessionStorage.getItem(sessionKey);
       
-      if (encryptedSessionCode && !question.status && !isSubmittedStatus) {
+      if (encryptedSessionCode && !question.status && !isSubmittedStatus && !isTestingContext) {
         try {
           const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
           const sessionCode = JSON.parse(decryptedCode);
@@ -190,8 +203,11 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
       setSuccessMessage('');
       setAdditionalMessage('');
       setStructureErrorMessage('');
+      
+      // Clear editor instances to ensure fresh state
+      setEditorInstances({});
     }
-  }, [question.Qn_name]);
+  }, [question?.Qn_name, question?.Code_Validation, question?.entered_ans, question?.Template, question?.defaulttemplate, question?.status, questionIndex, isTestingContext, isProjectContext, studentId, subject, weekNumber, dayNumber]);
 
   const onChangeFileContent = useCallback((value: string, viewUpdate: any) => {
     updateFileContent(activeTab, value);
@@ -300,9 +316,6 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
   const handleSubmit = async () => {
     setProcessing(true);
     
-    // Project submission API endpoint
-    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/project/frontend/submit/`;
-    
     try {
       const htmlFiles = Object.keys(fileContents).filter(fileName => 
         fileName.endsWith('.html')
@@ -364,43 +377,95 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
       const encryptedBatchId = sessionStorage.getItem('BatchId');
       const decryptedBatchId = encryptedBatchId ? 
         CryptoJS.AES.decrypt(encryptedBatchId, secretKey).toString(CryptoJS.enc.Utf8) : 'batch4';
-      
-      // Project-specific submission
-      const projectId = getProjectId("projectId");
-      const phaseId = getProjectId("phaseId");
-      const partId = getProjectId("partId");
-      const taskId = getProjectId("taskId");
-      
-      const postData = {
-        student_id: studentId,
-        question_id: question.Qn_name,
-        html_code: htmlCode,
-        html_result: htmlResult,
-        css_code: cssCode,
-        css_result: cssResult,
-        js_code: jsCode,
-        js_result: jsResult,
-        batch_id: decryptedBatchId,
-        project_id: projectId,
-        phase_id: phaseId,
-        part_id: partId,
-        task_id: taskId,
-      };
 
-      const response = await getApiClient().post(url, postData);
-      const responseData = response.data;
-      
-      if (responseData.status === true) {
-        setIsSubmitted(true);
-        const submitStatusKey = `project_submitStatus_${question.Qn_name}`;
-        const encryptedSubmitStatus = CryptoJS.AES.encrypt("true", secretKey).toString();
-        sessionStorage.setItem(submitStatusKey, encryptedSubmitStatus);
+      if (isProjectContext) {
+        // Project-specific submission
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/project/frontend/submit/`;
+        const projectId = getProjectId("projectId");
+        const phaseId = getProjectId("phaseId");
+        const partId = getProjectId("partId");
+        const taskId = getProjectId("taskId");
+        
+        const postData = {
+          student_id: studentId,
+          question_id: question.Qn_name,
+          html_code: htmlCode,
+          html_result: htmlResult,
+          css_code: cssCode,
+          css_result: cssResult,
+          js_code: jsCode,
+          js_result: jsResult,
+          batch_id: decryptedBatchId,
+          project_id: projectId,
+          phase_id: phaseId,
+          part_id: partId,
+          task_id: taskId,
+        };
 
-        setSuccessMessage("Code submitted successfully!");
-        setAdditionalMessage("");
+        const response = await getApiClient().post(url, postData);
+        const responseData = response.data;
+        
+        if (responseData.status === true) {
+          setIsSubmitted(true);
+          const submitStatusKey = `project_submitStatus_${question.Qn_name}`;
+          const encryptedSubmitStatus = CryptoJS.AES.encrypt("true", secretKey).toString();
+          sessionStorage.setItem(submitStatusKey, encryptedSubmitStatus);
+
+          setSuccessMessage("Code submitted successfully!");
+          setAdditionalMessage("");
+        } else {
+          setSuccessMessage("Submission failed");
+          setAdditionalMessage("Could not submit your answer please try again");
+        }
       } else {
-        setSuccessMessage("Submission failed");
-        setAdditionalMessage("Could not submit your answer please try again");
+        // Practice coding submission
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/frontend/submit/`;
+        
+        // Get max score from question data (e.g., "0/10" -> use 10 as max score)
+        const questionScore = question?.score || "0/10";
+        const maxScore = parseInt(questionScore.split('/')[1]);
+        
+        const encryptedCourseId = sessionStorage.getItem('CourseId');
+        const decryptedCourseId = encryptedCourseId ? 
+          CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : 'course1';
+        
+        const postData = {
+          student_id: studentId,
+          question_id: question.Qn_name,
+          question_done_at: QUESTION_STATUS.PRACTICE,
+          subject_id: subjectId,
+          batch_id: decryptedBatchId,
+          course_id: decryptedCourseId,
+          week_number: weekNumber,
+          day_number: dayNumber,
+          subject: subject,
+          score: maxScore,
+          HTML_Code: htmlCode,
+          HTML_Result: htmlResult,
+          CSS_Code: cssCode,
+          CSS_Result: cssResult,
+          JS_Code: jsCode,
+          JS_Result: jsResult
+        };
+
+        const response = await getApiClient().post(url, postData);
+        const responseData = response.data;
+        
+        if (responseData.status === true) {
+          setIsSubmitted(true);
+          const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+          const encryptedSubmitStatus = CryptoJS.AES.encrypt("true", secretKey).toString();
+          sessionStorage.setItem(submitStatusKey, encryptedSubmitStatus);
+
+          // Clean up auto-saved code after successful submission
+          await cleanupAfterSubmission(question.Qn_name, studentId, QUESTION_STATUS.PRACTICE);
+
+          setSuccessMessage("Code submitted successfully!");
+          setAdditionalMessage("");
+        } else {
+          setSuccessMessage("Submission failed");
+          setAdditionalMessage("Could not submit your answer please try again");
+        }
       }
    
     } catch (error) {
@@ -434,9 +499,9 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
                   <h4 style={{ fontSize: "18px", fontWeight: "600", color: "#333", margin: 0 }}>
                     Problem Statement
                   </h4>
-                  {isTestingContext && question?.Qn_name && (
+                  {isTestingContext && question?.question_id && (
                     <span className="p-2 fs-6 rounded-2 bg-primary-subtle">
-                      QID: {question.Qn_name}
+                      QID: {question.question_id}
                     </span>
                   )}
                 </div>
@@ -843,9 +908,9 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
                         <h4 style={{ fontSize: "18px", fontWeight: "600", color: "#333", margin: 0 }}>
                           Problem Statement
                         </h4>
-                        {isTestingContext && question?.Qn_name && (
+                        {isTestingContext && question?.question_id && (
                           <span className="p-2 fs-6 rounded-2 bg-primary-subtle">
-                            QID: {question.Qn_name}
+                            QID: {question.question_id}
                           </span>
                         )}
                       </div>

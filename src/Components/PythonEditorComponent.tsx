@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import AceEditor from "react-ace";
 import { getApiClient } from "../utils/apiAuth";
+import { resetEditorUndoManager } from "../utils/editorUtils";
 import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
@@ -58,6 +59,7 @@ interface Question {
   Last_Updated_by?: string;
   level?: string;
   Query?: string;
+  question_id?: string;
 }
 
 interface FastAPISubmitResponse {
@@ -117,7 +119,8 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
 
   // Check if we're in project context
   const projectId = getProjectId("projectId");
-  const isProjectContext = !!projectId;
+  const isProjectContext = !!projectId && window.location.pathname.includes('/coding-challenges-editor');
+  const isTestingContext = window.location.pathname.includes('/testing/coding/');
 
   // Get subject data (for non-project context)
   const encryptedSubjectId = sessionStorage.getItem('SubjectId');
@@ -154,7 +157,6 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
   const [activeSection, setActiveSection] = useState<'output' | 'testcases'>('output');
 
   // Question state
-  const [functionCall, setFunctionCall] = useState<string>("");
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [status, setStatus] = useState<boolean>(false);
   const [enteredAns, setEnteredAns] = useState<string>("");
@@ -201,9 +203,20 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
   // Initialize question data when question changes
   useEffect(() => {
     if (question) {
+      // Reset UI state first (before any early returns)
+      setRunResponseTestCases([]);
+      setSuccessMessage("");
+      setAdditionalMessage("");
+      setSelectedTestCaseIndex(null);
+      setActiveSection('output');
+      setOutput('');
+      setHasUserInteracted(false);
+      setIsNextBtn(false);
+      setProcessing(false);
+      setExecutionStatus('idle');
+
       const processedTestCases = processTestCases(question.TestCases || []);
       setTestCases(processedTestCases);
-      setFunctionCall(question.FunctionCall || '');
       setStatus(question.status || false);
 
       // Check submission status
@@ -217,12 +230,19 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
       // Load saved code
       const questionKey = getUserCodeKey(question.Qn_name);
       const savedCode = sessionStorage.getItem(questionKey);
-
+     if(isTestingContext) {
+      const codeToSet = question.FunctionCall 
+        ? question.Ans + "\n\n" + question.FunctionCall 
+        : question.Ans || '';
+      setEnteredAns(codeToSet);
+      setAns(codeToSet);
+      return;
+     }
       if (savedCode !== null) {
         setEnteredAns(savedCode);
         setAns(savedCode);
-      } else if (!question.status) {
-        // Try to get auto-saved code from backend (only for non-project context)
+      } else if (!question.status && !isTestingContext) {
+        // Try to get auto-saved code from backend (only for non-project context and non-testing mode)
         if (!isProjectContext) {
           getAutoSavedCode(question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
             .then(autoSavedCode => {
@@ -231,34 +251,35 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
                 setAns(autoSavedCode);
                 sessionStorage.setItem(questionKey, autoSavedCode);
               } else {
-                setEnteredAns(question.entered_ans || '');
-                setAns(question.entered_ans || '');
+                // In practice mode, use entered_ans or Template as fallback
+                let codeToSet = question.entered_ans || question.Template || '';
+                if (question.FunctionCall && codeToSet) {
+                  codeToSet = codeToSet + "\n\n" + question.FunctionCall;
+                }
+                setEnteredAns(codeToSet);
+                setAns(codeToSet);
               }
             })
             .catch(() => {
-              setEnteredAns(question.entered_ans || '');
-              setAns(question.entered_ans || '');
+              // In practice mode, use entered_ans or Template as fallback
+              let codeToSet = question.entered_ans || question.Template || '';
+              if (question.FunctionCall && codeToSet) {
+                codeToSet = codeToSet + "\n\n" + question.FunctionCall;
+              }
+              setEnteredAns(codeToSet);
+              setAns(codeToSet);
             });
-        } else {
-          setEnteredAns(question.entered_ans || '');
-          setAns(question.entered_ans || '');
         }
       } else {
-        setEnteredAns(question.entered_ans || '');
-        setAns(question.entered_ans || '');
+          let codeToSet = question.entered_ans || question.Template || '';
+          if (question.FunctionCall && codeToSet) {
+            codeToSet = codeToSet + "\n\n" + question.FunctionCall;
+          }
+          setEnteredAns(codeToSet);
+          setAns(codeToSet);
       }
-
-      // Reset UI state
-      setRunResponseTestCases([]);
-      setSuccessMessage("");
-      setAdditionalMessage("");
-      setSelectedTestCaseIndex(null);
-      setActiveSection('output');
-      setOutput('');
-      setHasUserInteracted(false);
-      setIsNextBtn(false);
     }
-  }, [question.Qn_name]);
+  }, [question?.Qn_name, question?.question_id, question?.Ans, question?.entered_ans, question?.Template, question?.FunctionCall, questionIndex, isTestingContext, isProjectContext]);
 
   const generateEditorValue = () => {
     const template = question?.Template || "";
@@ -313,7 +334,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
     const payload = {
       code: code,
       TestCases: transformedTestCases,
-      FunctionCall: functionCall,
+      FunctionCall: question.FunctionCall || '',
       language: "python",
       timeout: timeout,
       memory_limit: timeout === 10 ? "100m" : "200m",
@@ -359,6 +380,35 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
       sessionStorage.setItem(codeKey, newCode);
     }
   };
+
+  const editorRef = useRef<any>(null);
+
+  const onEditorLoad = (editor: any) => {
+    editorRef.current = editor;
+    // Reset undo manager immediately when editor loads
+    resetEditorUndoManager(editor);
+    // Also reset after a brief delay to ensure it's fully initialized
+    setTimeout(() => {
+      resetEditorUndoManager(editor);
+    }, 10);
+  };
+
+  // Reset undo manager when question index changes
+  useEffect(() => {
+    // Reset immediately if editor is already loaded
+    if (editorRef.current) {
+      resetEditorUndoManager(editorRef.current);
+    }
+    
+    // Also reset after a short delay to catch cases where editor loads after state update
+    const timer = setTimeout(() => {
+      if (editorRef.current) {
+        resetEditorUndoManager(editorRef.current);
+      }
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [questionIndex]);
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLPreElement>) => {
     if (!isWaitingForInput) return;
@@ -418,13 +468,15 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
 
       const result = await pollExecutionStatus(submissionId, 15);
       
+      // Auto-save on run (only in practice mode, not in testing or project context)
       if (!status) {
         if (isProjectContext) {
           // For project context, save to session storage only
           const codeKey = getUserCodeKey(question.Qn_name);
           sessionStorage.setItem(codeKey, Ans);
-        } else {
-          autoSaveCode(Ans, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+        } else if (!isTestingContext) {
+          // Auto-save in practice mode when code runs and not submitted
+          autoSaveCode(Ans, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
         }
       }
 
@@ -613,9 +665,6 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
   const handleSubmit = async () => {
     setIsSubmitted(true);
     setProcessing(true);
-    
-    // Project submission API endpoint
-    const url = `${process.env.REACT_APP_BACKEND_URL}api/student/project/coding/`;
 
     try {
       let submissionTestCases: Array<{[key: string]: string}> = [];
@@ -638,36 +687,74 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
         }
       }
 
-      // Project-specific submission
-      const projectId = getProjectId("projectId");
-      const phaseId = getProjectId("phaseId");
-      const partId = getProjectId("partId");
-      const taskId = getProjectId("taskId");
-      const subtaskId = getProjectId("subtaskId");
-      
-      const postData = {
-        student_id: studentId,
-        question_id: question.Qn_name,
-        answer: Ans,
-        batch_id: decryptData(sessionStorage.getItem("BatchId") || ""),
-        result_data: submissionTestCases,
-        project_id: projectId,
-        final_score: "0/0",
-        phase_id: phaseId,
-        part_id: partId,
-        task_id: taskId
-      };
+      if (isProjectContext) {
+        // Project-specific submission
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/project/coding/`;
+        const projectId = getProjectId("projectId");
+        const phaseId = getProjectId("phaseId");
+        const partId = getProjectId("partId");
+        const taskId = getProjectId("taskId");
+        
+        const postData = {
+          student_id: studentId,
+          question_id: question.Qn_name,
+          answer: Ans,
+          batch_id: decryptData(sessionStorage.getItem("BatchId") || ""),
+          result_data: submissionTestCases,
+          project_id: projectId,
+          final_score: "0/0",
+          phase_id: phaseId,
+          part_id: partId,
+          task_id: taskId
+        };
 
-      const response = await getApiClient().put(url, postData);
-      const responseData = response.data;
+        const response = await getApiClient().put(url, postData);
+        const responseData = response.data;
 
-      setStatus(true);
+        setStatus(true);
 
-      const codeKey = getUserCodeKey(question.Qn_name);
-      sessionStorage.setItem(codeKey, Ans);
+        const codeKey = getUserCodeKey(question.Qn_name);
+        sessionStorage.setItem(codeKey, Ans);
 
-      const submitStatusKey = `project_submitStatus_${question.Qn_name}`;
-      sessionStorage.setItem(submitStatusKey, encryptData("true"));
+        const submitStatusKey = `project_submitStatus_${question.Qn_name}`;
+        sessionStorage.setItem(submitStatusKey, encryptData("true"));
+      } else {
+        // Practice coding submission
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/coding/`;
+        const courseId = sessionStorage.getItem('CourseId') ? CryptoJS.AES.decrypt(sessionStorage.getItem('CourseId')!, secretKey).toString(CryptoJS.enc.Utf8) : "";
+        
+        const postData = {
+          student_id: studentId,
+          week_number: weekNumber,
+          day_number: dayNumber,
+          subject: subject,
+          subject_id: subjectId,
+          Qn: question.Qn_name,
+          Ans: Ans,
+          CallFunction: question.FunctionCall || "",
+          Result: submissionTestCases,
+          Attempt: 0,
+          final_score: "0/0",
+          course_id: courseId,
+          batch_id: decryptData(sessionStorage.getItem("BatchId") || "")
+        };
+
+        const response = await getApiClient().put(url, postData);
+        const responseData = response.data;
+
+        setStatus(true);
+
+        const codeKey = getUserCodeKey(question.Qn_name);
+        sessionStorage.setItem(codeKey, Ans);
+
+        const submitStatusKey = `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+        sessionStorage.setItem(submitStatusKey, encryptData("true"));
+
+        // Trigger auto-save after successful submission
+        if (!isProjectContext && !isTestingContext) {
+          autoSaveAfterSubmission(Ans, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+        }
+      }
 
       setIsNextBtn(true);
     } catch (innerError: any) {
@@ -771,15 +858,18 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
         {/* Code Editor */}
         <div className="bg-white" style={{ height: "45%", backgroundColor: "#E5E5E533" }}>
           <AceEditor
+            key={`editor-${questionIndex}`}
             mode="python"
             theme="dreamweaver"
             onChange={handleCodeChange}
+            onLoad={onEditorLoad}
             value={generateEditorValue()}
             fontSize={14}
             showPrintMargin={false}
             wrapEnabled={true}
             className="pe-3"
             style={{ width: "95%", height: "calc(100% - 20px)", marginTop: "20px", margin: '15px' }}
+            editorProps={{ $blockScrolling: true }}
             placeholder={question?.Template || question?.FunctionCall ? "" : `Instructions :
 1. Don't use input() function. 
 2. It is mandatory to use the exact variable names provided in the question or example [variable names are case-sensitive ]
@@ -818,23 +908,25 @@ Write your Code here.`}
                 RUN CODE
               </button>
               
-              <button
-                className="btn btn-sm btn-light me-2 processingDivButton"
-                style={{
-                  backgroundColor: "#FBEFA5DB",
-                  whiteSpace: "nowrap",
-                  fontSize: "12px",
-                  minWidth: "70px",
-                  boxShadow: "#888 1px 2px 5px 0px",
-                  height: "30px"
-                }}
-                onClick={handleSubmit}
-                disabled={isSubmitted || processing || status || !canSubmitCode()}
-              >
-                {(isSubmitted || status) ? "SUBMITTED" : "SUBMIT CODE"}
-              </button>
+              {!isTestingContext && (
+                <button
+                  className="btn btn-sm btn-light me-2 processingDivButton"
+                  style={{
+                    backgroundColor: "#FBEFA5DB",
+                    whiteSpace: "nowrap",
+                    fontSize: "12px",
+                    minWidth: "70px",
+                    boxShadow: "#888 1px 2px 5px 0px",
+                    height: "30px"
+                  }}
+                  onClick={handleSubmit}
+                  disabled={isSubmitted || processing || status || !canSubmitCode()}
+                >
+                  {(isSubmitted || status) ? "SUBMITTED" : "SUBMIT CODE"}
+                </button>
+              )}
               
-              {(isSubmitted || status) &&
+              {!isTestingContext && (isSubmitted || status) &&
                 <button
                   className="btn btn-sm btn-light processingDivButton"
                   style={{

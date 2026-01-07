@@ -151,7 +151,7 @@ const CodingContent: React.FC<CodingContentProps> = ({
                   "currentQuestionIndex",
                   questions.indexOf(question).toString()
                 );
-                navigate("/editor", { replace: true });
+                navigate("/coding-challenges-editor", { replace: true });
               }}
             >
               <span
