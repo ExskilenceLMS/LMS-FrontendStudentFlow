@@ -1,9 +1,9 @@
 import React from "react";
-import { Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import CryptoJS from "crypto-js";
 import { secretKey, LEVEL_TO_DIFFICULTY, DIFFICULTY_COLORS, getQuestionTitleMaxLength } from "../constants";
 import { CodingQuestion } from "../utils/projectStorageUtils";
+import LoaderComponent from "./LoaderComponent";
 
 interface CodingContentProps {
   questions: CodingQuestion[];
@@ -38,11 +38,7 @@ const CodingContent: React.FC<CodingContentProps> = ({
   // Show loader while loading
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center h-100">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </div>
+      <LoaderComponent />
     );
   }
 
