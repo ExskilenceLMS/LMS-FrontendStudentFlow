@@ -54,7 +54,7 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
   const dayNumber = decryptSessionValue('DayNumber');
   
   const projectId = getProjectId("projectId");
-  const isProjectContext = !!projectId && window.location.pathname.includes('/coding-challenges-editor/');
+  const isProjectContext = !!projectId && window.location.pathname.includes('/coding-challenges-editor');
   const isTestingContext = window.location.pathname.includes('/testing/coding/');
 
   // Use custom hook for editor state

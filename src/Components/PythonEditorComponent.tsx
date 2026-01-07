@@ -119,7 +119,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
 
   // Check if we're in project context
   const projectId = getProjectId("projectId");
-  const isProjectContext = !!projectId && window.location.pathname.includes('/coding-challenges-editor/');
+  const isProjectContext = !!projectId && window.location.pathname.includes('/coding-challenges-editor');
   const isTestingContext = window.location.pathname.includes('/testing/coding/');
 
   // Get subject data (for non-project context)
