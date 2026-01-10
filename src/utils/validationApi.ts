@@ -55,3 +55,14 @@ export async function getValidationResults(jobId: string) {
     throw error;
   }
 }
+
+export async function getRefactoredValidationResults(jobId: string) {
+  try {
+    const url = `${VALIDATION_API_BASE}/validation/results/refactor/${jobId}`;
+    const response = await apiClient.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('Get refactored validation results error:', error);
+    throw error;
+  }
+}

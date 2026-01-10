@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Button } from "react-bootstrap";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faHourglass, faChevronDown, faCheckCircle, faChevronUp, faCheck, faXmark } from '@fortawesome/free-solid-svg-icons';
-import { runValidation } from "./utils/validationApi";
-import { ValidationWebSocketClient } from "./utils/validationWebSocket";
+import { runValidation, getValidationStatus, getValidationResults } from "./utils/validationApi";
+// import { ValidationWebSocketClient } from "./utils/validationWebSocket";
 import { getApiClient } from "./utils/apiAuth";
 import { getProjectId } from "./utils/projectStorageUtils";
 import CryptoJS from "crypto-js";
@@ -15,7 +14,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const [vscodeLoading, setVscodeLoading] = useState(false);
   
   // Validation state - always run all tasks from JSON files
-  const [wsClient, setWsClient] = useState(null);
+  // const [wsClient, setWsClient] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [validationOutput, setValidationOutput] = useState<any[]>([]);
@@ -25,6 +24,8 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const [pingActive, setPingActive] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const outputRef = useRef(null);
   const isMountedRef = useRef(true);
@@ -36,10 +37,14 @@ function ProjectCodingEditor({ containerStatus = null }) {
     const iframe = iframeRef.current;
     return () => {
       isMountedRef.current = false;
-      // Cleanup WebSocket
-      if (wsClient) {
-        (wsClient as ValidationWebSocketClient).disconnect();
+      // Cleanup polling interval
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
+      // if (wsClient) {
+      //   (wsClient as ValidationWebSocketClient).disconnect();
+      // }
       if (iframe) {
         try {
           (iframe as HTMLIFrameElement).src = 'about:blank';
@@ -48,7 +53,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
         }
       }
     };
-  }, [wsClient]);
+  }, []);
 
   // Auto-scroll validation output
   useEffect(() => {
@@ -83,6 +88,12 @@ function ProjectCodingEditor({ containerStatus = null }) {
     setSelectedTestCase(null);
     setValidationProgress({ message: 'Ready to validate', percentage: 0 });
     setPingActive(false);
+    // Stop polling if active
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    setPollingJobId(null);
   };
 
   const handleCollapse = () => {
@@ -322,84 +333,165 @@ function ProjectCodingEditor({ containerStatus = null }) {
     }
   };
 
-  const connectValidationWebSocket = (jobId: string) => {
-    // Disconnect existing connection
-    if (wsClient) {
-      (wsClient as ValidationWebSocketClient).disconnect();
+  // const connectValidationWebSocket = (jobId: string) => {
+  //   // Disconnect existing connection
+  //   if (wsClient) {
+  //     (wsClient as ValidationWebSocketClient).disconnect();
+  //   }
+
+  //   const newWsClient: ValidationWebSocketClient = new ValidationWebSocketClient(jobId, {
+  //     onOpen: () => {
+  //       addValidationOutput('Connected to validation server', 'success');
+  //       setPingActive(true);
+  //     },
+  //     onPing: () => {
+  //       // Trigger ping animation only when validation is running
+  //       if (isRunning) {
+  //         setPingActive(true);
+  //         setTimeout(() => setPingActive(false), 200);
+  //       }
+  //     },
+  //     onStarted: (data: any) => {
+  //       const taskName = data.task_name || data.task_id || 'Task';
+  //       addValidationOutput(`Validating: ${taskName}`, 'info');
+  //     },
+  //     onProgress: (message: string, percentage: number) => {
+  //       setValidationProgress({ message, percentage });
+  //       addValidationOutput(message, 'info');
+  //     },
+  //     onStage: (stage: string, percentage: number) => {
+  //       setValidationProgress({ message: `Stage: ${stage}`, percentage });
+  //       addValidationOutput(`Stage: ${stage}`, 'info');
+  //     },
+  //     onTest: (testName: string, passed: boolean, stage: string) => {
+  //       const status = passed ? 'Passed' : 'Failed';
+  //       addValidationOutput(`Test: ${testName} - ${status}`, passed ? 'success' : 'error');
+  //       updateTestCasesList(testName, passed);
+  //     },
+  //     onPartial: (results: any) => {
+  //       // Handle partial/incremental results - update UI in real-time
+  //       const taskCount = results.tasks?.length || 0;
+  //       const totalTasks = results.taskName?.match(/\d+/)?.[0] || taskCount;
+  //       addValidationOutput(`Task ${taskCount}/${totalTasks} completed - updating results...`, 'info');
+  //       processValidationResults(results);
+  //       // Note: testCases will be updated by processValidationResults via setTestCases
+  //       // We'll show the count in the next render cycle
+  //     },
+  //     onCompleted: (results: any) => {
+  //       addValidationOutput('Validation completed!', 'success');
+  //       processValidationResults(results);
+  //       setIsRunning(false);
+  //       // Stop ping interval and disconnect when validation completes
+  //       newWsClient.stopPingInterval();
+  //       setPingActive(false);
+  //       // Disconnect WebSocket after a short delay to allow final messages
+  //       setTimeout(() => {
+  //         newWsClient.disconnect();
+  //       }, 1000);
+  //     },
+  //     onError: (error: any) => {
+  //       const errorMsg = error.message || error || 'Unknown error';
+  //       addValidationOutput(`Error: ${errorMsg}`, 'error');
+  //       setIsRunning(false);
+  //       // Stop ping interval and disconnect on error
+  //       newWsClient.stopPingInterval();
+  //       setPingActive(false);
+  //       // Disconnect WebSocket on error
+  //       setTimeout(() => {
+  //         newWsClient.disconnect();
+  //       }, 1000);
+  //     },
+  //     onClose: () => {
+  //       setPingActive(false);
+  //       addValidationOutput('Connection closed', 'warning');
+  //       // Stop ping interval when connection closes
+  //       newWsClient.stopPingInterval();
+  //     }
+  //   });
+
+  //   setWsClient(newWsClient as any);
+  //   newWsClient.connect();
+  // };
+
+  // Polling-based validation status checking (TEMPORARY: Replaces websocket)
+  const startPollingValidationStatus = (jobId: string) => {
+    setPollingJobId(jobId);
+    addValidationOutput(`Polling validation status for job: ${jobId}`, 'info');
+    setPingActive(true);
+    
+    // Clear any existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
     }
-
-    const newWsClient: ValidationWebSocketClient = new ValidationWebSocketClient(jobId, {
-      onOpen: () => {
-        addValidationOutput('Connected to validation server', 'success');
-        setPingActive(true);
-      },
-      onPing: () => {
-        // Trigger ping animation only when validation is running
-        if (isRunning) {
-          setPingActive(true);
-          setTimeout(() => setPingActive(false), 200);
+    
+    // Start polling every 2 seconds
+    pollingIntervalRef.current = setInterval(async () => {
+      if (!isMountedRef.current || !isRunning) {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
         }
-      },
-      onStarted: (data: any) => {
-        const taskName = data.task_name || data.task_id || 'Task';
-        addValidationOutput(`Validating: ${taskName}`, 'info');
-      },
-      onProgress: (message: string, percentage: number) => {
-        setValidationProgress({ message, percentage });
-        addValidationOutput(message, 'info');
-      },
-      onStage: (stage: string, percentage: number) => {
-        setValidationProgress({ message: `Stage: ${stage}`, percentage });
-        addValidationOutput(`Stage: ${stage}`, 'info');
-      },
-      onTest: (testName: string, passed: boolean, stage: string) => {
-        const status = passed ? 'Passed' : 'Failed';
-        addValidationOutput(`Test: ${testName} - ${status}`, passed ? 'success' : 'error');
-        updateTestCasesList(testName, passed);
-      },
-      onPartial: (results: any) => {
-        // Handle partial/incremental results - update UI in real-time
-        const taskCount = results.tasks?.length || 0;
-        const totalTasks = results.taskName?.match(/\d+/)?.[0] || taskCount;
-        addValidationOutput(`Task ${taskCount}/${totalTasks} completed - updating results...`, 'info');
-        processValidationResults(results);
-        // Note: testCases will be updated by processValidationResults via setTestCases
-        // We'll show the count in the next render cycle
-      },
-      onCompleted: (results: any) => {
-        addValidationOutput('Validation completed!', 'success');
-        processValidationResults(results);
-        setIsRunning(false);
-        // Stop ping interval and disconnect when validation completes
-        newWsClient.stopPingInterval();
-        setPingActive(false);
-        // Disconnect WebSocket after a short delay to allow final messages
-        setTimeout(() => {
-          newWsClient.disconnect();
-        }, 1000);
-      },
-      onError: (error: any) => {
-        const errorMsg = error.message || error || 'Unknown error';
-        addValidationOutput(`Error: ${errorMsg}`, 'error');
-        setIsRunning(false);
-        // Stop ping interval and disconnect on error
-        newWsClient.stopPingInterval();
-        setPingActive(false);
-        // Disconnect WebSocket on error
-        setTimeout(() => {
-          newWsClient.disconnect();
-        }, 1000);
-      },
-      onClose: () => {
-        setPingActive(false);
-        addValidationOutput('Connection closed', 'warning');
-        // Stop ping interval when connection closes
-        newWsClient.stopPingInterval();
+        return;
       }
-    });
-
-    setWsClient(newWsClient as any);
-    newWsClient.connect();
+      
+      try {
+        // Animate ping indicator
+        setPingActive(true);
+        setTimeout(() => setPingActive(false), 200);
+        
+        // Check status
+        const statusData = await getValidationStatus(jobId);
+        
+        if (!statusData || !statusData.success) {
+          addValidationOutput('Failed to get validation status', 'error');
+          return;
+        }
+        
+        const status = statusData.status;
+        const progress = statusData.progress || '';
+        const progressPercentage = statusData.progress_percentage || 0;
+        
+        // Update progress
+        if (progress) {
+          setValidationProgress({ message: progress, percentage: progressPercentage });
+          addValidationOutput(progress, 'info');
+        }
+        
+        // Check if completed or failed
+        if (status === 'completed' || status === 'failed') {
+          // Stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          
+          setPingActive(false);
+          addValidationOutput(`Validation ${status}! Fetching results...`, status === 'completed' ? 'success' : 'error');
+          
+          // Fetch final results
+          try {
+            const resultsData = await getValidationResults(jobId);
+            
+            if (resultsData && resultsData.success && resultsData.results) {
+              addValidationOutput('Validation completed!', 'success');
+              processValidationResults(resultsData.results);
+            } else {
+              addValidationOutput('Failed to fetch validation results', 'error');
+            }
+          } catch (error: any) {
+            const errorMsg = error.response?.data?.detail?.error || error.message || 'Unknown error';
+            addValidationOutput(`Error fetching results: ${errorMsg}`, 'error');
+          }
+          
+          setIsRunning(false);
+          setPollingJobId(null);
+        }
+      } catch (error: any) {
+        const errorMsg = error.response?.data?.detail?.error || error.message || 'Unknown error';
+        addValidationOutput(`Polling error: ${errorMsg}`, 'error');
+        // Continue polling on error (may be temporary network issue)
+      }
+    }, 2000); // Poll every 2 seconds
   };
 
   const handleRunValidation = async () => {
@@ -418,7 +510,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
       const response = await runValidation(null, null, containerName);
       
       if (response && response.success && response.job_id) {
-        connectValidationWebSocket(response.job_id);
+        // connectValidationWebSocket(response.job_id);
+        // Use polling instead of websocket
+        startPollingValidationStatus(response.job_id);
         addValidationOutput(`Validation job started: ${response.job_id}`, 'info');
         if (response.tasks_found) {
           addValidationOutput(`Found ${response.tasks_found} task file(s) in testing_config`, 'info');
@@ -431,6 +525,13 @@ function ProjectCodingEditor({ containerStatus = null }) {
       const errorMsg = (error as any).message || 'Unknown error occurred';
       addValidationOutput(`Error: ${errorMsg}`, 'error');
       setIsRunning(false);
+      // Stop polling on error
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      setPollingJobId(null);
+      setPingActive(false);
     }
   };
 
