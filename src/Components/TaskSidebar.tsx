@@ -3,11 +3,11 @@ import { PiMonitorPlayBold } from "react-icons/pi";
 import { SlNotebook } from "react-icons/sl";
 import { BsListTask } from "react-icons/bs";
 import { LiaLaptopCodeSolid } from "react-icons/lia";
-
+import { FaCode } from "react-icons/fa";
 interface TaskData {
   id?: string;
   time?: string;
-  type: "video" | "notes" | "coding" | "mcq";
+  type: "video" | "notes" | "coding" | "mcq" | "project_coding";
   topic_id?: string;
   subject_id?: string;
   is_mandatory: boolean;
@@ -71,6 +71,8 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
         return <BsListTask size={20} style={{ marginRight: "10px" }} />;
       case "coding":
         return <LiaLaptopCodeSolid size={25} style={{ marginRight: "5px" }} />;
+      case "project_coding":
+        return <FaCode size={20} style={{ marginRight: "10px" }} />;
       default:
         return <PiMonitorPlayBold size={20} style={{ marginRight: "10px" }} />;
     }

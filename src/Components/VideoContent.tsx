@@ -1,6 +1,5 @@
 import React, { useEffect, useCallback, useState } from "react";
-import { Spinner } from "react-bootstrap";
-
+import LoaderComponent from "./LoaderComponent";
 interface VideoLesson {
   otp: string;
   playback_info: string;
@@ -149,11 +148,7 @@ const VideoContent: React.FC<VideoContentProps> = ({
   // Show loader while loading
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center h-100">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-      </div>
+      <LoaderComponent />
     );
   }
 
