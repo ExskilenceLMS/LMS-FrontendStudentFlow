@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Spinner } from "react-bootstrap";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faUpRightFromSquare } from '@fortawesome/free-solid-svg-icons';
 import TaskSidebar from "./TaskSidebar";
 import VideoContent from "./VideoContent";
 import NotesContent from "./NotesContent";
@@ -20,12 +22,11 @@ import {
   CodingQuestion
 } from "../utils/projectStorageUtils";
 import { useSubtaskRestrictions } from "../hooks/useSubtaskRestrictions";
-
 // Data structure interfaces
 interface TaskData {
   id?: string;
   time?: string;
-  type: "video" | "notes" | "coding" | "mcq";
+  type: "video" | "notes" | "coding" | "mcq" | "project_coding";
   topic_id?: string;
   subject_id?: string;
   is_mandatory: boolean;
@@ -60,12 +61,11 @@ const ProjectTasks: React.FC = () => {
   const [codingQuestions, setCodingQuestions] = useState<CodingQuestion[]>([]);
   const [loadedCodingSubtaskId, setLoadedCodingSubtaskId] = useState<string | null>(null);
   const [loadedMCQSubtaskId, setLoadedMCQSubtaskId] = useState<string | null>(null);
-  const [currentVideoId, setCurrentVideoId] = useState<number | null>(null);
-  const [currentNoteId, setCurrentNoteId] = useState<number | null>(null);
+  const [projectCodingQuestionData, setProjectCodingQuestionData] = useState<any>(null);
+  const [projectCodingLoading, setProjectCodingLoading] = useState<boolean>(false);
   const [currentMCQIndex, setCurrentMCQIndex] = useState<number>(0);
   const [showStatusModal, setShowStatusModal] = useState<boolean>(false);
   const [statusModalMessage, setStatusModalMessage] = useState<string>("");
-  const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [statusChecking, setStatusChecking] = useState<boolean>(false); // Loader for status API (only for status=true calls)
   
   // Ref to track if component is mounted (for async operations)
@@ -168,7 +168,6 @@ const ProjectTasks: React.FC = () => {
       if (!taskDataStr) {
         if (isMountedRef.current) {
           setError("Task data not found");
-          setInitialLoading(false);
         }
         return;
       }
@@ -184,7 +183,6 @@ const ProjectTasks: React.FC = () => {
         if (!taskData.task.data || taskData.task.data.length === 0) {
           if (isMountedRef.current) {
             setError("No subtasks available");
-            setInitialLoading(false);
           }
           return;
         }
@@ -239,7 +237,6 @@ const ProjectTasks: React.FC = () => {
         if (taskData.task.data.length === 0) {
           if (isMountedRef.current) {
             setError("Task has no subtasks available");
-            setInitialLoading(false);
           }
           return;
         }
@@ -266,7 +263,6 @@ const ProjectTasks: React.FC = () => {
         if (!initialSubTask || !initialSubTask.subtask_id) {
           if (isMountedRef.current) {
             setError("Invalid subtask data");
-            setInitialLoading(false);
           }
           return;
         }
@@ -321,15 +317,10 @@ const ProjectTasks: React.FC = () => {
             setShowStatusModal(true);
           }
         }
-
-        if (isMountedRef.current) {
-          setInitialLoading(false); // done
-        }
       } catch (err) {
         console.error("Error parsing task data:", err);
         if (isMountedRef.current) {
           setError("Failed to load task data");
-          setInitialLoading(false);
         }
       }
     };
@@ -439,6 +430,45 @@ const ProjectTasks: React.FC = () => {
       setLoadedMCQSubtaskId(null);
       setCurrentMCQIndex(0);
     }
+    if (type === "project_coding") {
+      setProjectCodingQuestionData(null);
+    }
+  };
+
+  const fetchProjectCodingQuestionData = async (subTask: TaskData) => {
+    try {
+      setProjectCodingLoading(true);
+      const projectId = getProjectId("projectId") || "";
+      const phaseId = getProjectId("phaseId") || "";
+      const partId = getProjectId("partId") || "";
+      const taskId = getProjectId("taskId") || "";
+      const subtaskId = subTask.subtask_id || "";
+
+      if (!projectId || !phaseId || !partId || !taskId || !subtaskId) {
+        throw new Error("Missing required project IDs");
+      }
+
+      const response = await getApiClient().get(
+        `${process.env.REACT_APP_BACKEND_URL}api/student/project/practice/project_coding/${studentId}/${projectId}/${phaseId}/${partId}/${taskId}/${subtaskId}/`
+      );
+
+      if (!isMountedRef.current) return;
+
+      if (response.data?.questions?.length) {
+        setProjectCodingQuestionData(response.data);
+      } else {
+        throw new Error("Invalid response format");
+      }
+    } catch (err: any) {
+      console.error("Error fetching project coding question data:", err);
+      if (isMountedRef.current) {
+        setProjectCodingQuestionData(null);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setProjectCodingLoading(false);
+      }
+    }
   };
 
   const updateProjectIdsForSubtask = (subTask: TaskData) => {
@@ -488,7 +518,6 @@ const ProjectTasks: React.FC = () => {
       if (subTask.type === "video" && subTask.id) {
         const videoId = parseInt(subTask.id);
         if (!isMountedRef.current) return;
-        setCurrentVideoId(videoId);
         // Always fetch video data when subtask changes (API should be triggered)
         const data = await fetchVideoData(videoId);
         if (!isMountedRef.current) return;
@@ -499,7 +528,6 @@ const ProjectTasks: React.FC = () => {
       } else if (subTask.type === "notes" && subTask.id) {
         const noteId = parseInt(subTask.id);
         if (!isMountedRef.current) return;
-        setCurrentNoteId(noteId);
         // Always fetch notes data when subtask changes (API should be triggered)
         const data = await fetchNotesData(noteId);
         if (!isMountedRef.current) return;
@@ -518,6 +546,9 @@ const ProjectTasks: React.FC = () => {
       } else if (subTask.type === "coding") {
         // Always fetch coding questions when subtask changes (API should be triggered)
         await fetchCodingQuestions(subTask);
+      } else if (subTask.type === "project_coding") {
+        // Fetch project coding question data
+        await fetchProjectCodingQuestionData(subTask);
       }
     } catch (err) {
       console.error("Error loading sub-task content:", err);
@@ -785,6 +816,31 @@ const ProjectTasks: React.FC = () => {
           loading={loading}
         />
       );
+    } else if (currentSubTask.type === "project_coding") {
+      const firstQuestion = projectCodingQuestionData?.questions?.[0];
+      const questionContent = firstQuestion?.Name || '';
+      
+      return (
+        <div className="d-flex flex-column h-100 p-3">
+          {projectCodingLoading ? (
+            <div className="d-flex justify-content-center align-items-center" style={{ flex: 1 }}>
+              <Spinner animation="border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </Spinner>
+            </div>
+          ) : (
+            <>
+              <div className="flex-grow-1" style={{ overflowY: 'auto' }}>
+                <NotesContent
+                  noteData={{ id: 1, content: questionContent }}
+                  loading={false}
+                  paddingLeft={false}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      );
     }
 
     return (
@@ -882,7 +938,7 @@ const ProjectTasks: React.FC = () => {
           </div>
 
           {/* Navigation Buttons */}
-          <div className="d-flex justify-content-between p-3 border-top">
+          <div className="d-flex justify-content-between align-items-center p-3 border-top">
             <button
               className="btn btn-primary"
               onClick={handlePrevious}
@@ -894,6 +950,23 @@ const ProjectTasks: React.FC = () => {
             >
               Previous
             </button>
+            {task && currentSubTaskIndex !== null && task.data[currentSubTaskIndex]?.type === "project_coding" && (
+              <button
+                className="btn btn-success"
+                onClick={() => navigate("/project-coding", { 
+                  replace: true,
+                  state: { questionData: projectCodingQuestionData }
+                })}
+                disabled={!projectCodingQuestionData}
+                style={{
+                  cursor: projectCodingQuestionData ? "pointer" : "not-allowed",
+                  opacity: projectCodingQuestionData ? 1 : 0.6,
+                }}
+              >
+                Launch Editor
+                <FontAwesomeIcon icon={faUpRightFromSquare} className="ms-2" />
+              </button>
+            )}
             <button
               className="btn btn-primary"
               onClick={handleNext}
