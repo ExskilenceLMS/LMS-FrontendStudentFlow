@@ -747,6 +747,23 @@ function ProjectCodingEditor({ containerStatus = null }) {
           </div>
         </section>
       )}
+
+      {/* Mark as Complete Confirmation Modal */}
+      <ConfirmationModal
+        show={showCompleteModal}
+        onHide={() => setShowCompleteModal(false)}
+        onConfirm={handleMarkAsComplete}
+        title="Confirm Mark as Complete"
+        message="Are you sure you want to mark this question as complete? This action cannot be undone."
+        confirmText="Yes"
+        cancelText="No"
+        confirmVariant="success"
+        disabled={submitting}
+        loading={submitting}
+        loadingText="Submitting..."
+        centered={true}
+        size="lg"
+      />
     </div>
     </>
   );
