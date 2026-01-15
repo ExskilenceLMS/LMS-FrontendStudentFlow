@@ -14,14 +14,14 @@ export async function getTasks() {
   }
 }
 
-export async function runValidation(taskId = null, projectId = null, containerName = null) {
+export async function runValidation(taskId = null, projectId = null, containerId = null) {
   try {
     const body: any = {};
     if (projectId) {
       body.project_id = projectId;
     }
-    if (containerName) {
-      body.container_name = containerName;
+    if (containerId) {
+      body.container_id = containerId;
     }
     
     const url = `${process.env.REACT_APP_BACKEND_URL}api/validation/run-all`;

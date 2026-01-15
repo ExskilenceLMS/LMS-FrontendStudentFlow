@@ -503,11 +503,11 @@ function ProjectCodingEditor({ containerStatus = null }) {
     addValidationOutput('Triggering validation for all JSON files in testing_config...', 'info');
 
     try {
-      // Get container name/ID from containerStatus
-      const containerName = (containerStatus as any)?.containerName || (containerStatus as any)?.containerId || null;
+      // Get container_id from containerStatus (provision response stores container_id as containerName)
+      const containerId = (containerStatus as any)?.containerName || (containerStatus as any)?.containerId || null;
       
       // Always pass null to run all JSON files in testing_config
-      const response = await runValidation(null, null, containerName);
+      const response = await runValidation(null, null, containerId);
       
       if (response && response.success && response.job_id) {
         // connectValidationWebSocket(response.job_id);
