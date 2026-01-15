@@ -114,7 +114,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const processValidationResults = (results: any) => {
     // Display all test cases from results
     // Handle both single task and "all tasks" structures
-    const allTests: any[] = [];
+    // Merge with existing tests to show incremental updates
+    const existingTestIds = new Set(testCases.map(t => t.id || t.name));
+    const allTests: any[] = [...testCases]; // Start with existing tests
     
     // Check if this is "all tasks" structure (has tasks array)
     if (results.tasks && Array.isArray(results.tasks)) {
@@ -128,15 +130,31 @@ function ProjectCodingEditor({ containerStatus = null }) {
         if (taskResult.tests && Array.isArray(taskResult.tests) && taskResult.tests.length > 0) {
           taskHasTests = true;
           taskResult.tests.forEach((test: any) => {
-            allTests.push({
-              name: `${taskPrefix} - ${test.name || 'Test'}`,
-              id: test.id || test.name || '',
-              description: test.description || '',
-              passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-              type: test.type || 'unknown',
-              message: test.message || '',
-              error: test.error || test.details || ''
-            });
+            const testId = `${taskPrefix}-${test.id || test.name || ''}`;
+            // Only add if not already present (incremental update)
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: `${taskPrefix} - ${test.name || 'Test'}`,
+                id: testId,
+                description: test.description || '',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                type: test.type || 'unknown',
+                message: test.message || '',
+                error: test.error || test.details || ''
+              });
+              existingTestIds.add(testId);
+            } else {
+              // Update existing test if results changed
+              const existingIndex = allTests.findIndex(t => t.id === testId);
+              if (existingIndex >= 0) {
+                allTests[existingIndex] = {
+                  ...allTests[existingIndex],
+                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                  message: test.message || allTests[existingIndex].message,
+                  error: test.error || test.details || allTests[existingIndex].error
+                };
+              }
+            }
           });
         }
         
@@ -144,15 +162,19 @@ function ProjectCodingEditor({ containerStatus = null }) {
         if (taskResult.schema && taskResult.schema.tests && Array.isArray(taskResult.schema.tests) && taskResult.schema.tests.length > 0) {
           taskHasTests = true;
           taskResult.schema.tests.forEach((test: any) => {
-            allTests.push({
-              name: `${taskPrefix} - ${test.name || 'Schema Test'}`,
-              id: test.id || test.name || '',
-              description: test.description || '',
-              passed: test.passed || false,
-              type: 'schema',
-              message: test.message || '',
-              error: test.error || test.details || ''
-            });
+            const testId = `${taskPrefix}-schema-${test.id || test.name || ''}`;
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: `${taskPrefix} - ${test.name || 'Schema Test'}`,
+                id: testId,
+                description: test.description || '',
+                passed: test.passed || false,
+                type: 'schema',
+                message: test.message || '',
+                error: test.error || test.details || ''
+              });
+              existingTestIds.add(testId);
+            }
           });
         }
         
@@ -160,15 +182,19 @@ function ProjectCodingEditor({ containerStatus = null }) {
         if (taskResult.static && taskResult.static.tests && Array.isArray(taskResult.static.tests) && taskResult.static.tests.length > 0) {
           taskHasTests = true;
           taskResult.static.tests.forEach((test: any) => {
-            allTests.push({
-              name: `${taskPrefix} - ${test.name || 'Static Test'}`,
-              id: test.id || test.name || '',
-              description: test.description || '',
-              passed: test.passed || false,
-              type: 'static',
-              message: test.message || '',
-              error: test.error || ''
-            });
+            const testId = `${taskPrefix}-static-${test.id || test.name || ''}`;
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: `${taskPrefix} - ${test.name || 'Static Test'}`,
+                id: testId,
+                description: test.description || '',
+                passed: test.passed || false,
+                type: 'static',
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            }
           });
         }
         
@@ -176,15 +202,30 @@ function ProjectCodingEditor({ containerStatus = null }) {
         if (taskResult.pytest && taskResult.pytest.tests && Array.isArray(taskResult.pytest.tests) && taskResult.pytest.tests.length > 0) {
           taskHasTests = true;
           taskResult.pytest.tests.forEach((test: any) => {
-            allTests.push({
-              name: `${taskPrefix} - ${test.name || 'Pytest Test'}`,
-              id: test.id || test.name || '',
-              description: test.description || '',
-              passed: test.passed || false,
-              type: 'pytest',
-              message: test.message || '',
-              error: test.error || ''
-            });
+            const testId = `${taskPrefix}-pytest-${test.id || test.name || ''}`;
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: `${taskPrefix} - ${test.name || 'Pytest Test'}`,
+                id: testId,
+                description: test.description || '',
+                passed: test.passed || false,
+                type: 'pytest',
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            } else {
+              // Update existing test
+              const existingIndex = allTests.findIndex(t => t.id === testId);
+              if (existingIndex >= 0) {
+                allTests[existingIndex] = {
+                  ...allTests[existingIndex],
+                  passed: test.passed || false,
+                  message: test.message || allTests[existingIndex].message,
+                  error: test.error || allTests[existingIndex].error
+                };
+              }
+            }
           });
         }
         
@@ -192,15 +233,30 @@ function ProjectCodingEditor({ containerStatus = null }) {
         if (taskResult.dynamic && taskResult.dynamic.tests && Array.isArray(taskResult.dynamic.tests) && taskResult.dynamic.tests.length > 0) {
           taskHasTests = true;
           taskResult.dynamic.tests.forEach((test: any) => {
-            allTests.push({
-              name: `${taskPrefix} - ${test.name || 'Playwright Test'}`,
-              id: test.id || test.name || '',
-              description: test.description || '',
-              passed: test.passed || false,
-              type: 'dynamic',
-              message: test.message || '',
-              error: test.error || ''
-            });
+            const testId = `${taskPrefix}-dynamic-${test.id || test.name || ''}`;
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: `${taskPrefix} - ${test.name || 'Playwright Test'}`,
+                id: testId,
+                description: test.description || '',
+                passed: test.passed || false,
+                type: 'dynamic',
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            } else {
+              // Update existing test
+              const existingIndex = allTests.findIndex(t => t.id === testId);
+              if (existingIndex >= 0) {
+                allTests[existingIndex] = {
+                  ...allTests[existingIndex],
+                  passed: test.passed || false,
+                  message: test.message || allTests[existingIndex].message,
+                  error: test.error || allTests[existingIndex].error
+                };
+              }
+            }
           });
         }
         
@@ -413,20 +469,22 @@ function ProjectCodingEditor({ containerStatus = null }) {
   //   newWsClient.connect();
   // };
 
-  // Polling-based validation status checking (TEMPORARY: Replaces websocket)
+  // Polling-based validation status checking (HTTP polling instead of WebSocket)
   const startPollingValidationStatus = (jobId: string) => {
     setPollingJobId(jobId);
-    addValidationOutput(`Polling validation status for job: ${jobId}`, 'info');
-    setPingActive(true);
+    addValidationOutput('Polling validation status...', 'info');
     
     // Clear any existing polling interval
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
     
-    // Start polling every 2 seconds
+    let lastResultsHash: string | null = null; // Track if results changed to avoid unnecessary updates
+    
+    // Poll every 2 seconds
     pollingIntervalRef.current = setInterval(async () => {
-      if (!isMountedRef.current || !isRunning) {
+      if (!isMountedRef.current || !jobId) {
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
@@ -435,61 +493,90 @@ function ProjectCodingEditor({ containerStatus = null }) {
       }
       
       try {
-        // Animate ping indicator
+        // Animate ping indicator to show polling activity
         setPingActive(true);
         setTimeout(() => setPingActive(false), 200);
         
-        // Check status
-        const statusData = await getValidationStatus(jobId);
+        // Check status first
+        const statusResponse = await getValidationStatus(jobId);
         
-        if (!statusData || !statusData.success) {
-          addValidationOutput('Failed to get validation status', 'error');
-          return;
-        }
-        
-        const status = statusData.status;
-        const progress = statusData.progress || '';
-        const progressPercentage = statusData.progress_percentage || 0;
-        
-        // Update progress
-        if (progress) {
-          setValidationProgress({ message: progress, percentage: progressPercentage });
-          addValidationOutput(progress, 'info');
-        }
-        
-        // Check if completed or failed
-        if (status === 'completed' || status === 'failed') {
-          // Stop polling
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
+        if (statusResponse && statusResponse.success) {
+          const status = statusResponse.status;
+          const progress = statusResponse.progress || '';
+          const progressPercentage = statusResponse.progress_percentage || 0;
+          
+          // Update progress
+          if (progress) {
+            setValidationProgress({ message: progress, percentage: progressPercentage });
           }
           
-          setPingActive(false);
-          addValidationOutput(`Validation ${status}! Fetching results...`, status === 'completed' ? 'success' : 'error');
-          
-          // Fetch final results
+          // Always try to get results (even if still running) to get partial results
           try {
-            const resultsData = await getValidationResults(jobId);
-            
-            if (resultsData && resultsData.success && resultsData.results) {
-              addValidationOutput('Validation completed!', 'success');
-              processValidationResults(resultsData.results);
-            } else {
-              addValidationOutput('Failed to fetch validation results', 'error');
+            const resultsResponse = await getValidationResults(jobId);
+            if (resultsResponse && resultsResponse.success && resultsResponse.results) {
+              // Create a hash of the results to detect changes
+              const resultsHash = JSON.stringify(resultsResponse.results);
+              
+              // Only update if results changed (to avoid unnecessary re-renders)
+              if (resultsHash !== lastResultsHash) {
+                lastResultsHash = resultsHash;
+                
+                // Process results (this will update test cases incrementally)
+                processValidationResults(resultsResponse.results);
+                
+                // If this is a "run-all" job with tasks array, show progress for each task
+                if (resultsResponse.results.taskId === 'all' && resultsResponse.results.tasks) {
+                  const completedTasks = resultsResponse.results.tasks.filter((t: any) => 
+                    t.pytest || t.dynamic || t.static || t.errors
+                  ).length;
+                  const totalTasks = resultsResponse.results.tasks.length;
+                  
+                  if (completedTasks > 0 && completedTasks < totalTasks) {
+                    addValidationOutput(
+                      `Task ${completedTasks}/${totalTasks} completed - updating results...`, 
+                      'info'
+                    );
+                  }
+                }
+              }
             }
           } catch (error: any) {
-            const errorMsg = error.response?.data?.detail?.error || error.message || 'Unknown error';
-            addValidationOutput(`Error fetching results: ${errorMsg}`, 'error');
+            // If results endpoint returns "still in progress", that's fine
+            if (error.response?.status !== 400) {
+              console.error('Error fetching validation results:', error);
+            }
           }
           
-          setIsRunning(false);
-          setPollingJobId(null);
+          // If completed or failed, stop polling
+          if (status === 'completed' || status === 'failed') {
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+            
+            // Get final results one more time
+            try {
+              const resultsResponse = await getValidationResults(jobId);
+              if (resultsResponse && resultsResponse.success && resultsResponse.results) {
+                addValidationOutput('Validation completed!', 'success');
+                processValidationResults(resultsResponse.results);
+              } else if (status === 'failed' && statusResponse.error) {
+                addValidationOutput(`Validation failed: ${statusResponse.error}`, 'error');
+              }
+            } catch (error: any) {
+              console.error('Error fetching final validation results:', error);
+              addValidationOutput('Validation completed, but could not fetch final results', 'warning');
+            }
+            
+            setIsRunning(false);
+            setPollingJobId(null);
+            setPingActive(false);
+          }
         }
       } catch (error: any) {
-        const errorMsg = error.response?.data?.detail?.error || error.message || 'Unknown error';
-        addValidationOutput(`Polling error: ${errorMsg}`, 'error');
-        // Continue polling on error (may be temporary network issue)
+        console.error('Error polling validation status:', error);
+        // Don't stop polling on error, just log it
+        // The job might still be running
       }
     }, 2000); // Poll every 2 seconds
   };
