@@ -30,6 +30,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const outputRef = useRef(null);
   const isMountedRef = useRef(true);
   const iframeRef = useRef(null);
+  const readinessPollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -37,14 +38,15 @@ function ProjectCodingEditor({ containerStatus = null }) {
     const iframe = iframeRef.current;
     return () => {
       isMountedRef.current = false;
-      // Cleanup polling interval
+      // Cleanup polling intervals
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
-      // if (wsClient) {
-      //   (wsClient as ValidationWebSocketClient).disconnect();
-      // }
+      if (readinessPollingRef.current) {
+        clearInterval(readinessPollingRef.current);
+        readinessPollingRef.current = null;
+      }
       if (iframe) {
         try {
           (iframe as HTMLIFrameElement).src = 'about:blank';
@@ -63,14 +65,99 @@ function ProjectCodingEditor({ containerStatus = null }) {
   }, [validationOutput]);
 
 
-  // Update VSCode URL when container is ready
+  // Poll container readiness and load VS Code only when pod is Ready
   useEffect(() => {
     if ((containerStatus as any)?.success && (containerStatus as any).containerUrl) {
-      setVscodeUrl((containerStatus as any).containerUrl);
+      const containerUrl = (containerStatus as any).containerUrl;
+      const containerName = (containerStatus as any).containerName;
+      
+      // Get student_id from sessionStorage to poll status
+      const encryptedStudentId = sessionStorage.getItem("StudentId") || "";
+      if (!encryptedStudentId || !containerName) {
+        setVscodeUrl(null);
+        setVscodeLoading(false);
+        return;
+      }
+      
+      const studentId = CryptoJS.AES.decrypt(encryptedStudentId, secretKey).toString(CryptoJS.enc.Utf8);
+      
       setVscodeLoading(true);
+      setVscodeUrl(null); // Clear URL initially
+      
+      // Poll container status to check if pod is Ready
+      const checkReadiness = async () => {
+        try {
+          const apiClient = getApiClient();
+          const response = await apiClient.get(
+            `${process.env.REACT_APP_BACKEND_URL}api/student/vscode/status/${studentId}`
+          );
+          
+          if (response.data && response.data.is_ready === true) {
+            // Pod is Ready (readiness probe passed) - load VS Code
+            console.log("Container is Ready - loading VS Code");
+            if (isMountedRef.current) {
+              setVscodeUrl(containerUrl);
+            }
+            // Stop polling
+            if (readinessPollingRef.current) {
+              clearInterval(readinessPollingRef.current);
+              readinessPollingRef.current = null;
+            }
+          } else if (response.data && response.data.pod_status === "Running") {
+            // Pod is Running but not Ready yet (readiness probe hasn't passed)
+            // This is expected during initialization - VS Code server is still starting
+            // Continue polling until is_ready becomes true
+            if (response.data.is_ready === false || response.data.is_ready === null || response.data.is_ready === undefined) {
+              console.log("Container is Running but not Ready yet - waiting for readiness probe...");
+            }
+          } else if (response.data && response.data.pod_status === "Pending") {
+            // Pod is still Pending - continue polling
+            console.log("Container is Pending - waiting for pod to start...");
+          } else if (response.data && (response.data.pod_status === "Failed" || response.data.pod_status === "Error")) {
+            // Pod failed - stop polling and show error
+            setVscodeLoading(false);
+            if (readinessPollingRef.current) {
+              clearInterval(readinessPollingRef.current);
+              readinessPollingRef.current = null;
+            }
+            console.error("Container failed to start:", response.data.pod_status);
+          }
+        } catch (error: any) {
+          console.error("Error checking container readiness:", error);
+          // Continue polling on error (may be temporary)
+        }
+      };
+      
+      // Start polling immediately, then every 2 seconds
+      checkReadiness();
+      readinessPollingRef.current = setInterval(checkReadiness, 2000);
+      
+      // Timeout after 120 seconds (2 minutes) - give up and try loading anyway
+      const timeoutTimer = setTimeout(() => {
+        if (isMountedRef.current && !vscodeUrl) {
+          console.warn("Container readiness timeout - loading VS Code anyway");
+          setVscodeUrl(containerUrl);
+        }
+        if (readinessPollingRef.current) {
+          clearInterval(readinessPollingRef.current);
+          readinessPollingRef.current = null;
+        }
+      }, 120000); // 2 minutes timeout
+      
+      return () => {
+        if (readinessPollingRef.current) {
+          clearInterval(readinessPollingRef.current);
+          readinessPollingRef.current = null;
+        }
+        clearTimeout(timeoutTimer);
+      };
     } else {
       setVscodeUrl(null);
       setVscodeLoading(false);
+      if (readinessPollingRef.current) {
+        clearInterval(readinessPollingRef.current);
+        readinessPollingRef.current = null;
+      }
     }
   }, [containerStatus]);
 
@@ -737,20 +824,26 @@ function ProjectCodingEditor({ containerStatus = null }) {
         ) : (
           <>
             {vscodeLoading && (
-              <div className="d-flex justify-content-center align-items-center h-100 position-absolute top-0 start-0 w-100 bg-white" style={{ zIndex: 10 }}>
-                <div className="spinner-grow text-primary" role="status">
+              <div className="d-flex flex-column justify-content-center align-items-center h-100 position-absolute top-0 start-0 w-100 bg-white" style={{ zIndex: 10 }}>
+                <div className="spinner-grow text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
                   <span className="visually-hidden">Loading...</span>
+                </div>
+                <div className="text-center">
+                  <h5 className="text-muted mb-2">Loading VS Code Editor...</h5>
+                  <p className="text-muted small mb-0">Please wait while the server initializes</p>
                 </div>
               </div>
             )}
-            <iframe
-              ref={iframeRef}
-              src={vscodeUrl}
-              frameBorder="0"
-              className={`w-100 h-100 border-0 ${vscodeLoading ? "d-none" : "d-block"}`}
-              onLoad={handleIframeLoad}
-              title="VS Code Editor"
-            ></iframe>
+            {vscodeUrl && (
+              <iframe
+                ref={iframeRef}
+                src={vscodeUrl}
+                frameBorder="0"
+                className={`w-100 h-100 border-0 ${vscodeLoading ? "d-none" : "d-block"}`}
+                onLoad={handleIframeLoad}
+                title="VS Code Editor"
+              ></iframe>
+            )}
           </>
         )}
       </div>
