@@ -44,6 +44,10 @@ const Login: React.FC = () => {
   const sessionCheckExecuted = useRef<boolean>(false);
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
+  // Check if reCAPTCHA is enabled via environment variable
+  const isRecaptchaEnabled = process.env.REACT_APP_RECAPTCHA === 'true' && 
+                              process.env.REACT_APP_RECAPTCHA_SITE_KEY;
+
   const handleCloseAlert = (): void => setShowAlert(false);
 
   // reCAPTCHA v2 callback functions
@@ -296,7 +300,9 @@ const Login: React.FC = () => {
                     localStorage.removeItem("LMS_Picture");
                     localStorage.removeItem("LMS_timestamp");
                     localStorage.removeItem("LMS_lastActivityTime");
-                    resetRecaptcha(); // Reset reCAPTCHA verification
+                    if (isRecaptchaEnabled) {
+                      resetRecaptcha(); // Reset reCAPTCHA verification
+                    }
                     return;
                   }
                 } 
@@ -347,7 +353,9 @@ const Login: React.FC = () => {
             localStorage.removeItem("LMS_Picture");
             localStorage.removeItem("LMS_timestamp");
             localStorage.removeItem("LMS_lastActivityTime");
-            resetRecaptcha(); // Reset reCAPTCHA verification
+            if (isRecaptchaEnabled) {
+              resetRecaptcha(); // Reset reCAPTCHA verification
+            }
             return;
           } else if (isMounted) {
             localStorage.removeItem("LMS_access_token");
@@ -359,7 +367,9 @@ const Login: React.FC = () => {
             localStorage.removeItem("LMS_Picture");
             localStorage.removeItem("LMS_timestamp");
             localStorage.removeItem("LMS_lastActivityTime");
-            resetRecaptcha(); // Reset reCAPTCHA verification
+            if (isRecaptchaEnabled) {
+              resetRecaptcha(); // Reset reCAPTCHA verification
+            }
           }
         } 
 
@@ -378,7 +388,9 @@ const Login: React.FC = () => {
           localStorage.removeItem("LMS_Picture");
           localStorage.removeItem("LMS_timestamp");
           localStorage.removeItem("LMS_lastActivityTime");
-          setRecaptchaVerified(false); // Reset reCAPTCHA verification
+          if (isRecaptchaEnabled) {
+            setRecaptchaVerified(false); // Reset reCAPTCHA verification
+          }
         }
       } finally {
         if (isMounted) {
@@ -442,36 +454,30 @@ const Login: React.FC = () => {
                     </div>
                   ) : (
                     <div className="d-flex flex-column align-items-center">
-                      {process.env.REACT_APP_RECAPTCHA_SITE_KEY ? (
+                      {isRecaptchaEnabled ? (
                         <div className="mb-3 d-flex justify-content-center">
                           <ReCAPTCHA
                             ref={recaptchaRef}
-                            sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+                            sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY!}
                             onChange={onRecaptchaChange}
                             onExpired={onRecaptchaExpired}
                             onErrored={onRecaptchaError}
                           />
                         </div>
-                      ) : (
-                        <div className="mb-3 p-3 border border-warning rounded bg-warning bg-opacity-10">
-                          <small className="text-warning">
-                            reCAPTCHA site key not configured.
-                          </small>
-                        </div>
-                      )}
+                      ) : null}
                       <button 
                         onClick={() => handleLogin()} 
-                        disabled={process.env.REACT_APP_RECAPTCHA_SITE_KEY ? !recaptchaVerified : false}
+                        disabled={isRecaptchaEnabled ? !recaptchaVerified : false}
                         className="btn w-100" 
                         style={{ 
-                          backgroundColor: (process.env.REACT_APP_RECAPTCHA_SITE_KEY ? recaptchaVerified : true) ? '#4168a3' : '#6c757d', 
+                          backgroundColor: (isRecaptchaEnabled ? recaptchaVerified : true) ? '#4168a3' : '#6c757d', 
                           color: 'white', 
                           border: 'none',
                           borderRadius: '8px',
                           padding: '12px 24px',
                           fontWeight: '500',
                           fontSize: '16px',
-                          cursor: (process.env.REACT_APP_RECAPTCHA_SITE_KEY ? recaptchaVerified : true) ? 'pointer' : 'not-allowed'
+                          cursor: (isRecaptchaEnabled ? recaptchaVerified : true) ? 'pointer' : 'not-allowed'
                         }}
                       >
                         Sign in with Google
