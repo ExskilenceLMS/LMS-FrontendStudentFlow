@@ -729,9 +729,6 @@ function ProjectCodingEditor({ containerStatus = null }) {
                 </svg>
               </div>
               <h4 className="text-muted mb-3">VS Code Editor</h4>
-              <p className="text-muted mb-0">
-                Please create a container from the sidebar to load the editor
-              </p>
             </div>
           </div>
         ) : (
