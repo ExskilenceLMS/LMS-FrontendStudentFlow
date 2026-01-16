@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faHourglass, faChevronDown, faCheckCircle, faChevronUp, faCheck, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { runValidation, getValidationStatus, getValidationResults } from "./utils/validationApi";
@@ -10,6 +11,9 @@ import { secretKey } from "./constants";
 import ConfirmationModal from "./Modals/ConfirmationModal";
 
 function ProjectCodingEditor({ containerStatus = null }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const questionData = location.state?.questionData;
   const [vscodeUrl, setVscodeUrl] = useState(null);
   const [vscodeLoading, setVscodeLoading] = useState(false);
   
@@ -24,6 +28,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const [pingActive, setPingActive] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -648,43 +653,71 @@ function ProjectCodingEditor({ containerStatus = null }) {
         throw new Error("Missing required project IDs");
       }
 
-      const cachedQuestionData = sessionStorage.getItem('projectCoding_questionData');
-      if (!cachedQuestionData) {
+      if (!questionData) {
         throw new Error("Question data not found");
       }
 
-      const parsedData = JSON.parse(cachedQuestionData);
-      if (!parsedData.questions?.length) {
+      if (!questionData.questions?.length) {
         throw new Error("No questions found");
       }
 
-      const firstQuestion = parsedData.questions[0];
+      const firstQuestion = questionData.questions[0];
       const questionId = firstQuestion.Qn_name || firstQuestion.question_id || "";
+      const finalScore = firstQuestion.score || "0/0";
 
       if (!questionId) {
         throw new Error("Question ID not found");
       }
+
+      // Build result_data from test cases
+      const resultData: any[] = [];
+      
+      // Add test case results
+      testCases.forEach((testCase: any, index: number) => {
+        const testCaseKey = `TestCase${index + 1}`;
+        const testResult = testCase.passed ? "Passed" : "Failed";
+        resultData.push({
+          [testCaseKey]: testResult
+        });
+      });
+
+      // Add overall Result (True if all tests passed, False otherwise)
+      const allPassed = testCases.length > 0 && testCases.every((testCase: any) => testCase.passed);
+      resultData.push({
+        "Result": allPassed ? "True" : "False"
+      });
 
       const payload = {
         student_id: studentId,
         question_id: questionId,
         answer: "",
         batch_id: batchId,
-        result_data: [],
+        result_data: resultData,
         project_id: projectId,
-        final_score: "0/0",
+        final_score: finalScore,
         phase_id: phaseId,
         part_id: partId,
         task_id: taskId
       };
 
-      const response = await getApiClient().post(
+      const response = await getApiClient().put(
         `${process.env.REACT_APP_BACKEND_URL}api/student/project/project_coding/submit/`,
         payload
       );
 
       setShowCompleteModal(false);
-      addValidationOutput("Question marked as complete successfully!", "success");
+      
+      // Check if submission was successful
+      if (response.data?.status === true) {
+        setIsCompleted(true);
+        addValidationOutput("Question marked as complete successfully!", "success");
+        // Navigate to project-tasks after a short delay
+        setTimeout(() => {
+          navigate("/project-tasks", { replace: true });
+        }, 1500);
+      } else {
+        addValidationOutput("Question marked as complete successfully!", "success");
+      }
     } catch (error: any) {
       console.error("Error marking question as complete:", error);
       addValidationOutput(`Error: ${error.response?.data?.detail || error.message || "Failed to mark question as complete"}`, "error");
@@ -778,10 +811,10 @@ function ProjectCodingEditor({ containerStatus = null }) {
             className="btn btn-success"
             style={{ minWidth: '150px' }}
             onClick={() => setShowCompleteModal(true)}
-            disabled={submitting}
+            disabled={submitting || isCompleted}
           >
             <FontAwesomeIcon icon={faCheckCircle} style={{ marginRight: '4px' }} />
-            Mark as Complete
+            {isCompleted ? 'Completed' : 'Mark as Complete'}
           </button>
         </div>
       </div>
