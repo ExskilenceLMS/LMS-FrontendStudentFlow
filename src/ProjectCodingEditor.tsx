@@ -12,6 +12,7 @@ import ConfirmationModal from "./Modals/ConfirmationModal";
 function ProjectCodingEditor({ containerStatus = null }) {
   const [vscodeUrl, setVscodeUrl] = useState(null);
   const [vscodeLoading, setVscodeLoading] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   
   // Validation state - always run all tasks from JSON files
   // const [wsClient, setWsClient] = useState(null);
@@ -44,7 +45,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
         pollingIntervalRef.current = null;
       }
       if (readinessPollingRef.current) {
-        clearInterval(readinessPollingRef.current);
+        clearTimeout(readinessPollingRef.current);
         readinessPollingRef.current = null;
       }
       if (iframe) {
@@ -83,70 +84,99 @@ function ProjectCodingEditor({ containerStatus = null }) {
       
       setVscodeLoading(true);
       setVscodeUrl(null); // Clear URL initially
+      setIsPolling(true); // Start polling indicator
       
-      // Poll container status to check if pod is Ready
-      const checkReadiness = async () => {
+      // Check container status - stop polling when pod is Running or has IP
+      const checkReadiness = async (): Promise<boolean> => {
+        // Return true if polling should stop, false if it should continue
         try {
           const apiClient = getApiClient();
           const response = await apiClient.get(
             `${process.env.REACT_APP_BACKEND_URL}api/student/vscode/status/${studentId}`
           );
           
-          if (response.data && response.data.is_ready === true) {
-            // Pod is Ready (readiness probe passed) - load VS Code
-            console.log("Container is Ready - loading VS Code");
+          const data = response.data;
+          if (!data) return false; // Continue polling if no data
+          
+          const shouldLoad = 
+            data.is_ready === true ||
+            data.pod_status === "Running" ||
+            (data.pod_ip && data.pod_ip.trim() !== "");
+          
+          if (shouldLoad) {
+            console.log("Container is ready - loading VS Code", {
+              pod_status: data.pod_status,
+              is_ready: data.is_ready,
+              pod_ip: data.pod_ip ? "present" : "missing"
+            });
             if (isMountedRef.current) {
               setVscodeUrl(containerUrl);
+              setIsPolling(false); // Stop polling indicator
             }
-            // Stop polling
-            if (readinessPollingRef.current) {
-              clearInterval(readinessPollingRef.current);
-              readinessPollingRef.current = null;
-            }
-          } else if (response.data && response.data.pod_status === "Running") {
-            // Pod is Running but not Ready yet (readiness probe hasn't passed)
-            // This is expected during initialization - VS Code server is still starting
-            // Continue polling until is_ready becomes true
-            if (response.data.is_ready === false || response.data.is_ready === null || response.data.is_ready === undefined) {
-              console.log("Container is Running but not Ready yet - waiting for readiness probe...");
-            }
-          } else if (response.data && response.data.pod_status === "Pending") {
-            // Pod is still Pending - continue polling
-            console.log("Container is Pending - waiting for pod to start...");
-          } else if (response.data && (response.data.pod_status === "Failed" || response.data.pod_status === "Error")) {
-            // Pod failed - stop polling and show error
-            setVscodeLoading(false);
-            if (readinessPollingRef.current) {
-              clearInterval(readinessPollingRef.current);
-              readinessPollingRef.current = null;
-            }
-            console.error("Container failed to start:", response.data.pod_status);
+            return true; // Stop polling
           }
+          
+          // Handle error states
+          if (data.pod_status === "Failed" || data.pod_status === "Error") {
+            setVscodeLoading(false);
+            setIsPolling(false); // Stop polling indicator
+            console.error("Container failed to start:", data.pod_status);
+            return true; // Stop polling
+          }
+          
+          // Pod is still Pending - continue polling
+          if (data.pod_status === "Pending") {
+            console.log("Container is Pending - waiting for pod to start...");
+          }
+          
+          return false; // Continue polling
         } catch (error: any) {
           console.error("Error checking container readiness:", error);
-          // Continue polling on error (may be temporary)
+          return false; // Continue polling on error (may be temporary)
         }
       };
       
-      // Start polling immediately, then every 2 seconds
-      checkReadiness();
-      readinessPollingRef.current = setInterval(checkReadiness, 2000);
+      // Check immediately, then poll with exponential backoff (3s, 5s, 8s intervals)
+      let pollCount = 0;
+      const scheduleNextPoll = async () => {
+        if (!isMountedRef.current) return;
+        
+        const shouldStop = await checkReadiness();
+        if (shouldStop) {
+          readinessPollingRef.current = null;
+          if (isMountedRef.current) {
+            setIsPolling(false); // Stop polling indicator
+          }
+          return;
+        }
+        
+        pollCount++;
+        // Use exponential backoff: 3s, 5s, 8s, then 8s intervals
+        const delay = pollCount <= 1 ? 3000 : pollCount <= 2 ? 5000 : 8000;
+        readinessPollingRef.current = setTimeout(() => {
+          scheduleNextPoll();
+        }, delay);
+      };
+      
+      // Start polling
+      scheduleNextPoll();
       
       // Timeout after 120 seconds (2 minutes) - give up and try loading anyway
       const timeoutTimer = setTimeout(() => {
         if (isMountedRef.current && !vscodeUrl) {
           console.warn("Container readiness timeout - loading VS Code anyway");
           setVscodeUrl(containerUrl);
+          setIsPolling(false); // Stop polling indicator
         }
         if (readinessPollingRef.current) {
-          clearInterval(readinessPollingRef.current);
+          clearTimeout(readinessPollingRef.current);
           readinessPollingRef.current = null;
         }
       }, 120000); // 2 minutes timeout
       
       return () => {
         if (readinessPollingRef.current) {
-          clearInterval(readinessPollingRef.current);
+          clearTimeout(readinessPollingRef.current);
           readinessPollingRef.current = null;
         }
         clearTimeout(timeoutTimer);
@@ -154,8 +184,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
     } else {
       setVscodeUrl(null);
       setVscodeLoading(false);
+      setIsPolling(false); // Stop polling indicator
       if (readinessPollingRef.current) {
-        clearInterval(readinessPollingRef.current);
+        clearTimeout(readinessPollingRef.current);
         readinessPollingRef.current = null;
       }
     }
@@ -187,33 +218,57 @@ function ProjectCodingEditor({ containerStatus = null }) {
     setShowTerminal(!showTerminal);
   };
 
-  const updateTestCasesList = (testName: string, passed: boolean) => {
-    setTestCases((prev: any[]) => {
-      const existing = prev.find(t => t.name === testName);
-      if (existing) {
-        return prev.map(t => t.name === testName ? { ...t, passed } : t);
-      }
-      return [...prev, { name: testName, passed, type: 'test' }];
-    });
-  };
+  // const updateTestCasesList = (testName: string, passed: boolean) => {
+  //   setTestCases((prev: any[]) => {
+  //     const existing = prev.find(t => t.name === testName);
+  //     if (existing) {
+  //       return prev.map(t => t.name === testName ? { ...t, passed } : t);
+  //     }
+  //     return [...prev, { name: testName, passed, type: 'test' }];
+  //   });
+  // };
 
   // Process validation results and extract test cases
   const processValidationResults = (results: any) => {
+    // Log results structure for debugging
+    console.log('Processing validation results:', {
+      hasTasks: !!results.tasks,
+      tasksCount: results.tasks?.length || 0,
+      hasTests: !!results.tests,
+      testsCount: results.tests?.length || 0,
+      hasErrors: !!results.errors,
+      errorsCount: results.errors?.length || 0,
+      resultsKeys: Object.keys(results || {})
+    });
+    
     // Display all test cases from results
     // Handle both single task and "all tasks" structures
     // Merge with existing tests to show incremental updates
     const existingTestIds = new Set(testCases.map(t => t.id || t.name));
     const allTests: any[] = [...testCases]; // Start with existing tests
     
-    // Check if this is "all tasks" structure (has tasks array)
-    if (results.tasks && Array.isArray(results.tasks)) {
-      // Process each task's results
-      results.tasks.forEach((taskResult: any, taskIndex: number) => {
-        const taskPrefix = taskResult.taskName || taskResult.taskId || `Task ${taskIndex + 1}`;
-        
-        let taskHasTests = false;
+      // Check if this is "all tasks" structure (has tasks array)
+      if (results.tasks && Array.isArray(results.tasks)) {
+        console.log(`Processing ${results.tasks.length} task(s) from results`);
+        // Process each task's results
+        results.tasks.forEach((taskResult: any, taskIndex: number) => {
+          const taskPrefix = taskResult.taskName || taskResult.taskId || `Task ${taskIndex + 1}`;
+          
+          // Log task structure for debugging
+          const taskTestCounts = {
+            tests: taskResult.tests?.length || 0,
+            pytest: taskResult.pytest?.tests?.length || 0,
+            dynamic: taskResult.dynamic?.tests?.length || 0,
+            static: taskResult.static?.tests?.length || 0,
+            schema: taskResult.schema?.tests?.length || 0
+          };
+          const totalTaskTests = Object.values(taskTestCounts).reduce((a: number, b: number) => a + b, 0);
+          console.log(`Task ${taskIndex + 1} (${taskPrefix}): ${totalTaskTests} test case(s)`, taskTestCounts);
+          
+          let taskHasTests = false;
         
         // Check for tests array directly in taskResult (flattened structure)
+        // This is the aggregated array from ValidationOrchestrator that contains all tests
         if (taskResult.tests && Array.isArray(taskResult.tests) && taskResult.tests.length > 0) {
           taskHasTests = true;
           taskResult.tests.forEach((test: any) => {
@@ -243,108 +298,111 @@ function ProjectCodingEditor({ containerStatus = null }) {
               }
             }
           });
-        }
-        
-        // Schema tests
-        if (taskResult.schema && taskResult.schema.tests && Array.isArray(taskResult.schema.tests) && taskResult.schema.tests.length > 0) {
-          taskHasTests = true;
-          taskResult.schema.tests.forEach((test: any) => {
-            const testId = `${taskPrefix}-schema-${test.id || test.name || ''}`;
-            if (!existingTestIds.has(testId)) {
-              allTests.push({
-                name: `${taskPrefix} - ${test.name || 'Schema Test'}`,
-                id: testId,
-                description: test.description || '',
-                passed: test.passed || false,
-                type: 'schema',
-                message: test.message || '',
-                error: test.error || test.details || ''
-              });
-              existingTestIds.add(testId);
-            }
-          });
-        }
-        
-        // Static tests
-        if (taskResult.static && taskResult.static.tests && Array.isArray(taskResult.static.tests) && taskResult.static.tests.length > 0) {
-          taskHasTests = true;
-          taskResult.static.tests.forEach((test: any) => {
-            const testId = `${taskPrefix}-static-${test.id || test.name || ''}`;
-            if (!existingTestIds.has(testId)) {
-              allTests.push({
-                name: `${taskPrefix} - ${test.name || 'Static Test'}`,
-                id: testId,
-                description: test.description || '',
-                passed: test.passed || false,
-                type: 'static',
-                message: test.message || '',
-                error: test.error || ''
-              });
-              existingTestIds.add(testId);
-            }
-          });
-        }
-        
-        // Pytest tests
-        if (taskResult.pytest && taskResult.pytest.tests && Array.isArray(taskResult.pytest.tests) && taskResult.pytest.tests.length > 0) {
-          taskHasTests = true;
-          taskResult.pytest.tests.forEach((test: any) => {
-            const testId = `${taskPrefix}-pytest-${test.id || test.name || ''}`;
-            if (!existingTestIds.has(testId)) {
-              allTests.push({
-                name: `${taskPrefix} - ${test.name || 'Pytest Test'}`,
-                id: testId,
-                description: test.description || '',
-                passed: test.passed || false,
-                type: 'pytest',
-                message: test.message || '',
-                error: test.error || ''
-              });
-              existingTestIds.add(testId);
-            } else {
-              // Update existing test
-              const existingIndex = allTests.findIndex(t => t.id === testId);
-              if (existingIndex >= 0) {
-                allTests[existingIndex] = {
-                  ...allTests[existingIndex],
+        } else {
+          // Only process section-specific arrays if tests array doesn't exist
+          // (for backward compatibility with old result format)
+          
+          // Schema tests
+          if (taskResult.schema && taskResult.schema.tests && Array.isArray(taskResult.schema.tests) && taskResult.schema.tests.length > 0) {
+            taskHasTests = true;
+            taskResult.schema.tests.forEach((test: any) => {
+              const testId = `${taskPrefix}-schema-${test.id || test.name || ''}`;
+              if (!existingTestIds.has(testId)) {
+                allTests.push({
+                  name: `${taskPrefix} - ${test.name || 'Schema Test'}`,
+                  id: testId,
+                  description: test.description || '',
                   passed: test.passed || false,
-                  message: test.message || allTests[existingIndex].message,
-                  error: test.error || allTests[existingIndex].error
-                };
+                  type: 'schema',
+                  message: test.message || '',
+                  error: test.error || test.details || ''
+                });
+                existingTestIds.add(testId);
               }
-            }
-          });
-        }
-        
-        // Dynamic/Playwright tests
-        if (taskResult.dynamic && taskResult.dynamic.tests && Array.isArray(taskResult.dynamic.tests) && taskResult.dynamic.tests.length > 0) {
-          taskHasTests = true;
-          taskResult.dynamic.tests.forEach((test: any) => {
-            const testId = `${taskPrefix}-dynamic-${test.id || test.name || ''}`;
-            if (!existingTestIds.has(testId)) {
-              allTests.push({
-                name: `${taskPrefix} - ${test.name || 'Playwright Test'}`,
-                id: testId,
-                description: test.description || '',
-                passed: test.passed || false,
-                type: 'dynamic',
-                message: test.message || '',
-                error: test.error || ''
-              });
-              existingTestIds.add(testId);
-            } else {
-              // Update existing test
-              const existingIndex = allTests.findIndex(t => t.id === testId);
-              if (existingIndex >= 0) {
-                allTests[existingIndex] = {
-                  ...allTests[existingIndex],
+            });
+          }
+          
+          // Static tests
+          if (taskResult.static && taskResult.static.tests && Array.isArray(taskResult.static.tests) && taskResult.static.tests.length > 0) {
+            taskHasTests = true;
+            taskResult.static.tests.forEach((test: any) => {
+              const testId = `${taskPrefix}-static-${test.id || test.name || ''}`;
+              if (!existingTestIds.has(testId)) {
+                allTests.push({
+                  name: `${taskPrefix} - ${test.name || 'Static Test'}`,
+                  id: testId,
+                  description: test.description || '',
                   passed: test.passed || false,
-                  message: test.message || allTests[existingIndex].message,
-                  error: test.error || allTests[existingIndex].error
-                };
+                  type: 'static',
+                  message: test.message || '',
+                  error: test.error || ''
+                });
+                existingTestIds.add(testId);
               }
-            }
-          });
+            });
+          }
+          
+          // Pytest tests
+          if (taskResult.pytest && taskResult.pytest.tests && Array.isArray(taskResult.pytest.tests) && taskResult.pytest.tests.length > 0) {
+            taskHasTests = true;
+            taskResult.pytest.tests.forEach((test: any) => {
+              const testId = `${taskPrefix}-pytest-${test.id || test.name || ''}`;
+              if (!existingTestIds.has(testId)) {
+                allTests.push({
+                  name: `${taskPrefix} - ${test.name || 'Pytest Test'}`,
+                  id: testId,
+                  description: test.description || '',
+                  passed: test.passed || false,
+                  type: 'pytest',
+                  message: test.message || '',
+                  error: test.error || ''
+                });
+                existingTestIds.add(testId);
+              } else {
+                // Update existing test
+                const existingIndex = allTests.findIndex(t => t.id === testId);
+                if (existingIndex >= 0) {
+                  allTests[existingIndex] = {
+                    ...allTests[existingIndex],
+                    passed: test.passed || false,
+                    message: test.message || allTests[existingIndex].message,
+                    error: test.error || allTests[existingIndex].error
+                  };
+                }
+              }
+            });
+          }
+          
+          // Dynamic/Playwright tests
+          if (taskResult.dynamic && taskResult.dynamic.tests && Array.isArray(taskResult.dynamic.tests) && taskResult.dynamic.tests.length > 0) {
+            taskHasTests = true;
+            taskResult.dynamic.tests.forEach((test: any) => {
+              const testId = `${taskPrefix}-dynamic-${test.id || test.name || ''}`;
+              if (!existingTestIds.has(testId)) {
+                allTests.push({
+                  name: `${taskPrefix} - ${test.name || 'Playwright Test'}`,
+                  id: testId,
+                  description: test.description || '',
+                  passed: test.passed || false,
+                  type: 'dynamic',
+                  message: test.message || '',
+                  error: test.error || ''
+                });
+                existingTestIds.add(testId);
+              } else {
+                // Update existing test
+                const existingIndex = allTests.findIndex(t => t.id === testId);
+                if (existingIndex >= 0) {
+                  allTests[existingIndex] = {
+                    ...allTests[existingIndex],
+                    passed: test.passed || false,
+                    message: test.message || allTests[existingIndex].message,
+                    error: test.error || allTests[existingIndex].error
+                  };
+                }
+              }
+            });
+          }
         }
         
         // If task has no tests but has errors, create a test case entry for the error
@@ -390,74 +448,101 @@ function ProjectCodingEditor({ containerStatus = null }) {
       }
     } else {
       // Single task structure (original format)
-      // Check for tests array directly in results
-      if (results.tests && Array.isArray(results.tests)) {
+      // Check for tests array directly in results (aggregated array from ValidationOrchestrator)
+      if (results.tests && Array.isArray(results.tests) && results.tests.length > 0) {
         results.tests.forEach((test: any) => {
-          allTests.push({
-            name: test.name || 'Test',
-            id: test.id || test.name || '',
-            description: test.description || '',
-            passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-            type: test.type || 'unknown',
-            message: test.message || '',
-            error: test.error || test.details || ''
-          });
+          const testId = test.id || test.name || '';
+          if (!existingTestIds.has(testId)) {
+            allTests.push({
+              name: test.name || 'Test',
+              id: testId,
+              description: test.description || '',
+              passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+              type: test.type || 'unknown',
+              message: test.message || '',
+              error: test.error || test.details || ''
+            });
+            existingTestIds.add(testId);
+          }
         });
-      }
-      
-      if (results.schema && results.schema.tests) {
-        results.schema.tests.forEach((test: any) => {
-          allTests.push({
-            name: test.name || 'Schema Test',
-            id: test.id || test.name || '',
-            description: test.description || '',
-            passed: test.passed || false,
-            type: 'schema',
-            message: test.message || '',
-            error: test.error || test.details || ''
+      } else {
+        // Only process section-specific arrays if tests array doesn't exist
+        // (for backward compatibility with old result format)
+        if (results.schema && results.schema.tests) {
+          results.schema.tests.forEach((test: any) => {
+            const testId = test.id || test.name || '';
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: test.name || 'Schema Test',
+                id: testId,
+                description: test.description || '',
+                passed: test.passed || false,
+                type: 'schema',
+                message: test.message || '',
+                error: test.error || test.details || ''
+              });
+              existingTestIds.add(testId);
+            }
           });
-        });
-      }
-      if (results.static && results.static.tests) {
-        results.static.tests.forEach((test: any) => {
-          allTests.push({
-            name: test.name || 'Static Test',
-            id: test.id || test.name || '',
-            description: test.description || '',
-            passed: test.passed || false,
-            type: 'static',
-            message: test.message || '',
-            error: test.error || ''
+        }
+        if (results.static && results.static.tests) {
+          results.static.tests.forEach((test: any) => {
+            const testId = test.id || test.name || '';
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: test.name || 'Static Test',
+                id: testId,
+                description: test.description || '',
+                passed: test.passed || false,
+                type: 'static',
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            }
           });
-        });
-      }
-      if (results.pytest && results.pytest.tests) {
-        results.pytest.tests.forEach((test: any) => {
-          allTests.push({
-            name: test.name || 'Pytest Test',
-            id: test.id || test.name || '',
-            description: test.description || '',
-            passed: test.passed || false,
-            type: 'pytest',
-            message: test.message || '',
-            error: test.error || ''
+        }
+        if (results.pytest && results.pytest.tests) {
+          results.pytest.tests.forEach((test: any) => {
+            const testId = test.id || test.name || '';
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: test.name || 'Pytest Test',
+                id: testId,
+                description: test.description || '',
+                passed: test.passed || false,
+                type: 'pytest',
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            }
           });
-        });
-      }
-      if (results.dynamic && results.dynamic.tests) {
-        results.dynamic.tests.forEach((test: any) => {
-          allTests.push({
-            name: test.name || 'Playwright Test',
-            id: test.id || test.name || '',
-            description: test.description || '',
-            passed: test.passed || false,
-            type: 'dynamic',
-            message: test.message || '',
-            error: test.error || ''
+        }
+        if (results.dynamic && results.dynamic.tests) {
+          results.dynamic.tests.forEach((test: any) => {
+            const testId = test.id || test.name || '';
+            if (!existingTestIds.has(testId)) {
+              allTests.push({
+                name: test.name || 'Playwright Test',
+                id: testId,
+                description: test.description || '',
+                passed: test.passed || false,
+                type: 'dynamic',
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            }
           });
-        });
+        }
       }
     }
+    
+    console.log(`Total test cases extracted: ${allTests.length}`, {
+      fromTasks: results.tasks ? results.tasks.length : 0,
+      fromSingleTask: !results.tasks && results.tests ? results.tests.length : 0
+    });
     
     setTestCases(allTests as any[]);
     
@@ -825,12 +910,28 @@ function ProjectCodingEditor({ containerStatus = null }) {
           <>
             {vscodeLoading && (
               <div className="d-flex flex-column justify-content-center align-items-center h-100 position-absolute top-0 start-0 w-100 bg-white" style={{ zIndex: 10 }}>
-                <div className="spinner-grow text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
-                  <span className="visually-hidden">Loading...</span>
+                <div className="d-flex align-items-center justify-content-center mb-3">
+                  <div className="spinner-grow text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                  {isPolling && (
+                    <div 
+                      className="ms-3"
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: '#0d6efd',
+                        animation: 'pulse 1.5s ease-in-out infinite'
+                      }}
+                    />
+                  )}
                 </div>
                 <div className="text-center">
                   <h5 className="text-muted mb-2">Loading VS Code Editor...</h5>
-                  <p className="text-muted small mb-0">Please wait while the server initializes</p>
+                  <p className="text-muted small mb-0">
+                    {isPolling ? 'Verifying container status...' : 'Please wait while the server initializes'}
+                  </p>
                 </div>
               </div>
             )}
