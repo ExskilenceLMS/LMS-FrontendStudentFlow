@@ -22,7 +22,12 @@
   @media (max-width: 1366px) {
     .processingDiv {
       height: 8% !important; 
-      margin-right: 45px !important; 
+      margin-right: 15px !important; 
+      padding: 5px 10px !important;
+    }
+
+    .processingDivStyle {
+      height: 8% !important;
       padding: 5px 10px !important;
     }
   
