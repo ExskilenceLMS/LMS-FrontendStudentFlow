@@ -494,12 +494,6 @@ export const validateCSSRequirement = (cssCode: string, requirementIndex: number
     const normalizedActual = normalizeCSSValue(actualValue || '', property);
     
     if (normalizedExpected !== normalizedActual) {
-      console.log(`[CSS Validation Failed] Property: ${property}`);
-      console.log(`  Selector: ${selector}`);
-      console.log(`  Expected (raw): ${value}`);
-      console.log(`  Expected (normalized): ${normalizedExpected}`);
-      console.log(`  Actual (raw): ${actualValue || '(not found)'}`);
-      console.log(`  Actual (normalized): ${normalizedActual}`);
       allPropertiesValid = false;
     }
   }
