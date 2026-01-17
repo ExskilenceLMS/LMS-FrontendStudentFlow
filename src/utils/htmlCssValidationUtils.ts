@@ -353,6 +353,114 @@ export const parseCSS = (cssCode: string) => {
   }
 };
 
+// Helper function to normalize CSS function values (rgba, rgb, hsl, hsla, calc, etc.)
+// Efficient approach: processes all functions, handling nested parentheses correctly
+const normalizeCSSFunctions = (value: string): string => {
+  if (!value) return '';
+  
+  // First normalize general whitespace (multiple spaces/newlines to single space)
+  let normalized = value.replace(/[\s\n\r\t]+/g, ' ').trim();
+  
+  // Process functions iteratively, handling nested parentheses
+  // Find all function calls and process them from innermost to outermost
+  let result = normalized;
+  let hasFunctions = true;
+  let iterations = 0;
+  const maxIterations = 20; // Safety limit for deeply nested functions
+  
+  while (hasFunctions && iterations < maxIterations) {
+    iterations++;
+    hasFunctions = false;
+    
+    // Find innermost function (content has no parentheses)
+    const match = result.match(/(\w+)\s*\(([^()]*)\)/);
+    
+    if (match) {
+      hasFunctions = true;
+      const [fullMatch, funcName, content] = match;
+      
+      // Remove spaces after commas in function parameters
+      const normalizedContent = content.replace(/,\s+/g, ',');
+      const replacement = `${funcName}(${normalizedContent})`;
+      
+      // Replace first occurrence
+      result = result.replace(fullMatch, replacement);
+    }
+  }
+  
+  return result;
+};
+
+// Helper function to normalize grid-template-areas values
+const normalizeGridTemplateAreas = (value: string): string => {
+  if (!value) return '';
+  
+  // Remove escaped quotes first (handle JSON-escaped quotes)
+  let normalized = value.replace(/\\"/g, '"').replace(/\\'/g, "'");
+  
+  // Remove trailing semicolons and trim
+  normalized = normalized.replace(/;+$/, '').trim();
+  
+  // Extract all quoted strings in order (handle both single and double quotes)
+  const quotedStrings: string[] = [];
+  
+  // Match quoted strings - handles both "..." and '...' formats
+  // This pattern matches: quote, content (non-greedy), same quote
+  const doubleQuotePattern = /"([^"]*)"/g;
+  const singleQuotePattern = /'([^']*)'/g;
+  
+  // Find all double-quoted strings
+  let match;
+  while ((match = doubleQuotePattern.exec(normalized)) !== null) {
+    quotedStrings.push(`"${match[1]}"`);
+  }
+  
+  // If no double quotes found, try single quotes
+  if (quotedStrings.length === 0) {
+    singleQuotePattern.lastIndex = 0; // Reset regex
+    while ((match = singleQuotePattern.exec(normalized)) !== null) {
+      quotedStrings.push(`"${match[1]}"`); // Normalize to double quotes
+    }
+  }
+  
+  // If we found quoted strings, join them with single spaces
+  if (quotedStrings.length > 0) {
+    return quotedStrings.join(' ');
+  }
+  
+  // Fallback: if no quoted strings found, normalize whitespace and return as-is
+  return normalized.replace(/[\s\n\r\t]+/g, ' ').trim();
+};
+
+// General CSS value normalization function
+// Optimized: checks if normalization is needed before processing
+const normalizeCSSValue = (value: string, property: string): string => {
+  if (!value) return '';
+  
+  let normalized = value.trim();
+  
+  // Special handling for grid-template-areas
+  if (property === 'grid-template-areas') {
+    return normalizeGridTemplateAreas(normalized);
+  }
+  
+  // Early exit: if value is already minimal (no functions, single spaces), return as-is
+  // Check for functions with parentheses
+  const hasFunctions = /[\w-]+\s*\(/.test(normalized);
+  // Check for multiple whitespace or spaces after commas in functions
+  const needsNormalization = /[\s\n\r\t]{2,}/.test(normalized) || 
+                            (hasFunctions && /,\s+/.test(normalized));
+  
+  if (!needsNormalization) {
+    return normalized;
+  }
+  
+  // Apply normalization (normalizeCSSFunctions handles both functions and whitespace)
+  normalized = normalizeCSSFunctions(normalized);
+  
+  return normalized;
+};
+
 // CSS Validation
 export const validateCSSRequirement = (cssCode: string, requirementIndex: number, cssStructure: any[]) => {
   const parsed = parseCSS(cssCode);
@@ -374,7 +482,24 @@ export const validateCSSRequirement = (cssCode: string, requirementIndex: number
   let allPropertiesValid = true;
   for (const prop of properties) {
     const { property, value } = prop;
-    if (selectorRules[property] !== value) {
+    const actualValue = selectorRules[property];
+    
+    // Early exit: if values match exactly, skip normalization
+    if (actualValue === value) {
+      continue;
+    }
+    
+    // Normalize both expected and actual values for comparison
+    const normalizedExpected = normalizeCSSValue(value, property);
+    const normalizedActual = normalizeCSSValue(actualValue || '', property);
+    
+    if (normalizedExpected !== normalizedActual) {
+      console.log(`[CSS Validation Failed] Property: ${property}`);
+      console.log(`  Selector: ${selector}`);
+      console.log(`  Expected (raw): ${value}`);
+      console.log(`  Expected (normalized): ${normalizedExpected}`);
+      console.log(`  Actual (raw): ${actualValue || '(not found)'}`);
+      console.log(`  Actual (normalized): ${normalizedActual}`);
       allPropertiesValid = false;
     }
   }
