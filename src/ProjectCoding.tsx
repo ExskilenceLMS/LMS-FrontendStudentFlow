@@ -14,13 +14,18 @@ const ProjectComponent = () => {
   const [error, setError] = useState<string | null>(null)
   const [containerStatus, setContainerStatus] = useState<any>(null)
 
-  const setQuestionDataToSessionStorage = (question: any) => {
+  const setQuestionDataToSessionStorage = (question: any, fullResponse?: any) => {
     if (question.Name) sessionStorage.setItem('currentQuestionContent', question.Name)
     if (question.image_id) sessionStorage.setItem('projectCoding_imageId', question.image_id.toString())
     if (question.docker_image) sessionStorage.setItem('projectCoding_dockerImage', question.docker_image)
     if (question.master_repo_tag) sessionStorage.setItem('projectCoding_githubTag', question.master_repo_tag)
     if (question.master_repo_url) sessionStorage.setItem('projectCoding_githubRepoUrl', question.master_repo_url)
     if (question.Qn) sessionStorage.setItem('projectCoding_pageName', question.Qn)
+    if (question.Qn_name) sessionStorage.setItem('projectCoding_questionId', question.Qn_name)
+    // Store full question data for use in submit
+    if (fullResponse) {
+      sessionStorage.setItem('projectCoding_questionData', JSON.stringify(fullResponse))
+    }
   }
 
   const provisionContainer = async (questionDataResponse: any, studentId: string, projectId: string) => {
@@ -84,7 +89,7 @@ const ProjectComponent = () => {
         // Check location state first (data passed via navigate)
         const questionDataFromState = (location.state as any)?.questionData
         if (questionDataFromState?.questions?.length) {
-          setQuestionDataToSessionStorage(questionDataFromState.questions[0])
+          setQuestionDataToSessionStorage(questionDataFromState.questions[0], questionDataFromState)
           setLoading(false)
           await provisionContainer(questionDataFromState, studentId, projectId)
           return
@@ -104,7 +109,7 @@ const ProjectComponent = () => {
         )
 
         if (response.data?.questions?.length) {
-          setQuestionDataToSessionStorage(response.data.questions[0])
+          setQuestionDataToSessionStorage(response.data.questions[0], response.data)
           await provisionContainer(response.data, studentId, projectId)
         } else {
           throw new Error("Invalid response format")

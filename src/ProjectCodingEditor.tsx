@@ -625,22 +625,23 @@ function ProjectCodingEditor({ containerStatus = null }) {
 
       let questionId = "";
 
-      const cachedQuestionData = sessionStorage.getItem('projectCoding_questionData');
-      if (cachedQuestionData) {
-        try {
-          const parsedData = JSON.parse(cachedQuestionData);
-          if (parsedData.questions?.length) {
-            const firstQuestion = parsedData.questions[0];
-            questionId = firstQuestion.Qn_name || firstQuestion.question_id || "";
-          }
-        } catch (e) {
-          console.warn("Failed to parse cached question data:", e);
-        }
-      }
+      // First try to get from direct sessionStorage key
+      questionId = sessionStorage.getItem('projectCoding_questionId') || "";
 
+      // If not found, try to get from cached question data
       if (!questionId) {
-        const subtaskId = getProjectId("subtaskId") || sessionStorage.getItem("currentSubtaskId") || "";
-        questionId = subtaskId || taskId || "";
+        const cachedQuestionData = sessionStorage.getItem('projectCoding_questionData');
+        if (cachedQuestionData) {
+          try {
+            const parsedData = JSON.parse(cachedQuestionData);
+            if (parsedData.questions?.length) {
+              const firstQuestion = parsedData.questions[0];
+              questionId = firstQuestion.Qn_name || firstQuestion.question_id || "";
+            }
+          } catch (e) {
+            console.warn("Failed to parse cached question data:", e);
+          }
+        }
       }
 
       if (!questionId) {
