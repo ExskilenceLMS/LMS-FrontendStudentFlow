@@ -938,9 +938,9 @@ const ProjectTasks: React.FC = () => {
           </div>
 
           {/* Navigation Buttons */}
-          <div className="d-flex justify-content-between align-items-center p-3 border-top">
+          <div className="d-flex justify-content-between align-items-center p-2 border-top">
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-sm"
               onClick={handlePrevious}
               disabled={isPreviousDisabled()}
               style={{
@@ -952,7 +952,7 @@ const ProjectTasks: React.FC = () => {
             </button>
             {task && currentSubTaskIndex !== null && task.data[currentSubTaskIndex]?.type === "project_coding" && (
               <button
-                className="btn btn-success"
+                className="btn btn-success btn-sm"
                 onClick={() => navigate("/project-coding", { 
                   replace: true,
                   state: { questionData: projectCodingQuestionData }
@@ -968,7 +968,7 @@ const ProjectTasks: React.FC = () => {
               </button>
             )}
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-sm"
               onClick={handleNext}
               style={{
                 cursor: "pointer",
