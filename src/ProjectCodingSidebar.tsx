@@ -7,7 +7,7 @@ const ProjectCodingSidebar = forwardRef((props, ref) => {
       <div className="card border-0 d-flex flex-column h-100 overflow-hidden">
         <div className="card-header flex-shrink-0 text-white" style={{ backgroundColor: "#4f46e5" }}>
           <p className="mb-0 fw-semibold">
-            PROBLEM | {sessionStorage.getItem("projectCoding_pageName") || ""}
+            TASK | {sessionStorage.getItem("projectCoding_pageName") || ""}
           </p>
         </div>
         <div className="p-1 flex-grow-1 d-flex flex-column overflow-auto" style={{ minHeight: 0 }}>
