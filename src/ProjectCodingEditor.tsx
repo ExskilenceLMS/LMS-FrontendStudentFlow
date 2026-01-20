@@ -19,14 +19,11 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const [isPolling, setIsPolling] = useState(false);
   
   // Validation state - always run all tasks from JSON files
-  // const [wsClient, setWsClient] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [validationOutput, setValidationOutput] = useState<any[]>([]);
-  const [validationProgress, setValidationProgress] = useState({ message: 'Ready to validate', percentage: 0 });
   const [testCases, setTestCases] = useState<any[]>([]);
   const [selectedTestCase, setSelectedTestCase] = useState(null);
-  const [pingActive, setPingActive] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -109,35 +106,31 @@ function ProjectCodingEditor({ containerStatus = null }) {
             (data.pod_ip && data.pod_ip.trim() !== "");
           
           if (shouldLoad) {
-            console.log("Container is ready - loading VS Code", {
-              pod_status: data.pod_status,
-              is_ready: data.is_ready,
-              pod_ip: data.pod_ip ? "present" : "missing"
-            });
+            // Add 5 second delay to allow VS Code server to fully initialize
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
             if (isMountedRef.current) {
               setVscodeUrl(containerUrl);
-              setIsPolling(false); // Stop polling indicator
+              setIsPolling(false);
             }
-            return true; // Stop polling
+            return true;
           }
           
           // Handle error states
           if (data.pod_status === "Failed" || data.pod_status === "Error") {
             setVscodeLoading(false);
-            setIsPolling(false); // Stop polling indicator
+            setIsPolling(false);
             console.error("Container failed to start:", data.pod_status);
-            return true; // Stop polling
+            return true;
           }
           
           // Pod is still Pending - continue polling
           if (data.pod_status === "Pending") {
-            console.log("Container is Pending - waiting for pod to start...");
           }
           
-          return false; // Continue polling
+          return false;
         } catch (error: any) {
-          console.error("Error checking container readiness:", error);
-          return false; // Continue polling on error (may be temporary)
+          return false;
         }
       };
       
@@ -209,52 +202,27 @@ function ProjectCodingEditor({ containerStatus = null }) {
     setValidationOutput([]);
     setTestCases([]);
     setSelectedTestCase(null);
-    setValidationProgress({ message: 'Ready to validate', percentage: 0 });
-    setPingActive(false);
     // Stop polling if active
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
-    setPollingJobId(null);
   };
 
   const handleCollapse = () => {
     setShowTerminal(!showTerminal);
   };
 
-  // const updateTestCasesList = (testName: string, passed: boolean) => {
-  //   setTestCases((prev: any[]) => {
-  //     const existing = prev.find(t => t.name === testName);
-  //     if (existing) {
-  //       return prev.map(t => t.name === testName ? { ...t, passed } : t);
-  //     }
-  //     return [...prev, { name: testName, passed, type: 'test' }];
-  //   });
-  // };
 
   // Process validation results and extract test cases
   const processValidationResults = (results: any) => {
-    // Log results structure for debugging
-    console.log('Processing validation results:', {
-      hasTasks: !!results.tasks,
-      tasksCount: results.tasks?.length || 0,
-      hasTests: !!results.tests,
-      testsCount: results.tests?.length || 0,
-      hasErrors: !!results.errors,
-      errorsCount: results.errors?.length || 0,
-      resultsKeys: Object.keys(results || {})
-    });
     
     // Display all test cases from results
-    // Handle both single task and "all tasks" structures
-    // Merge with existing tests to show incremental updates
     const existingTestIds = new Set(testCases.map(t => t.id || t.name));
     const allTests: any[] = [...testCases]; // Start with existing tests
     
       // Check if this is "all tasks" structure (has tasks array)
       if (results.tasks && Array.isArray(results.tasks)) {
-        console.log(`Processing ${results.tasks.length} task(s) from results`);
         // Process each task's results
         results.tasks.forEach((taskResult: any, taskIndex: number) => {
           const taskPrefix = taskResult.taskName || taskResult.taskId || `Task ${taskIndex + 1}`;
@@ -281,11 +249,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
             // Only add if not already present (incremental update)
             if (!existingTestIds.has(testId)) {
               allTests.push({
-                name: `${taskPrefix} - ${test.name || 'Test'}`,
-                id: testId,
+                name: `${test.name}`,
                 description: test.description || '',
                 passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-                type: test.type || 'unknown',
                 message: test.message || '',
                 error: test.error || test.details || ''
               });
@@ -315,10 +281,8 @@ function ProjectCodingEditor({ containerStatus = null }) {
               if (!existingTestIds.has(testId)) {
                 allTests.push({
                   name: `${taskPrefix} - ${test.name || 'Schema Test'}`,
-                  id: testId,
                   description: test.description || '',
-                  passed: test.passed || false,
-                  type: 'schema',
+                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                   message: test.message || '',
                   error: test.error || test.details || ''
                 });
@@ -334,11 +298,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
               const testId = `${taskPrefix}-static-${test.id || test.name || ''}`;
               if (!existingTestIds.has(testId)) {
                 allTests.push({
-                  name: `${taskPrefix} - ${test.name || 'Static Test'}`,
-                  id: testId,
+                  name: `${test.name}`,
                   description: test.description || '',
-                  passed: test.passed || false,
-                  type: 'static',
+                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                   message: test.message || '',
                   error: test.error || ''
                 });
@@ -354,11 +316,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
               const testId = `${taskPrefix}-pytest-${test.id || test.name || ''}`;
               if (!existingTestIds.has(testId)) {
                 allTests.push({
-                  name: `${taskPrefix} - ${test.name || 'Pytest Test'}`,
-                  id: testId,
+                  name: `${test.name}`,
                   description: test.description || '',
-                  passed: test.passed || false,
-                  type: 'pytest',
+                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                   message: test.message || '',
                   error: test.error || ''
                 });
@@ -369,7 +329,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
                 if (existingIndex >= 0) {
                   allTests[existingIndex] = {
                     ...allTests[existingIndex],
-                    passed: test.passed || false,
+                    passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                     message: test.message || allTests[existingIndex].message,
                     error: test.error || allTests[existingIndex].error
                   };
@@ -385,11 +345,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
               const testId = `${taskPrefix}-dynamic-${test.id || test.name || ''}`;
               if (!existingTestIds.has(testId)) {
                 allTests.push({
-                  name: `${taskPrefix} - ${test.name || 'Playwright Test'}`,
-                  id: testId,
+                  name: `${test.name}`,
                   description: test.description || '',
-                  passed: test.passed || false,
-                  type: 'dynamic',
+                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                   message: test.message || '',
                   error: test.error || ''
                 });
@@ -400,7 +358,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
                 if (existingIndex >= 0) {
                   allTests[existingIndex] = {
                     ...allTests[existingIndex],
-                    passed: test.passed || false,
+                    passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                     message: test.message || allTests[existingIndex].message,
                     error: test.error || allTests[existingIndex].error
                   };
@@ -414,11 +372,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
         if (!taskHasTests && taskResult.errors && Array.isArray(taskResult.errors) && taskResult.errors.length > 0) {
           taskResult.errors.forEach((errorMsg: string, errorIndex: number) => {
             allTests.push({
-              name: `${taskPrefix} - Validation Error ${errorIndex + 1 > 1 ? `(${errorIndex + 1})` : ''}`,
-              id: taskResult.taskId || '',
+              name: `Validation Error ${errorIndex + 1 > 1 ? `(${errorIndex + 1})` : ''}`,
               description: '',
               passed: false,
-              type: 'error',
               message: '',
               error: errorMsg || 'Validation failed'
             });
@@ -426,11 +382,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
         } else if (!taskHasTests && !taskResult.passed) {
           // Task failed but no specific errors - create a generic error entry
           allTests.push({
-            name: `${taskPrefix} - Validation Failed`,
-            id: taskResult.taskId || '',
+            name: `Validation Failed`,
             description: '',
             passed: false,
-            type: 'error',
             message: '',
             error: 'Task validation failed. Check validation output for details.'
           });
@@ -442,10 +396,8 @@ function ProjectCodingEditor({ containerStatus = null }) {
         results.errors.forEach((errorMsg: string, errorIndex: number) => {
           allTests.push({
             name: `Validation Error ${errorIndex + 1}`,
-            id: '',
             description: '',
             passed: false,
-            type: 'error',
             message: '',
             error: errorMsg || 'Validation failed'
           });
@@ -459,11 +411,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
           const testId = test.id || test.name || '';
           if (!existingTestIds.has(testId)) {
             allTests.push({
-              name: test.name || 'Test',
-              id: testId,
+              name: `${test.name}`,
               description: test.description || '',
               passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-              type: test.type || 'unknown',
               message: test.message || '',
               error: test.error || test.details || ''
             });
@@ -478,11 +428,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
             const testId = test.id || test.name || '';
             if (!existingTestIds.has(testId)) {
               allTests.push({
-                name: test.name || 'Schema Test',
-                id: testId,
+                name: `${test.name}`,
                 description: test.description || '',
-                passed: test.passed || false,
-                type: 'schema',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                 message: test.message || '',
                 error: test.error || test.details || ''
               });
@@ -495,11 +443,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
             const testId = test.id || test.name || '';
             if (!existingTestIds.has(testId)) {
               allTests.push({
-                name: test.name || 'Static Test',
-                id: testId,
+                name: `${test.name}`,
                 description: test.description || '',
-                passed: test.passed || false,
-                type: 'static',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                 message: test.message || '',
                 error: test.error || ''
               });
@@ -512,11 +458,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
             const testId = test.id || test.name || '';
             if (!existingTestIds.has(testId)) {
               allTests.push({
-                name: test.name || 'Pytest Test',
-                id: testId,
+                name: `${test.name}`,
                 description: test.description || '',
-                passed: test.passed || false,
-                type: 'pytest',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                 message: test.message || '',
                 error: test.error || ''
               });
@@ -529,11 +473,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
             const testId = test.id || test.name || '';
             if (!existingTestIds.has(testId)) {
               allTests.push({
-                name: test.name || 'Playwright Test',
-                id: testId,
+                name: `${test.name}`,
                 description: test.description || '',
-                passed: test.passed || false,
-                type: 'dynamic',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                 message: test.message || '',
                 error: test.error || ''
               });
@@ -543,114 +485,16 @@ function ProjectCodingEditor({ containerStatus = null }) {
         }
       }
     }
-    
-    console.log(`Total test cases extracted: ${allTests.length}`, {
-      fromTasks: results.tasks ? results.tasks.length : 0,
-      fromSingleTask: !results.tasks && results.tests ? results.tests.length : 0
-    });
-    
+        
     setTestCases(allTests as any[]);
     
     if (allTests.length > 0) {
-      addValidationOutput(`Found ${allTests.length} test case(s)`, 'info');
-    } else {
-      // Provide more detailed error message
-      let errorDetails = 'No test cases found in results.';
-      if (results.errors && Array.isArray(results.errors) && results.errors.length > 0) {
-        errorDetails += ` Errors: ${results.errors.join('; ')}`;
-      }
-      if (results.tasks && Array.isArray(results.tasks) && results.tasks.length === 0) {
-        errorDetails += ' Tasks array is empty.';
-      }
-      addValidationOutput(errorDetails, 'warning');
+      setSelectedTestCase(allTests[0]);
     }
   };
 
-  // const connectValidationWebSocket = (jobId: string) => {
-  //   // Disconnect existing connection
-  //   if (wsClient) {
-  //     (wsClient as ValidationWebSocketClient).disconnect();
-  //   }
-
-  //   const newWsClient: ValidationWebSocketClient = new ValidationWebSocketClient(jobId, {
-  //     onOpen: () => {
-  //       addValidationOutput('Connected to validation server', 'success');
-  //       setPingActive(true);
-  //     },
-  //     onPing: () => {
-  //       // Trigger ping animation only when validation is running
-  //       if (isRunning) {
-  //         setPingActive(true);
-  //         setTimeout(() => setPingActive(false), 200);
-  //       }
-  //     },
-  //     onStarted: (data: any) => {
-  //       const taskName = data.task_name || data.task_id || 'Task';
-  //       addValidationOutput(`Validating: ${taskName}`, 'info');
-  //     },
-  //     onProgress: (message: string, percentage: number) => {
-  //       setValidationProgress({ message, percentage });
-  //       addValidationOutput(message, 'info');
-  //     },
-  //     onStage: (stage: string, percentage: number) => {
-  //       setValidationProgress({ message: `Stage: ${stage}`, percentage });
-  //       addValidationOutput(`Stage: ${stage}`, 'info');
-  //     },
-  //     onTest: (testName: string, passed: boolean, stage: string) => {
-  //       const status = passed ? 'Passed' : 'Failed';
-  //       addValidationOutput(`Test: ${testName} - ${status}`, passed ? 'success' : 'error');
-  //       updateTestCasesList(testName, passed);
-  //     },
-  //     onPartial: (results: any) => {
-  //       // Handle partial/incremental results - update UI in real-time
-  //       const taskCount = results.tasks?.length || 0;
-  //       const totalTasks = results.taskName?.match(/\d+/)?.[0] || taskCount;
-  //       addValidationOutput(`Task ${taskCount}/${totalTasks} completed - updating results...`, 'info');
-  //       processValidationResults(results);
-  //       // Note: testCases will be updated by processValidationResults via setTestCases
-  //       // We'll show the count in the next render cycle
-  //     },
-  //     onCompleted: (results: any) => {
-  //       addValidationOutput('Validation completed!', 'success');
-  //       processValidationResults(results);
-  //       setIsRunning(false);
-  //       // Stop ping interval and disconnect when validation completes
-  //       newWsClient.stopPingInterval();
-  //       setPingActive(false);
-  //       // Disconnect WebSocket after a short delay to allow final messages
-  //       setTimeout(() => {
-  //         newWsClient.disconnect();
-  //       }, 1000);
-  //     },
-  //     onError: (error: any) => {
-  //       const errorMsg = error.message || error || 'Unknown error';
-  //       addValidationOutput(`Error: ${errorMsg}`, 'error');
-  //       setIsRunning(false);
-  //       // Stop ping interval and disconnect on error
-  //       newWsClient.stopPingInterval();
-  //       setPingActive(false);
-  //       // Disconnect WebSocket on error
-  //       setTimeout(() => {
-  //         newWsClient.disconnect();
-  //       }, 1000);
-  //     },
-  //     onClose: () => {
-  //       setPingActive(false);
-  //       addValidationOutput('Connection closed', 'warning');
-  //       // Stop ping interval when connection closes
-  //       newWsClient.stopPingInterval();
-  //     }
-  //   });
-
-  //   setWsClient(newWsClient as any);
-  //   newWsClient.connect();
-  // };
-
   // Polling-based validation status checking (HTTP polling instead of WebSocket)
   const startPollingValidationStatus = (jobId: string) => {
-    setPollingJobId(jobId);
-    addValidationOutput('Polling validation status...', 'info');
-    
     // Clear any existing polling interval
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
@@ -670,22 +514,11 @@ function ProjectCodingEditor({ containerStatus = null }) {
       }
       
       try {
-        // Animate ping indicator to show polling activity
-        setPingActive(true);
-        setTimeout(() => setPingActive(false), 200);
-        
         // Check status first
         const statusResponse = await getValidationStatus(jobId);
         
         if (statusResponse && statusResponse.success) {
           const status = statusResponse.status;
-          const progress = statusResponse.progress || '';
-          const progressPercentage = statusResponse.progress_percentage || 0;
-          
-          // Update progress
-          if (progress) {
-            setValidationProgress({ message: progress, percentage: progressPercentage });
-          }
           
           // Always try to get results (even if still running) to get partial results
           try {
@@ -700,21 +533,6 @@ function ProjectCodingEditor({ containerStatus = null }) {
                 
                 // Process results (this will update test cases incrementally)
                 processValidationResults(resultsResponse.results);
-                
-                // If this is a "run-all" job with tasks array, show progress for each task
-                if (resultsResponse.results.taskId === 'all' && resultsResponse.results.tasks) {
-                  const completedTasks = resultsResponse.results.tasks.filter((t: any) => 
-                    t.pytest || t.dynamic || t.static || t.errors
-                  ).length;
-                  const totalTasks = resultsResponse.results.tasks.length;
-                  
-                  if (completedTasks > 0 && completedTasks < totalTasks) {
-                    addValidationOutput(
-                      `Task ${completedTasks}/${totalTasks} completed - updating results...`, 
-                      'info'
-                    );
-                  }
-                }
               }
             }
           } catch (error: any) {
@@ -735,19 +553,16 @@ function ProjectCodingEditor({ containerStatus = null }) {
             try {
               const resultsResponse = await getValidationResults(jobId);
               if (resultsResponse && resultsResponse.success && resultsResponse.results) {
-                addValidationOutput('Validation completed!', 'success');
                 processValidationResults(resultsResponse.results);
               } else if (status === 'failed' && statusResponse.error) {
                 addValidationOutput(`Validation failed: ${statusResponse.error}`, 'error');
               }
             } catch (error: any) {
               console.error('Error fetching final validation results:', error);
-              addValidationOutput('Validation completed, but could not fetch final results', 'warning');
             }
             
             setIsRunning(false);
-            setPollingJobId(null);
-            setPingActive(false);
+            setShowTerminal(true);
           }
         }
       } catch (error: any) {
@@ -759,12 +574,8 @@ function ProjectCodingEditor({ containerStatus = null }) {
   };
 
   const handleRunValidation = async () => {
-    // Show terminal first so user can see any errors
-    setShowTerminal(true);
     clearValidationOutput();
-
     setIsRunning(true);
-    addValidationOutput('Triggering validation for all JSON files in testing_config...', 'info');
 
     try {
       // Get container_id from containerStatus (provision response stores container_id as containerName)
@@ -774,13 +585,8 @@ function ProjectCodingEditor({ containerStatus = null }) {
       const response = await runValidation(null, null, containerId);
       
       if (response && response.success && response.job_id) {
-        // connectValidationWebSocket(response.job_id);
         // Use polling instead of websocket
         startPollingValidationStatus(response.job_id);
-        addValidationOutput(`Validation job started: ${response.job_id}`, 'info');
-        if (response.tasks_found) {
-          addValidationOutput(`Found ${response.tasks_found} task file(s) in testing_config`, 'info');
-        }
       } else {
         const errorMsg = response?.detail?.error || response?.error || 'Failed to start validation';
         throw new Error(errorMsg);
@@ -792,10 +598,8 @@ function ProjectCodingEditor({ containerStatus = null }) {
       // Stop polling on error
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
+        pollingIntervalRef.current = null;  
       }
-      setPollingJobId(null);
-      setPingActive(false);
     }
   };
 
@@ -825,45 +629,46 @@ function ProjectCodingEditor({ containerStatus = null }) {
         throw new Error("Missing required project IDs");
       }
 
-      if (!questionData) {
-        throw new Error("Question data not found");
-      }
+      let questionId = "";
 
-      if (!questionData.questions?.length) {
-        throw new Error("No questions found");
-      }
+      // First try to get from direct sessionStorage key
+      questionId = sessionStorage.getItem('projectCoding_questionId') || "";
 
-      const firstQuestion = questionData.questions[0];
-      const questionId = firstQuestion.Qn_name || firstQuestion.question_id || "";
-      const finalScore = firstQuestion.score || "0/0";
+      // If not found, try to get from cached question data
+      if (!questionId) {
+        const cachedQuestionData = sessionStorage.getItem('projectCoding_questionData');
+        if (cachedQuestionData) {
+          try {
+            const parsedData = JSON.parse(cachedQuestionData);
+            if (parsedData.questions?.length) {
+              const firstQuestion = parsedData.questions[0];
+              questionId = firstQuestion.Qn_name || firstQuestion.question_id || "";
+            }
+          } catch (e) {
+            console.warn("Failed to parse cached question data:", e);
+          }
+        }
+      }
 
       if (!questionId) {
-        throw new Error("Question ID not found");
+        throw new Error("Question ID not found. Please ensure you have selected a task/subtask.");
       }
 
-      // Build result_data from test cases
-      const resultData: any[] = [];
+      // Format test cases into result_data format
+      const resultData = testCases.map((testCase: any, index: number) => ({
+        [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
+      }));
       
-      // Add test case results
-      testCases.forEach((testCase: any, index: number) => {
-        const testCaseKey = `TestCase${index + 1}`;
-        const testResult = testCase.passed ? "Passed" : "Failed";
-        resultData.push({
-          [testCaseKey]: testResult
-        });
-      });
-
-      // Add overall Result (True if all tests passed, False otherwise)
-      const allPassed = testCases.length > 0 && testCases.every((testCase: any) => testCase.passed);
-      resultData.push({
-        "Result": allPassed ? "True" : "False"
-      });
+      // Add overall result
+        const allPassed = testCases.length > 0 && testCases.every((tc: any) => tc.passed);
+        resultData.push({ Result: allPassed ? "True" : "False" });
 
       const payload = {
         student_id: studentId,
         question_id: questionId,
         answer: "",
         batch_id: batchId,
+        result_data: resultData,
         result_data: resultData,
         project_id: projectId,
         final_score: finalScore,
@@ -872,9 +677,23 @@ function ProjectCodingEditor({ containerStatus = null }) {
         task_id: taskId
       };
 
-      const response = await getApiClient().put(
+      // Submit the project coding results
+      await getApiClient().put(
         `${process.env.REACT_APP_BACKEND_URL}api/student/project/project_coding/submit/`,
         payload
+      );
+
+      // commit and push workspace changes
+      const commitPayload = {
+        student_id: studentId,
+        project_id: projectId,
+        question_id: questionId,
+        commit_type: "manual",
+      };
+
+      await getApiClient().post(
+        `${process.env.REACT_APP_BACKEND_URL}api/student/project/workspace/commit/`,
+        commitPayload
       );
 
       setShowCompleteModal(false);
@@ -998,7 +817,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
             disabled={isRunning}
           >
             <FontAwesomeIcon icon={isRunning ? faHourglass : faPlay} style={{ marginRight: '4px' }} />
-            {isRunning ? 'Validating...' : 'Validate'}
+            {isRunning ? 'Running...' : 'Run'}
           </button>
           <button
             id="mark-complete-btn"
@@ -1024,139 +843,118 @@ function ProjectCodingEditor({ containerStatus = null }) {
             minHeight: 0
           }}
         >
-          {/* Progress Bar */}
-          <div className="p-2 border-bottom bg-light">
-            <div className="d-flex justify-content-between align-items-center mb-1">
-              <span className="small">{validationProgress.message}</span>
-              {isRunning && (
-                <span className="d-flex align-items-center">
-                  <span 
-                    className={`badge rounded-pill ${pingActive ? 'bg-success' : 'bg-secondary'}`}
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      padding: 0,
-                      marginRight: '4px',
-                      transition: 'background-color 0.2s ease',
-                      animation: pingActive ? 'pulse 0.5s ease-in-out' : 'none'
-                    }}
-                  ></span>
-                  <span className="small text-muted">Connected</span>
-                </span>
-              )}
-            </div>
-            <div className="progress" style={{ height: '8px' }}>
-              <div
-                className="progress-bar"
-                role="progressbar"
-                style={{ width: `${validationProgress.percentage}%` }}
-                aria-valuenow={validationProgress.percentage}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              />
-            </div>
-          </div>
-
-          {/* Test Cases Sidebar and Main Output Area */}
-          <div className="d-flex" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-            {/* Sidebar: Test Cases List */}
-            <div className="border-end bg-light" style={{ width: '250px', overflowY: 'auto' }}>
-              <div className="p-2 border-bottom bg-white">
-                <strong className="small">Test Cases</strong>
+          {/* Show spinner overlay when validation is running */}
+          {isRunning ? (
+            <div className="d-flex flex-column justify-content-center align-items-center h-100">
+              <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+                <span className="visually-hidden">Loading...</span>
               </div>
-              <div className="list-group list-group-flush">
-                {testCases.map((testCase: any, index: number) => (
-                  <button
-                    key={index}
-                    type="button"
-                    className={`list-group-item list-group-item-action text-start border-0 ${selectedTestCase === testCase ? 'active' : ''} ${testCase.passed ? 'list-group-item-success' : 'list-group-item-danger'}` as any}
-                    onClick={() => handleTestCaseClick(testCase as any)}
-                  >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span className="small">Testcase {index + 1}</span>
-                      <span className={`badge ${testCase.passed ? 'bg-success' : 'bg-danger'}` as any}>
-                        {testCase.passed ? (
-                          <FontAwesomeIcon icon={faCheck} />
-                        ) : (
-                          <FontAwesomeIcon icon={faXmark} />
-                        )}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-                {testCases.length === 0 && (
-                  <div className="p-2 text-muted small text-center">
-                    <div>No test cases yet</div>
-                    <div className="mt-2" style={{ fontSize: '0.75rem' }}>Run validation to look for testcases</div>
+              <p className="text-muted mb-0">Validating...</p>
+            </div>
+          ) : (
+            <>
+              {/* Test Cases Sidebar and Main Output Area */}
+              <div className="d-flex" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                {/* Sidebar: Test Cases List */}
+                <div className="border-end bg-light" style={{ width: '250px', overflowY: 'auto' }}>
+                  <div className="p-2 border-bottom bg-white">
+                    <strong className="small">Test Cases</strong>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Main Area: Test Case Details */}
-            <div className="flex-grow-1 d-flex flex-column" style={{ overflowY: 'auto' }}>
-              <div className="d-flex justify-content-between align-items-center p-2 border-bottom bg-light">
-                <strong className="small">Test Case Details</strong>
-                <button
-                  className="btn btn-outline-secondary btn-sm"
-                  onClick={clearValidationOutput}
-                >
-                  Clear
-                </button>
-              </div>
-              <div
-                ref={outputRef}
-                className="flex-grow-1 p-3"
-                style={{ fontFamily: 'monospace', fontSize: '0.875rem', overflowY: 'auto' }}
-              >
-                {selectedTestCase ? (
-                  <div>
-                    <div className="mb-3">
-                      <h6 className="fw-bold">{(selectedTestCase as any).name as string}</h6>
-                      {(selectedTestCase as any).id && (
-                        <div className="mb-2">
-                          <strong>ID:</strong> <code>{(selectedTestCase as any).id}</code>
+                  <div className="list-group list-group-flush">
+                    {testCases.map((testCase: any, index: number) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className={`list-group-item list-group-item-action text-start border-0 ${selectedTestCase === testCase ? 'active' : ''} ${testCase.passed ? 'list-group-item-success' : 'list-group-item-danger'}` as any}
+                        onClick={() => handleTestCaseClick(testCase as any)}
+                      >
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="small">Testcase {index + 1}</span>
+                          <span className={`badge ${testCase.passed ? 'bg-success' : 'bg-danger'}` as any}>
+                            {testCase.passed ? (
+                              <FontAwesomeIcon icon={faCheck} />
+                            ) : (
+                              <FontAwesomeIcon icon={faXmark} />
+                            )}
+                          </span>
                         </div>
-                      )}
-                      <div className="mb-2">
-                        <span className={`badge ${((selectedTestCase as any).passed) ? 'bg-success' : 'bg-danger'}` as any}>
-                          {(selectedTestCase as any).passed ? 'Passed' : 'Failed'}
-                        </span>
-                        <span className="badge bg-secondary ms-2">{(selectedTestCase as any).type as string}</span>
-                      </div>
-                      {(selectedTestCase as any).description && (
-                        <div className="mb-2">
-                          <strong>Description:</strong> {(selectedTestCase as any).description as string}
-                        </div>
-                      )}
-                    </div>
-                    {(selectedTestCase as any).passed && (selectedTestCase as any).message && (
-                      <div className="alert alert-success">
-                        <strong>Success:</strong> {(selectedTestCase as any).message as string}
-                      </div>
-                    )}
-                    {!((selectedTestCase as any).passed) && (selectedTestCase as any).error && (
-                      <div className="alert alert-danger">
-                        <strong>Error:</strong>
-                        <pre className="mb-0 mt-2" style={{ whiteSpace: 'pre-wrap' }}>{(selectedTestCase as any).error as string}</pre>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    {validationOutput.map((output: any, index: number) => (
-                      <div key={index} className={`mb-2 ${getOutputLineClass(output.type as string as any)}`}>
-                        {output.message as string}
-                      </div>
+                      </button>
                     ))}
-                    {validationOutput.length === 0 && (
-                      <div className="text-muted">No output yet. Click Validate to start validation.</div>
+                    {testCases.length === 0 && (
+                      <div className="p-2 text-muted small text-center">
+                        <div>No test cases yet</div>
+                        <div className="mt-2" style={{ fontSize: '0.75rem' }}>Run validation to look for testcases</div>
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
+
+                {/* Main Area: Test Case Details */}
+                <div className="flex-grow-1 d-flex flex-column" style={{ overflowY: 'auto' }}>
+                  <div className="d-flex justify-content-between align-items-center p-2 border-bottom bg-light">
+                    <strong className="small">Test Case Details</strong>
+                    <button
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={clearValidationOutput}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div
+                    ref={outputRef}
+                    className="flex-grow-1 p-3"
+                    style={{ fontFamily: 'monospace', fontSize: '0.875rem', overflowY: 'auto' }}
+                  >
+                    {selectedTestCase ? (
+                      <div>
+                        <div className="mb-3">
+                          <h6 className="fw-bold">{(selectedTestCase as any).name as string}</h6>
+                          {(selectedTestCase as any).id && (
+                            <div className="mb-2">
+                              <strong>ID:</strong> <code>{(selectedTestCase as any).id}</code>
+                            </div>
+                          )}
+                          <div className="mb-2">
+                            <span className={`badge ${((selectedTestCase as any).passed) ? 'bg-success' : 'bg-danger'}` as any}>
+                              {(selectedTestCase as any).passed ? 'Passed' : 'Failed'}
+                            </span>
+                            <span className="badge bg-secondary ms-2">{(selectedTestCase as any).type as string}</span>
+                          </div>
+                          {(selectedTestCase as any).description && (
+                            <div className="mb-2">
+                              <strong>Description:</strong> {(selectedTestCase as any).description as string}
+                            </div>
+                          )}
+                        </div>
+                        {(selectedTestCase as any).passed && (selectedTestCase as any).message && (
+                          <div className="alert alert-success">
+                            <strong>Success:</strong> {(selectedTestCase as any).message as string}
+                          </div>
+                        )}
+                        {!((selectedTestCase as any).passed) && (selectedTestCase as any).error && (
+                          <div className="alert alert-danger">
+                            <strong>Error:</strong>
+                            <pre className="mb-0 mt-2" style={{ whiteSpace: 'pre-wrap' }}>{(selectedTestCase as any).error as string}</pre>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        {validationOutput.map((output: any, index: number) => (
+                          <div key={index} className={`mb-2 ${getOutputLineClass(output.type as string as any)}`}>
+                            {output.message as string}
+                          </div>
+                        ))}
+                        {validationOutput.length === 0 && (
+                          <div className="text-muted">No output yet. Click Validate to start validation.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </section>
       )}
 
