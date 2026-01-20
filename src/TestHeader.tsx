@@ -58,7 +58,7 @@ const TestHeader: React.FC = () => {
 
   // Check if testId is available, if not navigate to tests page
   useEffect(() => {
-    if (!testId && (location.pathname === '/test-section' || location.pathname === '/test-introduction' || location.pathname === '/mcq-temp' || location.pathname === '/coding-temp' || location.pathname.includes('dynamic-coding'))) {
+    if (!testId && (location.pathname === '/test-section' || location.pathname === '/test-introduction' || location.pathname === '/mcq-temp' || location.pathname === '/coding-temp' || location.pathname.includes('/test/coding') || location.pathname.includes('dynamic-coding'))) {
       navigate('/test', { replace: true });
     }
   }, [testId, location.pathname, navigate]);
@@ -256,6 +256,7 @@ useEffect(() => {
             currentPath === '/test-section' ||
             currentPath === '/mcq-temp' ||
             currentPath === '/coding-temp' ||
+            currentPath.includes('/test/coding') ||
             currentPath.includes('dynamic-coding')
           ) {
             setShowModal(true);
@@ -357,8 +358,8 @@ useEffect(() => {
     
     // Special handling for test pages that need to preserve test data
     if (currentPath.toLowerCase().includes('/mcq-temp') || 
-        currentPath.toLowerCase().includes('/coding-temp') || 
-        currentPath.toLowerCase().includes('/dynamic-coding-editor')) {
+        currentPath.toLowerCase().includes('/coding-temp') ||
+        currentPath.toLowerCase().includes('/test/coding')) {
       
       // Try to get test data from session storage
       const encryptedTestData = sessionStorage.getItem('testSectionData');
@@ -391,13 +392,13 @@ useEffect(() => {
         <span className="text-center fs-6">
         <IoArrowBackCircleOutline size={30} className="me-1 pb-1 cursor-pointer" onClick={handleBackBtn} style={{ cursor: 'pointer'}} />
           
-          {formattedTitle === "Test Section" || formattedTitle === "Mcq Temp" || formattedTitle === "Coding Temp" || location.pathname.includes("dynamic-coding") ?
+          {formattedTitle === "Test Section" || formattedTitle === "Mcq Temp" || formattedTitle === "Coding Temp" || location.pathname.includes("/test/coding") || location.pathname.includes("dynamic-coding") ?
             <> <span className='fw-bold'>{sessionStorage.getItem("TestType") || ""}</span> {sessionStorage.getItem("TestName")?<> &gt; <span className='fw-bold'>{sessionStorage.getItem("TestName")}</span> </> : ""} </>
             :
             <></>}
         </span>
         <span className="text-center fs-6">
-          {formattedTitle === "Test Section" || formattedTitle === "Mcq Temp" || formattedTitle === "Coding Temp" || location.pathname.includes("dynamic-coding") ?
+          {formattedTitle === "Test Section" || formattedTitle === "Mcq Temp" || formattedTitle === "Coding Temp" || location.pathname.includes("/test/coding") || location.pathname.includes("dynamic-coding") ?
             <div className="card p-0 m-0" style={{ minWidth: '260px' }}>
               <div className="card-body p-1 me-0">
                 <div className="row text-center align-items-center m-0">

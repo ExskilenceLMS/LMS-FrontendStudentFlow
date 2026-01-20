@@ -18,7 +18,7 @@ export const navigationRules: NavigationRule[] = [
   { currentPath: '/test-section', previousPath: '/test-introduction', description: 'TestSection -> TestIntroduction', allowBack: true },
   { currentPath: '/mcq-temp', previousPath: '/test-section', description: 'MCQ Test -> TestSection', allowBack: true },
   { currentPath: '/coding-temp', previousPath: '/test-section', description: 'Coding Test -> TestSection', allowBack: true },
-  { currentPath: '/dynamic-coding-editor', previousPath: '/test-section', description: 'Dynamic Coding -> TestSection', allowBack: true },
+  { currentPath: '/test/coding', previousPath: '/test-section', description: 'Test Coding Editor -> TestSection', allowBack: true },
   { currentPath: '/test-report', previousPath: '/test', description: 'TestReport -> Test', allowBack: true },
   { currentPath: '/Report-Problem', previousPath: '/Dashboard', description: 'ReportProblem -> Dashboard', allowBack: true },
   { currentPath: '/Profile', previousPath: '/Dashboard', description: 'Profile -> Dashboard', allowBack: true },
