@@ -3,6 +3,7 @@ import AceEditor from "react-ace";
 import { getApiClient } from "../utils/apiAuth";
 import { useAPISWR } from "../utils/swrConfig";
 import { resetEditorUndoManager } from "../utils/editorUtils";
+import { reorderExpectedOutput } from "../utils/expectedOutputUtils";
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
@@ -136,7 +137,9 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
   useEffect(() => {
     if (question) {
       setStatus(question.status || false);
-      setExpectedOutput(question.ExpectedOutput || []);
+      const rawExpectedOutput = question.ExpectedOutput || [];
+      const reorderedOutput = reorderExpectedOutput(rawExpectedOutput, question.TestCases || []);
+      setExpectedOutput(reorderedOutput);
       setRunResponseTable([]);
       setRunResponseTestCases([]);
       setSuccessMessage("");
@@ -265,6 +268,8 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
       setActiveTab("output");
       const updatedSqlQuery = sqlQuery.replace("/*Write a all SQl commands/clauses in UPPERCASE*/", "").replace(/\s*\n\s*/g, " \n ");
       
+      const rawExpectedOutput = question.ExpectedOutput || [];
+      const reorderedOutput = reorderExpectedOutput(rawExpectedOutput, question.TestCases || []);
       const sendData = {
         student_id: studentId,
         week_number: isTestingContext ? null : weekNumber,
@@ -273,7 +278,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
         subject_id: subjectId,
         Qn: question.Qn_name,
         query: updatedSqlQuery,
-        ExpectedOutput: question.ExpectedOutput || [],
+        ExpectedOutput: reorderedOutput,
         TestCases: question.TestCases || [],
         batch_id: decryptData(sessionStorage.getItem("BatchId") || ""),
       };
