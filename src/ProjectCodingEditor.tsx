@@ -647,36 +647,21 @@ function ProjectCodingEditor({ containerStatus = null }) {
         throw new Error("Question ID not found. Please ensure you have selected a task/subtask.");
       }
 
-      addValidationOutput("Committing and pushing workspace changes...", "info");
-
-      const commitPayload = {
-        student_id: studentId,
-        project_id: projectId,
-        question_id: questionId,
-        commit_type: "manual",
-      };
-
-      const commitResponse = await getApiClient().post(
-        `${process.env.REACT_APP_BACKEND_URL}api/student/project/workspace/commit/`,
-        commitPayload
-      );
-
-      if (commitResponse.data?.success) {
-        if (commitResponse.data?.pushed) {
-          addValidationOutput(`Successfully committed and pushed. Branch: ${commitResponse.data.branch}`, "success");
-        } else {
-          addValidationOutput(`Committed successfully (no changes to push). Branch: ${commitResponse.data.branch}`, "success");
-        }
-      } else {
-        addValidationOutput("Commit completed with warnings", "warning");
-      }
+      // Format test cases into result_data format
+      const resultData = testCases.map((testCase: any, index: number) => ({
+        [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
+      }));
+      
+      // Add overall result
+        const allPassed = testCases.length > 0 && testCases.every((tc: any) => tc.passed);
+        resultData.push({ Result: allPassed ? "True" : "False" });
 
       const payload = {
         student_id: studentId,
         question_id: questionId,
         answer: "",
         batch_id: batchId,
-        result_data: [],
+        result_data: resultData,
         project_id: projectId,
         final_score: "0/0",
         phase_id: phaseId,
@@ -684,9 +669,23 @@ function ProjectCodingEditor({ containerStatus = null }) {
         task_id: taskId
       };
 
-      await getApiClient().post(
+      // Submit the project coding results
+      await getApiClient().put(
         `${process.env.REACT_APP_BACKEND_URL}api/student/project/project_coding/submit/`,
         payload
+      );
+
+      // commit and push workspace changes
+      const commitPayload = {
+        student_id: studentId,
+        project_id: projectId,
+        question_id: questionId,
+        commit_type: "manual",
+      };
+
+      await getApiClient().post(
+        `${process.env.REACT_APP_BACKEND_URL}api/student/project/workspace/commit/`,
+        commitPayload
       );
 
       setShowCompleteModal(false);
