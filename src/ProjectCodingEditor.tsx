@@ -663,12 +663,16 @@ function ProjectCodingEditor({ containerStatus = null }) {
         const allPassed = testCases.length > 0 && testCases.every((tc: any) => tc.passed);
         resultData.push({ Result: allPassed ? "True" : "False" });
 
+      // Calculate final score based on passed test cases
+      const finalScore = testCases.length > 0 
+        ? Math.round((testCases.filter((tc: any) => tc.passed).length / testCases.length) * 100)
+        : 0;
+
       const payload = {
         student_id: studentId,
         question_id: questionId,
         answer: "",
         batch_id: batchId,
-        result_data: resultData,
         result_data: resultData,
         project_id: projectId,
         final_score: finalScore,
@@ -678,7 +682,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
       };
 
       // Submit the project coding results
-      await getApiClient().put(
+      const response = await getApiClient().put(
         `${process.env.REACT_APP_BACKEND_URL}api/student/project/project_coding/submit/`,
         payload
       );
@@ -801,7 +805,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
       {/* Run and Submit Buttons */}
       <div className="d-flex justify-content-between gap-2 p-2 border-top bg-light" style={{ flexShrink: 0 }}>
         <button
-          className="btn btn-outline-secondary"
+          className="btn btn-outline-secondary btn-sm"
           style={{ minWidth: '100px' }}
           onClick={handleCollapse}
         >
@@ -811,7 +815,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
         <div className="d-flex gap-2">
           <button
             id="run-validation-btn"
-            className="btn btn-primary"
+            className="btn btn-primary btn-sm"
             style={{ minWidth: '100px' }}
             onClick={handleRunValidation}
             disabled={isRunning}
@@ -821,7 +825,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
           </button>
           <button
             id="mark-complete-btn"
-            className="btn btn-success"
+            className="btn btn-success btn-sm"
             style={{ minWidth: '150px' }}
             onClick={() => setShowCompleteModal(true)}
             disabled={submitting || isCompleted}
