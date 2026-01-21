@@ -11,9 +11,10 @@ RUN npm install
 ARG ENV_FILE=.env.prod
 ARG BUILD_COMMAND=build:prod
 
-# Copy source code and env file
+# Copy source code (but exclude .env files to avoid conflicts)
 COPY . .
-# COPY .env.prod .env
+# Remove any existing .env file before copying the correct one
+RUN rm -f .env .env.* 2>/dev/null || true
 
 # Copy the correct environment file into .env
 COPY ${ENV_FILE} .env
@@ -32,6 +33,14 @@ RUN echo "=== DEBUG: Extracting BACKEND_URL from ${ENV_FILE} ===" && \
 
 # # Build React app using production environment
 # RUN npm run build:prod
+
+# Verify environment variables before build
+RUN echo "=== DEBUG: Checking environment variables ===" && \
+    echo "REACT_APP_BACKEND_URL from .env.staging:" && \
+    grep -E "^REACT_APP_BACKEND_URL=" .env.staging || echo "Not found in .env.staging" && \
+    echo "REACT_APP_BACKEND_URL from .env:" && \
+    grep -E "^REACT_APP_BACKEND_URL=" .env || echo "Not found in .env" && \
+    echo "=== DEBUG: Environment check complete ==="
 
 # Build React app using selected build command
 RUN npm run ${BUILD_COMMAND}
