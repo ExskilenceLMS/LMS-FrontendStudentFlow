@@ -14,10 +14,12 @@ ARG BUILD_COMMAND=build:prod
 # Copy source code (but exclude .env files to avoid conflicts)
 COPY . .
 
-# Remove any existing .env file before copying the correct one
-RUN rm -f .env .env.* 2>/dev/null || true
+# Remove only .env file (keep .env.* files for env-cmd to use)
+RUN rm -f .env 2>/dev/null || true
 
 # Copy the correct environment file into .env
+# The original ${ENV_FILE} is already in the container from COPY . . above
+# This creates .env for React build, while keeping ${ENV_FILE} for env-cmd
 COPY ${ENV_FILE} .env
 
 # Extract BACKEND_URL from .env file and save it for nginx stage
