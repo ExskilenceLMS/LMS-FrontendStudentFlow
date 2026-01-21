@@ -81,8 +81,8 @@ const InternetInfo: React.FC = () => {
           isOnline ? 'border-success' : 'border-danger'
         } ${isChecking ? 'opacity-75' : 'opacity-100'}`}
         style={{
-          bottom: '12px',
-          left: '12px',
+          bottom: '25px',
+          right: '25px',
           zIndex: 9999,
           width: '32px',
           height: '32px',

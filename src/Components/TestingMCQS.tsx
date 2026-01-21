@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import apiClient from "../utils/apiAuth";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Spinner } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { secretKey } from "../constants";
-import LoaderComponent from "./LoaderComponent";
 interface Question {
   level: string;
   CreatedBy: string;
@@ -126,7 +126,11 @@ const TestingMCQS: React.FC = () => {
 
   if (loading) {
     return (
-      <LoaderComponent />
+      <div className="container-fluid p-0 d-flex justify-content-center align-items-center" style={{ height: "calc(100vh - 60px)"}}>
+        <Spinner animation="border" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </Spinner>
+      </div>
     );
   }
 

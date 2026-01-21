@@ -158,7 +158,6 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   const [currentInput, setCurrentInput] = useState<string>("");
   const inputResolver = useRef<((value: string) => void) | null>(null);
   const outputRef = useRef<HTMLPreElement>(null);
-  const editorRef = useRef<any>(null);  // Reference to the AceEditor instance
   const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false);  // Track user interaction
   
   // Test case and validation state
@@ -210,69 +209,10 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   const [questionResponses, setQuestionResponses] = useState<{[key: string]: any}>({});
   const [lastRunCode, setLastRunCode] = useState<{[key: string]: string}>({});
   
-  // Reset user interaction state and undo history when question changes
+  // Reset user interaction state when question changes
   useEffect(() => {
     setHasUserInteracted(false);
-    
-    // Use setTimeout to ensure the undo manager replacement happens after the value is set
-    const timeoutId = setTimeout(() => {
-      // Create a completely new undo manager when question changes
-      if (editorRef.current) {
-        try {
-          const session = editorRef.current.getSession();
-          
-          // Create a brand new undo manager instance
-          const UndoManager = (window as any).ace.require("ace/undomanager").UndoManager;
-          const newUndoManager = new UndoManager();
-          
-          // Set merge delay to 0 for character-by-character undo
-          if (typeof newUndoManager.setMergeDelay === 'function') {
-            newUndoManager.setMergeDelay(0);
-          }
-          
-          // Set merge interval property if available
-          if ('mergeInterval' in newUndoManager) {
-            newUndoManager.mergeInterval = 0;
-          }
-          
-          // Replace the session's undo manager with the new one
-          session.setUndoManager(newUndoManager);
-          
-          console.log(`Undo manager reset for question index: ${currentQuestionIndex}`);
-        } catch (error) {
-          console.error('Error resetting undo manager:', error);
-        }
-      }
-    }, 150); // Increased to 150ms to ensure value is fully set by React first
-    
-    return () => clearTimeout(timeoutId);
   }, [currentQuestionIndex]);
-  
-  // Configure character-by-character undo
-  const onEditorLoad = (editor: any) => {
-    editorRef.current = editor;
-    
-    const session = editor.getSession();
-    
-    // Create a completely new undo manager to ensure no history from previous questions
-    const UndoManager = (window as any).ace.require("ace/undomanager").UndoManager;
-    const newUndoManager = new UndoManager();
-    
-    // Set merge delay to 0 for character-by-character undo
-    if (typeof newUndoManager.setMergeDelay === 'function') {
-      newUndoManager.setMergeDelay(0);
-    }
-    
-    // Set merge interval property if available
-    if ('mergeInterval' in newUndoManager) {
-      newUndoManager.mergeInterval = 0;
-    }
-    
-    // Replace the session's undo manager with the new one
-    session.setUndoManager(newUndoManager);
-    
-    console.log('Editor loaded with fresh undo manager');
-  };
   
   // ===== UTILITY FUNCTIONS =====
   
@@ -499,11 +439,32 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
   };
 
   /**
-   * Generate editor value - now simply returns Ans since template initialization
-   * is handled in useEffect
+   * Generate editor value with FunctionCall appended to template
    */
   const generateEditorValue = () => {
-    return Ans;
+    const currentQuestion = questions[currentQuestionIndex];
+    const template = currentQuestion?.Template || "";
+    const functionCall = currentQuestion?.FunctionCall || "";
+    
+    // If user has entered code (and it's not empty), use that
+    if (Ans && Ans.trim() !== "") {
+      return Ans;
+    }
+    
+    // If user has interacted and cleared the editor, return empty
+    if (hasUserInteracted && Ans === "") {
+      return "";
+    }
+    
+    // If template exists, append FunctionCall
+    if (template) {
+      if (functionCall) {
+        return template + '\n\n\n\n\n' + functionCall;
+      }
+      return template;
+    }
+    
+    return "";
   };
 
   // ===== FASTAPI BACKEND INTEGRATION =====
@@ -665,35 +626,15 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
                 };
                 storeQuestionData(initialQuestion.Qn_name, autoSavedCode, questionData);
               } else {
-                // Fallback to question's entered_ans or template
-                const enteredAnswer = initialQuestion.entered_ans || '';
-                if (enteredAnswer.trim() !== '') {
-                  setEnteredAns(enteredAnswer);
-                  setAns(enteredAnswer);
-                } else {
-                  // Initialize with template if no saved code
-                  const template = initialQuestion.Template || "";
-                  const functionCall = initialQuestion.FunctionCall || "";
-                  const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
-                  setEnteredAns(initialCode);
-                  setAns(initialCode);
-                }
+                // Fallback to question's entered_ans
+                setEnteredAns(initialQuestion.entered_ans || '');
+                setAns(initialQuestion.entered_ans || '');
               }
             })
             .catch(() => {
-              // Fallback to question's entered_ans or template on error
-              const enteredAnswer = initialQuestion.entered_ans || '';
-              if (enteredAnswer.trim() !== '') {
-                setEnteredAns(enteredAnswer);
-                setAns(enteredAnswer);
-              } else {
-                // Initialize with template if no saved code
-                const template = initialQuestion.Template || "";
-                const functionCall = initialQuestion.FunctionCall || "";
-                const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
-                setEnteredAns(initialCode);
-                setAns(initialCode);
-              }
+              // Fallback to question's entered_ans on error
+              setEnteredAns(initialQuestion.entered_ans || '');
+              setAns(initialQuestion.entered_ans || '');
             });
         } else {
           // Question is already submitted, use entered_ans
@@ -747,35 +688,15 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
                 };
                 storeQuestionData(currentQuestion.Qn_name, autoSavedCode, questionData);
               } else {
-                // Fallback to question's entered_ans or template
-                const enteredAnswer = currentQuestion.entered_ans || '';
-                if (enteredAnswer.trim() !== '') {
-                  setEnteredAns(enteredAnswer);
-                  setAns(enteredAnswer);
-                } else {
-                  // Initialize with template if no saved code
-                  const template = currentQuestion.Template || "";
-                  const functionCall = currentQuestion.FunctionCall || "";
-                  const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
-                  setEnteredAns(initialCode);
-                  setAns(initialCode);
-                }
+                // Fallback to question's entered_ans
+                setEnteredAns(currentQuestion.entered_ans || '');
+                setAns(currentQuestion.entered_ans || '');
               }
             })
             .catch(() => {
-              // Fallback to question's entered_ans or template on error
-              const enteredAnswer = currentQuestion.entered_ans || '';
-              if (enteredAnswer.trim() !== '') {
-                setEnteredAns(enteredAnswer);
-                setAns(enteredAnswer);
-              } else {
-                // Initialize with template if no saved code
-                const template = currentQuestion.Template || "";
-                const functionCall = currentQuestion.FunctionCall || "";
-                const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
-                setEnteredAns(initialCode);
-                setAns(initialCode);
-              }
+              // Fallback to question's entered_ans on error
+              setEnteredAns(currentQuestion.entered_ans || '');
+              setAns(currentQuestion.entered_ans || '');
             });
         } else {
           // Question is already submitted, use entered_ans
@@ -1378,22 +1299,14 @@ const PythonCodeEditor: React.FC<PythonCodeEditorProps> = ({
         {/* ===== CODE EDITOR ===== */}
         <div className="bg-white me-3" style={{ height: "45%", backgroundColor: "#E5E5E533", padding: "10px" }}>
           <AceEditor
-            key={`editor-${currentQuestionIndex}`}
             mode="python"
             theme="dreamweaver"
             onChange={handleCodeChange}
-            onLoad={onEditorLoad}
             value={generateEditorValue()}
             fontSize={14}
             showPrintMargin={false}
             wrapEnabled={true}
             style={{ width: "100%", height: "100%", margin: '0px' }}
-            editorProps={{ $blockScrolling: true }}
-            setOptions={{
-              enableBasicAutocompletion: false,
-              enableLiveAutocompletion: false,
-              enableSnippets: false,
-            }}
             placeholder={questions[currentQuestionIndex]?.Template || questions[currentQuestionIndex]?.FunctionCall ? "" : `Write your Code here.
 
 Instructions :
