@@ -650,6 +650,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
         }
       }
 
+      // Get score from JSON
+      const score = questionData?.score || questionData?.questions?.[0]?.score || 0;
+
       if (!questionId) {
         throw new Error("Question ID not found. Please ensure you have selected a task/subtask.");
       }
@@ -663,11 +666,6 @@ function ProjectCodingEditor({ containerStatus = null }) {
         const allPassed = testCases.length > 0 && testCases.every((tc: any) => tc.passed);
         resultData.push({ Result: allPassed ? "True" : "False" });
 
-      // Calculate final score based on passed test cases
-      const finalScore = testCases.length > 0 
-        ? Math.round((testCases.filter((tc: any) => tc.passed).length / testCases.length) * 100)
-        : 0;
-
       const payload = {
         student_id: studentId,
         question_id: questionId,
@@ -675,7 +673,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
         batch_id: batchId,
         result_data: resultData,
         project_id: projectId,
-        final_score: finalScore,
+        final_score: score,
         phase_id: phaseId,
         part_id: partId,
         task_id: taskId
