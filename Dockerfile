@@ -13,6 +13,7 @@ ARG BUILD_COMMAND=build:prod
 
 # Copy source code (but exclude .env files to avoid conflicts)
 COPY . .
+
 # Remove any existing .env file before copying the correct one
 RUN rm -f .env .env.* 2>/dev/null || true
 
@@ -34,16 +35,33 @@ RUN echo "=== DEBUG: Extracting BACKEND_URL from ${ENV_FILE} ===" && \
 # # Build React app using production environment
 # RUN npm run build:prod
 
-# Verify environment variables before build
-RUN echo "=== DEBUG: Checking environment variables ===" && \
-    echo "REACT_APP_BACKEND_URL from .env.staging:" && \
-    grep -E "^REACT_APP_BACKEND_URL=" .env.staging || echo "Not found in .env.staging" && \
-    echo "REACT_APP_BACKEND_URL from .env:" && \
-    grep -E "^REACT_APP_BACKEND_URL=" .env || echo "Not found in .env" && \
-    echo "=== DEBUG: Environment check complete ==="
+# Debug: Show what env files exist and their contents
+RUN echo "=== DEBUG: Checking environment files ===" && \
+    ls -la .env* 2>/dev/null || echo "No .env files found" && \
+    echo "=== DEBUG: Contents of .env file ===" && \
+    cat .env 2>/dev/null || echo ".env file not found" && \
+    echo "=== DEBUG: Contents of ${ENV_FILE} ===" && \
+    cat ${ENV_FILE} 2>/dev/null || echo "${ENV_FILE} not found" && \
+    echo "=== DEBUG: REACT_APP_BACKEND_URL from .env ===" && \
+    grep -E "^REACT_APP_BACKEND_URL=" .env 2>/dev/null || echo "Not found in .env" && \
+    echo "=== DEBUG: REACT_APP_BACKEND_URL from ${ENV_FILE} ===" && \
+    grep -E "^REACT_APP_BACKEND_URL=" ${ENV_FILE} 2>/dev/null || echo "Not found in ${ENV_FILE}"
+
+# Debug: Verify environment before build
+RUN echo "=== DEBUG: Environment check before build ===" && \
+    echo "ENV_FILE=${ENV_FILE}" && \
+    echo "BUILD_COMMAND=${BUILD_COMMAND}" && \
+    echo "=== DEBUG: All REACT_APP_BACKEND_URL entries in .env ===" && \
+    grep -n "REACT_APP_BACKEND_URL" .env 2>/dev/null || echo "None found" && \
+    echo "=== DEBUG: Testing env-cmd ===" && \
+    node -e "console.log('REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL || 'NOT SET')" && \
+    npx env-cmd -f ${ENV_FILE} node -e "console.log('REACT_APP_BACKEND_URL from env-cmd:', process.env.REACT_APP_BACKEND_URL || 'NOT SET')"
 
 # Build React app using selected build command
-RUN npm run ${BUILD_COMMAND}
+# Verify the built bundle contains the correct URL (for debugging)
+RUN npm run ${BUILD_COMMAND} && \
+    echo "=== DEBUG: Checking built JavaScript for backend URL ===" && \
+    grep -r "REACT_APP_BACKEND_URL\|skillshala\|staging.api" build/static/js/main.*.js 2>/dev/null | head -3 || echo "Could not search built files"
 
 # Stage 2: Serve with NGINX
 FROM nginx:alpine
