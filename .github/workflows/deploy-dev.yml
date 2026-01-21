@@ -20,15 +20,28 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Verify .env.staging file
+        run: |
+          if [ ! -f .env.staging ]; then
+            echo "Error: .env.staging file not found!"
+            exit 1
+          fi
+          echo "✓ .env.staging file exists"
+          echo "Backend URL in .env.staging:"
+          grep REACT_APP_BACKEND_URL .env.staging || echo "WARNING: REACT_APP_BACKEND_URL not found!"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           tags: docker.io/${{ secrets.DOCKERHUB_USER }}/studentflow-frontend:staging
+          no-cache: true
+          pull: true
           build-args: |
             ENV_FILE=.env.staging
             BUILD_COMMAND=build:staging
+            CACHE_BUST=${{ github.sha }}
 
   deploy:
     needs: build-and-push
