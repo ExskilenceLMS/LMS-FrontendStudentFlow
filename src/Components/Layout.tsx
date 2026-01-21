@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import TestHeader from '../TestHeader';
 import InternetInfo from './InternetInfo';
+import ProjectLayout from './ProjectLayout';
 import { useLocation } from 'react-router-dom';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -14,6 +15,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   
   // Check if current path includes dynamic coding editor
   const isDynamicCodingEditor = location.pathname.includes('dynamic-coding');
+  
+  // Check if current path is a project-related route
+  const isProjectRoute = location.pathname.includes("/project");
 
   useEffect(() => {
     if (pathsToHideSidebar.includes(location.pathname)) {
@@ -43,7 +47,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         ) : (
           location.pathname !== "/Dashboard" && <Header />
         )}
-        {children}
+        {isProjectRoute ? (
+          <ProjectLayout>
+            {children}
+          </ProjectLayout>
+        ) : (
+          children
+        )}
       </div>
     </div>
   );
