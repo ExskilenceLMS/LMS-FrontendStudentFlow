@@ -8,7 +8,6 @@ import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 import SkeletonCode from './EditorSkeletonCode';
 import { updateIndexParameter } from '../utils/urlUtils';
-import { reorderExpectedOutput } from '../utils/expectedOutputUtils';
 import '../SQLEditor.css';
 
 /**
@@ -187,15 +186,6 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
   };
 
   /**
-   * Helper function to get and reorder expected output from a question
-   */
-  const getReorderedExpectedOutput = (question: Question): Data[] => {
-    const rawExpectedOutput = question.question_data?.ExpectedOutput || question.ExpectedOutput || [];
-    const testCases = question.question_data?.TestCases || [];
-    return reorderExpectedOutput(rawExpectedOutput, testCases);
-  };
-
-  /**
    * Update table data for a specific question
    */
   const updateTableForQuestion = async (question: Question) => {
@@ -338,7 +328,11 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
           await updateTableForQuestion(initialQuestion);
           
           // Load expected output (same logic as TestSQLCoding)
-          setExpectedOutput(getReorderedExpectedOutput(initialQuestion));
+          if (initialQuestion.question_data) {
+            setExpectedOutput(initialQuestion.question_data.ExpectedOutput || initialQuestion.ExpectedOutput || []);
+          } else {
+          setExpectedOutput(initialQuestion.ExpectedOutput || []);
+          }
           
           // Load question statuses
           const statuses = getQuestionStatusFromSession();
@@ -400,7 +394,11 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
         updateTableForQuestion(currentQuestion);
         
         // Update expected output (same logic as TestSQLCoding)
-        setExpectedOutput(getReorderedExpectedOutput(currentQuestion));
+        if (currentQuestion.question_data) {
+          setExpectedOutput(currentQuestion.question_data.ExpectedOutput || currentQuestion.ExpectedOutput || []);
+        } else {
+        setExpectedOutput(currentQuestion.ExpectedOutput || []);
+        }
         
         // Check if we have stored response data for this question
         const questionKey = currentQuestion.Qn_name;
@@ -497,7 +495,11 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
     if (tab === "output") {
       // Ensure expected output is properly set when switching to output tab
       const questionForTab = questions[currentQuestionIndex];
-      setExpectedOutput(getReorderedExpectedOutput(questionForTab));
+      if (questionForTab.question_data) {
+        setExpectedOutput(questionForTab.question_data.ExpectedOutput || questionForTab.ExpectedOutput || []);
+      } else {
+        setExpectedOutput(questionForTab.ExpectedOutput || []);
+      }
     } else if (tab === "table") {
       const currentQuestion = questions[currentQuestionIndex];
       if (!Array.isArray(availableTables)) {
@@ -587,14 +589,11 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
       const currentQuestion = questions[currentQuestionIndex];
       const updatedSqlQuery = sqlQuery.replace("/*Write a all SQl commands/clauses in UPPERCASE*/", "").replace(/\s*\n\s*/g, " \n ");
 
-      const rawExpectedOutputForRun = currentQuestion?.question_data?.ExpectedOutput || [];
-      const testCases = currentQuestion?.question_data?.TestCases || [];
-      const reorderedOutput = reorderExpectedOutput(rawExpectedOutputForRun, testCases);
       const sendData = {
         student_id: studentId,
         query: updatedSqlQuery,
-        ExpectedOutput: reorderedOutput,
-        TestCases: testCases,
+        ExpectedOutput: currentQuestion?.question_data?.ExpectedOutput || [],
+        TestCases: currentQuestion?.question_data?.TestCases || [],
         week_number: 0,
         day_number: 0,
         subject_id: decryptData(sessionStorage.getItem("TestSubjectId") || ""),
@@ -657,7 +656,11 @@ const SQLCodeEditor: React.FC<SQLCodeEditorProps> = ({
 
       // Ensure expected output is properly set when switching to output tab
       const questionForOutput = questions[currentQuestionIndex];
-      setExpectedOutput(getReorderedExpectedOutput(questionForOutput));
+      if (questionForOutput.question_data) {
+        setExpectedOutput(questionForOutput.question_data.ExpectedOutput || questionForOutput.ExpectedOutput || []);
+      } else {
+        setExpectedOutput(questionForOutput.ExpectedOutput || []);
+      }
 
     } catch (error) {
       console.error("SQL execution failed:", error);
