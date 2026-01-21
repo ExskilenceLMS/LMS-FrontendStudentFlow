@@ -20,7 +20,12 @@ COPY ${ENV_FILE} .env
 
 # Extract BACKEND_URL from .env file and save it for nginx stage
 # Remove quotes and trailing slashes, fail if not found
-RUN grep -E "^REACT_APP_BACKEND_URL=" .env | sed 's/^REACT_APP_BACKEND_URL=//' | sed 's/^["'\'']//' | sed 's/["'\'']$//' | sed 's|/$||' > /tmp/backend_url.txt && \
+RUN echo "=== DEBUG: Extracting BACKEND_URL from ${ENV_FILE} ===" && \
+    grep -E "^REACT_APP_BACKEND_URL=" .env && \
+    grep -E "^REACT_APP_BACKEND_URL=" .env | sed 's/^REACT_APP_BACKEND_URL=//' | sed 's/^["'\'']//' | sed 's/["'\'']$//' | sed 's|/$||' > /tmp/backend_url.txt && \
+    echo "=== DEBUG: Extracted BACKEND_URL ===" && \
+    cat /tmp/backend_url.txt && \
+    echo "=== DEBUG: End of BACKEND_URL ===" && \
     if [ ! -s /tmp/backend_url.txt ]; then \
         echo "ERROR: REACT_APP_BACKEND_URL not found in ${ENV_FILE}" && exit 1; \
     fi
@@ -48,8 +53,13 @@ COPY --from=build /app/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /tmp/backend_url.txt /tmp/backend_url.txt
 
 # Substitute backend URL in nginx config
-RUN export BACKEND_URL=$(cat /tmp/backend_url.txt) && \
+RUN echo "=== DEBUG: Substituting BACKEND_URL in nginx config ===" && \
+    export BACKEND_URL=$(cat /tmp/backend_url.txt) && \
+    echo "BACKEND_URL for nginx: $BACKEND_URL" && \
     envsubst '$$BACKEND_URL' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && \
+    echo "=== DEBUG: Final nginx config ===" && \
+    cat /etc/nginx/conf.d/default.conf && \
+    echo "=== DEBUG: End of nginx config ===" && \
     rm -f /etc/nginx/templates/default.conf.template /tmp/backend_url.txt
 
 EXPOSE 80
