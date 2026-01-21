@@ -5,13 +5,11 @@ WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package*.json ./
-# Clear npm cache and install dependencies to ensure fresh install
-RUN npm cache clean --force && npm install
+RUN npm install
 
 # Accept build args for env file and build command
 ARG ENV_FILE=.env.prod
 ARG BUILD_COMMAND=build:prod
-ARG CACHE_BUST
 
 # Copy source code and env file
 COPY . .
@@ -41,3 +39,4 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
+
