@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   frontend:
-    image: docker.io/uppadabhaskar/studentflow-frontend:${IMAGE_TAG:-latest}
+    image: docker.io/uppadabhaskar/studentflow-frontend:${IMAGE_TAG}
     container_name: frontend-container-studentflow
     ports:
       - "3000:80"

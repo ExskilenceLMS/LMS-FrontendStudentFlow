@@ -47,18 +47,13 @@ jobs:
           script: |
             set -e
             cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
-            # Remove any existing .env file and create a new one
-            rm -f .env
-            echo "IMAGE_TAG=staging" > .env
-            # Also export it as an environment variable
-            export IMAGE_TAG=staging
-            # Verify the file was created and variable is set
-            echo "=== .env file contents ==="
-            cat .env
-            echo "=== IMAGE_TAG environment variable ==="
-            echo $IMAGE_TAG
-            echo "=== Docker Compose config (image) ==="
-            IMAGE_TAG=staging docker compose config | grep -A 2 "image:"
-            # Pull and deploy with explicit variable
-            IMAGE_TAG=staging docker compose pull
-            IMAGE_TAG=staging docker compose up -d --remove-orphans
+            # Use sed to directly substitute the IMAGE_TAG variable in docker-compose.yml
+            # This ensures the tag is set correctly regardless of environment variable issues
+            sed -i.bak "s/\${IMAGE_TAG}/staging/g" docker-compose.yml
+            rm -f docker-compose.yml.bak
+            # Verify the substitution worked
+            echo "=== Docker Compose file (image line) ==="
+            grep "image:" docker-compose.yml
+            # Pull and deploy
+            docker compose pull
+            docker compose up -d --remove-orphans
