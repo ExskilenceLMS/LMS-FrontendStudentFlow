@@ -12,8 +12,9 @@ import { useNavigate } from "react-router-dom";
 import Header from "./Components/Header";
 import { getApiClient } from "./utils/apiAuth";
 import Skeleton from "react-loading-skeleton";
-import { secretKey } from "./constants";
+import { secretKey, ACTIVITY_TYPE } from "./constants";
 import CryptoJS from "crypto-js";
+import { trackActivity } from "./utils/activityApi";
 
 interface Bug {
   sl_id: number;
@@ -75,6 +76,9 @@ const ReportProblem: React.FC = () => {
  
 
   useEffect(() => {
+    // Track Ticket activity
+    trackActivity({ activityType: ACTIVITY_TYPE.TICKET });
+
     const fetchTickets = async () => {
       const encryptedStudentId = sessionStorage.getItem('StudentId');
       const decryptedStudentId = CryptoJS.AES.decrypt(encryptedStudentId!, secretKey).toString(CryptoJS.enc.Utf8);

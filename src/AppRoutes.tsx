@@ -28,6 +28,7 @@ import CourseCoding from './Components/CourseCoding';
 import ProjectRoadmap from './ProjectRoadmap';
 import ProjectTasks from './Components/ProjectTasks';
 import UnifiedEditor from './Components/UnifiedEditor';
+import ProjectCoding from './ProjectCoding';
 
 const AppRoutes = () => {
   const showMaintenance = process.env.REACT_APP_SHOW_MAINTENANCE === 'true';
@@ -61,6 +62,7 @@ const AppRoutes = () => {
         <Route path="/practice-coding/" element={<Layout><CourseCoding /></Layout>} />
         <Route path="/project-roadmap" element={<Layout><ProjectRoadmap /></Layout>} />
         <Route path="/project-tasks" element={<Layout><ProjectTasks /></Layout>} />
+        <Route path="/project-coding" element={<Layout><ProjectCoding /></Layout>} />
         <Route path="/coding-challenges-editor" element={<Layout><UnifiedEditor /></Layout>} />
       </Route>
     </Routes>

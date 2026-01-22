@@ -10,9 +10,10 @@ interface NoteData {
 interface NotesContentProps {
   noteData: NoteData | null;
   loading?: boolean;
+  paddingLeft?: boolean;
 }
 
-const NotesContent: React.FC<NotesContentProps> = ({ noteData, loading = false }) => {
+const NotesContent: React.FC<NotesContentProps> = ({ noteData, loading = false, paddingLeft = true }) => {
   // Show loader while loading
   if (loading) {
     return (
@@ -38,7 +39,7 @@ const NotesContent: React.FC<NotesContentProps> = ({ noteData, loading = false }
   // Display HTML content directly in div using dangerouslySetInnerHTML
   return (
     <div
-      className="p-0 m-0 ps-3 scrollable-content notes-font-family"
+      className={`p-0 m-0 ${paddingLeft ? 'ps-3' : ''} scrollable-content notes-font-family`}
       style={{
         fontSize: "16px",
         lineHeight: "1.6",
