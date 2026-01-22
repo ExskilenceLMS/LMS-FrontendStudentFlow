@@ -47,5 +47,6 @@ jobs:
           script: |
             set -e
             cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
-            IMAGE_TAG=prod docker compose pull
-            IMAGE_TAG=prod docker compose up -d --remove-orphans
+            echo "IMAGE_TAG=prod" > .env
+            docker compose pull
+            docker compose up -d --remove-orphans
