@@ -1,5 +1,13 @@
 export const secretKey: string = process.env.REACT_APP_SECRET_KEY || '';
 
+// Activity Types
+export const ACTIVITY_TYPE = {
+  TICKET: 'ticket',
+  DASHBOARD: 'dashboard',
+  TEST: 'test',
+  LIVE_SESSION: 'live_session',
+} as const;
+
 // Level to Difficulty mapping
 export const LEVEL_TO_DIFFICULTY: { [key: string]: string } = {
   level1: 'Easy',

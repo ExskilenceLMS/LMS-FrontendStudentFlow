@@ -11,6 +11,7 @@ import './Courses.css';
 import CourseImage from "../Components/images/CourseImage.png";
 import { useApiLoading } from "../Dashboard";
 import ProjectSelectionModal from "./ProjectSelectionModal";
+import { trackActivity } from "../utils/activityApi";
 
 interface Course {
   title: string;
@@ -102,6 +103,9 @@ const Courses: React.FC = () => {
   ];
 
   const handleCourseClick = (subject_id: string, subject: string, courseTitle: string) => {
+    // Track subject activity
+    trackActivity({ subjectId: subject_id });
+    
     const encryptedSubjectId = CryptoJS.AES.encrypt(subject_id, secretKey).toString();
     const encryptedSubject = CryptoJS.AES.encrypt(subject, secretKey).toString();
     sessionStorage.setItem('SubjectId', encryptedSubjectId);
@@ -120,6 +124,9 @@ const Courses: React.FC = () => {
     } else if (internship.status === "Open") {
       // Navigate to project roadmap if project_id is available
       if (internship.project_id) {
+        // Track project activity
+        trackActivity({ subjectId: internship.project_id.toString() });
+        
         // Store project_id and project_name in sessionStorage for API calls
         sessionStorage.setItem("currentProjectId", internship.project_id.toString());
         sessionStorage.setItem("currentProjectName", internship.title || "Project");

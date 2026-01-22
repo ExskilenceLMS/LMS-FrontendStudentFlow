@@ -4,8 +4,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Footer from "./Components/Footer";
 import apiClient from "./utils/apiAuth";
 import Skeleton from "react-loading-skeleton";
-import { secretKey } from "./constants";
+import { secretKey, ACTIVITY_TYPE } from "./constants";
 import CryptoJS from "crypto-js";
+import { trackActivity } from "./utils/activityApi";
 import { getBackNavigationPath, isBackNavigationAllowed } from "./utils/navigationRules";
 import { FaArrowLeft } from "react-icons/fa";
 import { MaterialReactTable } from "material-react-table";
@@ -68,6 +69,11 @@ const OnlineSession: React.FC = () => {
   };
 
   const canGoBack = isBackNavigationAllowed(location.pathname);
+
+  // Track Live Session activity when component mounts
+  useEffect(() => {
+    trackActivity({ activityType: ACTIVITY_TYPE.LIVE_SESSION });
+  }, []);
  
   // Helper functions for date/time display and session status
   const getDisplayDate = (session: Session): string => {
