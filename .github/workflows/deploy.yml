@@ -47,5 +47,6 @@ jobs:
           script: |
             set -e
             cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
-            docker-compose pull
-            docker-compose up -d --remove-orphans
+            export IMAGE_TAG=prod
+            docker compose pull
+            docker compose up -d --remove-orphans

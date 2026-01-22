@@ -47,5 +47,6 @@ jobs:
           script: |
             set -e
             cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
+            export IMAGE_TAG=staging
             docker compose pull
             docker compose up -d --remove-orphans
