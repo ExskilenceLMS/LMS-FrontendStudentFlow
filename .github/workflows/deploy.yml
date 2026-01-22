@@ -47,6 +47,18 @@ jobs:
           script: |
             set -e
             cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
+            # Remove any existing .env file and create a new one
+            rm -f .env
             echo "IMAGE_TAG=prod" > .env
-            docker compose pull
-            docker compose up -d --remove-orphans
+            # Also export it as an environment variable
+            export IMAGE_TAG=prod
+            # Verify the file was created and variable is set
+            echo "=== .env file contents ==="
+            cat .env
+            echo "=== IMAGE_TAG environment variable ==="
+            echo $IMAGE_TAG
+            echo "=== Docker Compose config (image) ==="
+            IMAGE_TAG=prod docker compose config | grep -A 2 "image:"
+            # Pull and deploy with explicit variable
+            IMAGE_TAG=prod docker compose pull
+            IMAGE_TAG=prod docker compose up -d --remove-orphans
