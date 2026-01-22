@@ -25,7 +25,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: docker.io/${{ secrets.DOCKERHUB_USER }}/studentflow-frontend:latest
+          tags: docker.io/${{ secrets.DOCKERHUB_USER }}/studentflow-frontend:staging
           build-args: |
             ENV_FILE=.env.staging
             BUILD_COMMAND=build:staging
@@ -47,5 +47,6 @@ jobs:
           script: |
             set -e
             cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
+            export IMAGE_TAG=staging
             docker compose pull
             docker compose up -d --remove-orphans

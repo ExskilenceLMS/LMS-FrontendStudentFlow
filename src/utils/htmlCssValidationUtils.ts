@@ -15,6 +15,11 @@ import {
   validateJSTestCases 
 } from './jsValidationUtils';
 
+// Constants for optimization
+const GRID_PROPERTIES_WITH_SLASHES = ['grid-column', 'grid-row', 'grid-area', 'grid-column-start', 'grid-column-end', 'grid-row-start', 'grid-row-end'];
+const MEDIA_QUERY_REGEX = /@media\s*[^{]*\{/gi;
+const URL_QUOTE_REGEX = /url\s*\(\s*(["'])([^"']+)\1\s*\)/gi;
+
 // Helper function to check if an attribute value matches in HTML
 const validateAttributeValue = (key: string, value: any, htmlContent: string): boolean => {
   let attributeFound = false;
@@ -309,40 +314,115 @@ export const validateScriptContent = (actualContent: string, expectedContent: st
          normalizedExpected.includes(normalizedActual);
 };
 
+// Helper function to remove media queries from CSS
+const removeMediaQueries = (cssCode: string): string => {
+  let output = '';
+  let i = 0;
+  
+  while (i < cssCode.length) {
+    // Check for @media keyword using indexOf for better performance
+    const mediaIndex = cssCode.indexOf('@media', i);
+    
+    if (mediaIndex === -1 || mediaIndex !== i) {
+      // No media query found or not at current position, copy character
+      if (mediaIndex === -1) {
+        // No more media queries, copy rest of string
+        output += cssCode.substring(i);
+        break;
+      } else {
+        // Copy up to next media query
+        output += cssCode.substring(i, mediaIndex);
+        i = mediaIndex;
+      }
+    }
+    
+    // Found @media, find the opening brace
+    let braceIndex = cssCode.indexOf('{', i);
+    if (braceIndex === -1) {
+      // No opening brace found, copy rest and exit
+      output += cssCode.substring(i);
+      break;
+    }
+    
+    // Skip past "@media ... {"
+    let depth = 1;
+    i = braceIndex + 1;
+    
+    // Find matching closing brace
+    while (i < cssCode.length && depth > 0) {
+      if (cssCode[i] === '{') {
+        depth++;
+      } else if (cssCode[i] === '}') {
+        depth--;
+      }
+      i++;
+    }
+  }
+  
+  return output;
+};
+
+// Helper function to remove CSS comments
+const removeComments = (cssCode: string): string => {
+  return cssCode.replace(/\/\*[\s\S]*?\*\//g, '');
+};
+
 // CSS Parser
 export const parseCSS = (cssCode: string) => {
   try {
     const result: any = {};
     
-    // Extract CSS rules using regex
-    const rules = cssCode.match(/([^{}]+)\s*\{([^{}]*)\}/g);
+    // Remove comments first
+    let cleanedCSS = removeComments(cssCode);
+    
+    // Remove media queries to only validate base selector values
+    cleanedCSS = removeMediaQueries(cleanedCSS);
+    
+    // Extract CSS rules using regex (now without media queries and comments)
+    const rules = cleanedCSS.match(/([^{}]+)\s*\{([^{}]*)\}/g);
     
     if (rules) {
       rules.forEach(rule => {
         const [selectorPart, properties] = rule.split('{');
         const cleanProperties = properties.replace('}', '').trim();
         
+        // Skip if no properties
+        if (!cleanProperties) return;
+        
         // Handle multiple selectors (comma-separated)
-        const selectors = selectorPart.split(',').map(s => s.trim());
+        const trimmedSelectorPart = selectorPart.trim();
+        const selectors = trimmedSelectorPart.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        
+        // Skip if no valid selectors
+        if (selectors.length === 0) return;
         
         // Parse properties
         const props: any = {};
         const propPairs = cleanProperties.split(';');
         
         propPairs.forEach(prop => {
-          const [key, value] = prop.split(':');
-          if (key && value) {
-            props[key.trim()] = value.trim();
+          const trimmedProp = prop.trim();
+          if (!trimmedProp) return;
+          
+          // Split only on the first colon to handle values with colons (e.g., URLs)
+          const colonIndex = trimmedProp.indexOf(':');
+          if (colonIndex !== -1) {
+            const key = trimmedProp.substring(0, colonIndex).trim();
+            const value = trimmedProp.substring(colonIndex + 1).trim();
+            if (key && value) {
+              props[key] = value;
+            }
           }
         });
         
-        // Apply properties to all selectors
+        // Store the combined selector (normalized: remove extra spaces around commas)
+        const combinedSelector = selectors.join(', ');
+        result[combinedSelector] = result[combinedSelector] ? { ...result[combinedSelector], ...props } : { ...props };
+        
+        // Also apply properties to individual selectors (for backward compatibility)
+        // Later rules override earlier ones, so merge properties
         selectors.forEach(selector => {
-          if (!result[selector]) {
-            result[selector] = {};
-          }
-          // Merge properties (later rules override earlier ones)
-          Object.assign(result[selector], props);
+          result[selector] = result[selector] ? { ...result[selector], ...props } : { ...props };
         });
       });
     }
@@ -351,6 +431,123 @@ export const parseCSS = (cssCode: string) => {
   } catch (error) {
     return null;
   }
+};
+
+// Helper function to normalize CSS function values (rgba, rgb, hsl, hsla, calc, etc.)
+// Efficient approach: processes all functions, handling nested parentheses correctly
+const normalizeCSSFunctions = (value: string): string => {
+  if (!value) return '';
+  
+  // First normalize general whitespace (multiple spaces/newlines to single space)
+  let normalized = value.replace(/[\s\n\r\t]+/g, ' ').trim();
+  
+  // Process functions iteratively, handling nested parentheses
+  // Find all function calls and process them from innermost to outermost
+  let result = normalized;
+  let hasFunctions = true;
+  let iterations = 0;
+  const maxIterations = 20; // Safety limit for deeply nested functions
+  
+  while (hasFunctions && iterations < maxIterations) {
+    iterations++;
+    hasFunctions = false;
+    
+    // Find innermost function (content has no parentheses)
+    const match = result.match(/(\w+)\s*\(([^()]*)\)/);
+    
+    if (match) {
+      hasFunctions = true;
+      const [fullMatch, funcName, content] = match;
+      
+      // Remove spaces after commas in function parameters
+      const normalizedContent = content.replace(/,\s+/g, ',');
+      const replacement = `${funcName}(${normalizedContent})`;
+      
+      // Replace first occurrence
+      result = result.replace(fullMatch, replacement);
+    }
+  }
+  
+  return result;
+};
+
+// Helper function to normalize grid-template-areas values
+const normalizeGridTemplateAreas = (value: string): string => {
+  if (!value) return '';
+  
+  // Remove escaped quotes first (handle JSON-escaped quotes)
+  let normalized = value.replace(/\\"/g, '"').replace(/\\'/g, "'");
+  
+  // Remove trailing semicolons and trim
+  normalized = normalized.replace(/;+$/, '').trim();
+  
+  // Extract all quoted strings in order (handle both single and double quotes)
+  const quotedStrings: string[] = [];
+  
+  // Match quoted strings - handles both "..." and '...' formats
+  // This pattern matches: quote, content (non-greedy), same quote
+  const doubleQuotePattern = /"([^"]*)"/g;
+  const singleQuotePattern = /'([^']*)'/g;
+  
+  // Find all double-quoted strings
+  let match;
+  while ((match = doubleQuotePattern.exec(normalized)) !== null) {
+    quotedStrings.push(`"${match[1]}"`);
+  }
+  
+  // If no double quotes found, try single quotes
+  if (quotedStrings.length === 0) {
+    singleQuotePattern.lastIndex = 0; // Reset regex
+    while ((match = singleQuotePattern.exec(normalized)) !== null) {
+      quotedStrings.push(`"${match[1]}"`); // Normalize to double quotes
+    }
+  }
+  
+  // If we found quoted strings, join them with single spaces
+  if (quotedStrings.length > 0) {
+    return quotedStrings.join(' ');
+  }
+  
+  // Fallback: if no quoted strings found, normalize whitespace and return as-is
+  return normalized.replace(/[\s\n\r\t]+/g, ' ').trim();
+};
+
+// General CSS value normalization function
+// Optimized: checks if normalization is needed before processing
+const normalizeCSSValue = (value: string, property: string): string => {
+  if (!value) return '';
+  
+  let normalized = value.trim();
+  
+  // Special handling for grid-template-areas
+  if (property === 'grid-template-areas') {
+    return normalizeGridTemplateAreas(normalized);
+  }
+  
+  // Normalize grid properties with slashes (grid-column, grid-row, grid-area, etc.)
+  // CSS allows spaces around slashes: "1 / 3" is equivalent to "1/3"
+  if (GRID_PROPERTIES_WITH_SLASHES.includes(property)) {
+    normalized = normalized.replace(/\s*\/\s*/g, '/');
+  }
+  
+  // Normalize URL quotes first (url('...') and url("...") -> url(...))
+  normalized = normalized.replace(URL_QUOTE_REGEX, 'url($2)');
+  
+  // Early exit: if value is already minimal (no functions, single spaces), return as-is
+  // Check for functions with parentheses
+  const hasFunctions = /[\w-]+\s*\(/.test(normalized);
+  // Check for multiple whitespace or spaces after commas in functions
+  const needsNormalization = /[\s\n\r\t]{2,}/.test(normalized) || 
+                            (hasFunctions && /,\s+/.test(normalized));
+  
+  if (!needsNormalization) {
+    return normalized;
+  }
+  
+  // Apply normalization (normalizeCSSFunctions handles both functions and whitespace)
+  normalized = normalizeCSSFunctions(normalized);
+  
+  return normalized;
 };
 
 // CSS Validation
@@ -374,7 +571,18 @@ export const validateCSSRequirement = (cssCode: string, requirementIndex: number
   let allPropertiesValid = true;
   for (const prop of properties) {
     const { property, value } = prop;
-    if (selectorRules[property] !== value) {
+    const actualValue = selectorRules[property];
+    
+    // Early exit: if values match exactly, skip normalization
+    if (actualValue === value) {
+      continue;
+    }
+    
+    // Normalize both expected and actual values for comparison
+    const normalizedExpected = normalizeCSSValue(value, property);
+    const normalizedActual = normalizeCSSValue(actualValue || '', property);
+    
+    if (normalizedExpected !== normalizedActual) {
       allPropertiesValid = false;
     }
   }
