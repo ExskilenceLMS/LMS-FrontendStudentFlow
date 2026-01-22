@@ -47,22 +47,6 @@ jobs:
           script: |
             set -e
             cd ~/LMS-FrontendStudentFlow/student-flow/LMS-FrontendStudentFlow
-            # Show the file before modification
-            echo "=== docker-compose.yml BEFORE modification ==="
-            cat docker-compose.yml
-            # Use perl for more reliable substitution (handles special chars better)
-            if command -v perl > /dev/null 2>&1; then
-              perl -i.bak -pe 's/\$\{IMAGE_TAG\}/staging/g' docker-compose.yml
-            else
-              # Fallback to sed with proper escaping
-              sed -i.bak 's/\$\{IMAGE_TAG\}/staging/g' docker-compose.yml
-            fi
-            rm -f docker-compose.yml.bak
-            # Verify the substitution worked
-            echo "=== docker-compose.yml AFTER modification ==="
-            cat docker-compose.yml
-            echo "=== Docker Compose file (image line) ==="
-            grep "image:" docker-compose.yml
-            # Pull and deploy
+            export IMAGE_TAG=staging
             docker compose pull
             docker compose up -d --remove-orphans
