@@ -785,6 +785,13 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
       <div className="bg-white" style={{ width: "40%", flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", marginRight: "10px" }}>
         <div className="bg-white" style={{ height: "100%", backgroundColor: "#E5E5E533", overflow: "auto" }}>
           <div className="p-3 flex-grow-1 overflow-auto">
+          {isTestingContext && question?.question_id && (
+            <div className="d-flex flex-row justify-content-end mb-2">
+                <span className="p-2 fs-6 rounded-2 bg-primary-subtle">
+                  QID: {question.question_id}
+                </span>
+            </div>
+              )}
             <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{question?.Qn}</pre>
             
             {/* Mandatory Keywords Section */}
