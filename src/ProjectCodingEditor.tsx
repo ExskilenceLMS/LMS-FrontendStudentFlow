@@ -101,9 +101,8 @@ function ProjectCodingEditor({ containerStatus = null }) {
           if (!data) return false; // Continue polling if no data
           
           const shouldLoad = 
-            data.is_ready === true ||
-            data.pod_status === "Running" ||
-            (data.pod_ip && data.pod_ip.trim() !== "");
+            data.is_ready === true &&
+            data.pod_status === "Running"
           
           if (shouldLoad) {
             // Add 5 second delay to allow VS Code server to fully initialize
@@ -216,10 +215,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
 
   // Process validation results and extract test cases
   const processValidationResults = (results: any) => {
-    
-    // Display all test cases from results
-    const existingTestIds = new Set(testCases.map(t => t.id || t.name));
-    const allTests: any[] = [...testCases]; // Start with existing tests
+    // Clear existing test cases at the start of processing new results
+    const existingTestIds = new Set<string>();
+    const allTests: any[] = []; // Start fresh with empty array
     
       // Check if this is "all tasks" structure (has tasks array)
       if (results.tasks && Array.isArray(results.tasks)) {
