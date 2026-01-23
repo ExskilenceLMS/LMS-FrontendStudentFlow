@@ -159,7 +159,7 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
                         lineHeight: "1.4"
                       }}
                     >
-                      Sub Task {index+1} : {" "}
+                      Sub Task {index+1}: {" "}
                       {getSubTaskLabel(subTask, index)}
                       {subTask.is_mandatory && (
                     <span
