@@ -35,9 +35,12 @@ const ProjectComponent = () => {
       const firstQuestion = questionDataResponse.questions[0]
       const questionId = firstQuestion.Qn_name
       const masterRepoUrl = firstQuestion.master_repo_url
+      const templateRepoUrl = firstQuestion.template_repo_url
       const tag = firstQuestion.master_repo_tag
+      const imageId = firstQuestion.image_id
+      const dockerImage = firstQuestion.docker_image // Format: "image_name:tag"
       
-      if (!questionId || !masterRepoUrl || !tag) {
+      if (!questionId || !masterRepoUrl || !templateRepoUrl || !tag) {
         throw new Error("Missing required question data")
       }
 
@@ -46,7 +49,7 @@ const ProjectComponent = () => {
       // Fork repository
       await apiClient.post(
         `${process.env.REACT_APP_BACKEND_URL}api/student/project/repository/fork/`,
-        { student_id: studentId, project_id: projectId, question_id: questionId, master_repo_url: masterRepoUrl, tag, organization: "exskilence-lms" }
+        { student_id: studentId, project_id: projectId, question_id: questionId, master_repo_url: masterRepoUrl, template_repo_url: templateRepoUrl, tag, organization: "exskilence-lms" }
       )
       // Create branch
       await apiClient.post(
@@ -54,10 +57,28 @@ const ProjectComponent = () => {
         { student_id: studentId, project_id: projectId, question_id: questionId, parent_question_id: null }
       )
 
+      // Prepare provision request with image info
+      const provisionRequest: any = {
+        student_id: studentId,
+        batch_project_id: Number(projectId),
+        question_id: questionId
+      }
+
+      if (dockerImage) {
+        const [imageName, imageTag] = dockerImage.split(':')
+        if (imageName && imageTag) {
+          provisionRequest.image_name = imageName
+          provisionRequest.image_tag = imageTag
+        }
+      }
+      else if (imageId) {
+        provisionRequest.image_id = imageId
+      }
+
       // Provision VS Code
       const provisionResponse = await apiClient.post(
         `${process.env.REACT_APP_BACKEND_URL}api/student/vscode/provision`,
-        { student_id: studentId, batch_project_id: Number(projectId), question_id: questionId }
+        provisionRequest
       )
       
       if (provisionResponse.data?.access_url) {

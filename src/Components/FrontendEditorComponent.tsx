@@ -56,6 +56,7 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
   const projectId = getProjectId("projectId");
   const isProjectContext = !!projectId && window.location.pathname.includes('/coding-challenges-editor');
   const isTestingContext = window.location.pathname.includes('/testing/coding/');
+  const isTestFlowContext = window.location.pathname.includes('/test/coding');
 
   // Use custom hook for editor state
   const {
@@ -107,57 +108,97 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
     resetEditorState,
   } = useHtmlCssEditorState();
 
-  // Initialize question data
-  useEffect(() => {
-    if (question) {
+  // Handle question change (following HTMLCSSCodeEditor pattern exactly)
+  const handleQuestionChange = useCallback(async (question: any) => {
+    if (!question) return;
+    
+    // Reset output tab to image (default)
+    setActiveOutputTab('image');
+    
+    // Clear editor instances for fresh start - exactly like HTMLCSSCodeEditor
+    setEditorInstances({});
+    
+    // Reset additional states for fresh question
+    setTestResults({});
+    setStructureResults({});
+    setSelectedTestCaseIndex(null);
+    setSuccessMessage('');
+    setAdditionalMessage('');
+    setStructureErrorMessage('');
+    setHasRunCode(false);
+    setIsSubmitted(false);
+    setActiveSection('output');
+    setActiveOutputTab('image');
+    
+    // Check if question is submitted (either via question.status or session storage)
+    const questionStatusKey = `coding_${question?.Qn_name}`;
+    let isSubmittedStatus = false;
+    let testId = "";
+    
+    if (isTestFlowContext) {
+      const encryptedTestId = sessionStorage.getItem("TestId");
+      testId = encryptedTestId ? CryptoJS.AES.decrypt(encryptedTestId, secretKey).toString(CryptoJS.enc.Utf8) : "";
+      const statusSessionKey = `${testId}_questionStatus`;
+      const sessionStatus = sessionStorage.getItem(statusSessionKey);
+      
+      if (sessionStatus) {
+        try {
+          const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+          const statuses = JSON.parse(decryptedStatuses);
+          isSubmittedStatus = statuses[questionStatusKey] === "Submitted";
+        } catch (error) {
+          console.error('Error decrypting submit status:', error);
+          isSubmittedStatus = false;
+        }
+      }
+    } else {
       const submitStatusKey = isProjectContext
         ? `project_submitStatus_${question.Qn_name}`
         : `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
       const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
-      const isSubmittedStatus = encryptedSubmitStatus ? 
+      isSubmittedStatus = encryptedSubmitStatus ? 
         CryptoJS.AES.decrypt(encryptedSubmitStatus, secretKey).toString(CryptoJS.enc.Utf8) === 'true' : false;
-      
-      if (question.status === true || isSubmittedStatus) {
-        setIsSubmitted(true);
-        setHasRunCode(true);
-      }
-      
-      // Initialize file contents from Code_Validation
-      const fileContents: {[key: string]: string} = {};
-      
+    }
+    
+    const isSubmitted = question.status === true || isSubmittedStatus;
+    
+    // Load file contents using shared utility (like HTMLCSSCodeEditor)
+    let fileContents: {[key: string]: string} = {};
+    
+    if (isTestFlowContext) {
+      // For test flow: use loadAutoSavedCode utility (like HTMLCSSCodeEditor)
+      const sessionKey = `userCode_${testId}_${question.Qn_name}`;
+      fileContents = await loadAutoSavedCode(question, sessionKey, studentId, testId, isSubmitted);
+    } else if (isTestingContext) {
       // In testing context, load Ans directly from Code_Validation
-      if (isTestingContext) {
-        Object.keys(question.Code_Validation).forEach(fileName => {
-          const codeValidation = question.Code_Validation[fileName];
-          if (codeValidation && codeValidation.Ans !== undefined) {
-            fileContents[fileName] = codeValidation.Ans;
-          } else {
-            fileContents[fileName] = '';
-          }
-        });
-      } else {
-        // Normal flow: use entered_ans, template, or empty
-        Object.keys(question.Code_Validation).forEach(fileName => {
-          if (question.status === true && question.entered_ans && question.entered_ans[fileName]) {
-            fileContents[fileName] = question.entered_ans[fileName];
-          } else if (fileName === 'index.html') {
-            const defaultTemplate = question.Template || question.defaulttemplate || '';
-            fileContents[fileName] = defaultTemplate;
-          } else {
-            fileContents[fileName] = '';
-          }
-        });
-      }
+      Object.keys(question.Code_Validation).forEach(fileName => {
+        const codeValidation = question.Code_Validation[fileName];
+        if (codeValidation && codeValidation.Ans !== undefined) {
+          fileContents[fileName] = codeValidation.Ans;
+        } else {
+          fileContents[fileName] = '';
+        }
+      });
+    } else {
+      // Normal flow: use entered_ans, template, or empty
+      Object.keys(question.Code_Validation).forEach(fileName => {
+        if (question.status === true && question.entered_ans && question.entered_ans[fileName]) {
+          fileContents[fileName] = question.entered_ans[fileName];
+        } else if (fileName === 'index.html') {
+          const defaultTemplate = question.Template || question.defaulttemplate || '';
+          fileContents[fileName] = defaultTemplate;
+        } else {
+          fileContents[fileName] = '';
+        }
+      });
       
-      // Check session storage for saved code (only if not in testing context or if testing context but no Ans in Code_Validation)
+      // Check session storage for saved code
       const sessionKey = isProjectContext
         ? `project_userCode_${question.Qn_name}`
-        : isTestingContext 
-          ? `testing_userCode_${question.Qn_name}` 
-          : `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+        : `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
       const encryptedSessionCode = sessionStorage.getItem(sessionKey);
       
-      if (encryptedSessionCode && !question.status && !isSubmittedStatus && !isTestingContext) {
+      if (encryptedSessionCode && !question.status && !isSubmittedStatus) {
         try {
           const decryptedCode = CryptoJS.AES.decrypt(encryptedSessionCode, secretKey).toString(CryptoJS.enc.Utf8);
           const sessionCode = JSON.parse(decryptedCode);
@@ -170,7 +211,7 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
         } catch (error) {
           console.error('Error loading session storage code:', error);
         }
-      } else if (!question.status && !isSubmittedStatus && !isTestingContext && !isProjectContext) {
+      } else if (!question.status && !isSubmittedStatus && !isProjectContext) {
         // Try to load auto-saved code from backend
         loadAutoSavedCode(question, sessionKey, studentId, QUESTION_STATUS.PRACTICE, false)
           .then(autoSavedCode => {
@@ -180,34 +221,48 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
               }
             });
             setFileContents(fileContents);
+            
+            // Set active tab to the first file after loading auto-saved code
+            if (question.Tabs.length > 0) {
+              setActiveTab(question.Tabs[0].name);
+            }
           })
           .catch(error => {
             console.error('Error loading auto-saved code from backend:', error);
             setFileContents(fileContents);
+            
+            // Set active tab to the first file even on error
+            if (question.Tabs.length > 0) {
+              setActiveTab(question.Tabs[0].name);
+            }
           });
         return;
       }
-      
-      setFileContents(fileContents);
-      
-      // Set active tab to the first file
-      if (question.Tabs.length > 0) {
-        setActiveTab(question.Tabs[0].name);
-      }
-      
-      // Reset UI state
-      setTestResults({});
-      setStructureResults({});
-      setSelectedTestCaseIndex(null);
-      setActiveSection('output');
-      setSuccessMessage('');
-      setAdditionalMessage('');
-      setStructureErrorMessage('');
-      
-      // Clear editor instances to ensure fresh state
-      setEditorInstances({});
     }
-  }, [question?.Qn_name, question?.Code_Validation, question?.entered_ans, question?.Template, question?.defaulttemplate, question?.status, questionIndex, isTestingContext, isProjectContext, studentId, subject, weekNumber, dayNumber]);
+    
+    setFileContents(fileContents);
+    
+    // Set active tab to the first file
+    if (question?.Tabs && question.Tabs.length > 0) {
+      setActiveTab(question.Tabs[0].name);
+    }
+    
+    // Set submission status based on already calculated isSubmitted
+    if (isSubmitted) {
+      setIsSubmitted(true);
+      setHasRunCode(true);
+    } else {
+      setIsSubmitted(false);
+      setHasRunCode(false);
+    }
+  }, [studentId, subject, weekNumber, dayNumber, isTestingContext, isTestFlowContext, isProjectContext]);
+
+  // Call handleQuestionChange when question changes
+  useEffect(() => {
+    if (question) {
+      handleQuestionChange(question);
+    }
+  }, [question, handleQuestionChange]);
 
   const onChangeFileContent = useCallback((value: string, viewUpdate: any) => {
     updateFileContent(activeTab, value);
@@ -221,14 +276,22 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
       
       codeToSave[activeTab] = value;
       
-      const sessionKey = isProjectContext
-        ? `project_userCode_${question.Qn_name}`
-        : isTestingContext 
-          ? `testing_userCode_${question.Qn_name}` 
-          : `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+      let sessionKey: string;
+      if (isProjectContext) {
+        sessionKey = `project_userCode_${question.Qn_name}`;
+      } else if (isTestFlowContext) {
+        // Follow previous test flow pattern: userCode_${testId}_${question.Qn_name}
+        const encryptedTestId = sessionStorage.getItem("TestId");
+        const testId = encryptedTestId ? CryptoJS.AES.decrypt(encryptedTestId, secretKey).toString(CryptoJS.enc.Utf8) : "";
+        sessionKey = `userCode_${testId}_${question.Qn_name}`;
+      } else if (isTestingContext) {
+        sessionKey = `testing_userCode_${question.Qn_name}`;
+      } else {
+        sessionKey = `userCode_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+      }
       saveCodeToSession(codeToSave, sessionKey);
     }
-  }, [activeTab, fileContents, question, isSubmitted, subject, weekNumber, dayNumber, isProjectContext, isTestingContext]);
+  }, [activeTab, fileContents, question, isSubmitted, subject, weekNumber, dayNumber, isProjectContext, isTestingContext, isTestFlowContext]);
 
   const handleTabClickWithClear = createTabClickWithClear(
     handleTabClick,
@@ -264,7 +327,12 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
         
         if (results.length === 0) return;
         
-        if (!isTestingContext && !isProjectContext) {
+        // Auto-save code when running (like HTMLCSSCodeEditor)
+        if (isTestFlowContext) {
+          const encryptedTestId = sessionStorage.getItem("TestId");
+          const testId = encryptedTestId ? CryptoJS.AES.decrypt(encryptedTestId, secretKey).toString(CryptoJS.enc.Utf8) : "";
+          await autoSaveCode(fileContents, question.Qn_name, studentId, testId, isSubmitted);
+        } else if (!isTestingContext && !isProjectContext) {
           await autoSaveCode(fileContents, question.Qn_name, studentId, QUESTION_STATUS.PRACTICE, isSubmitted);
         }
         
@@ -410,6 +478,73 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
           const submitStatusKey = `project_submitStatus_${question.Qn_name}`;
           const encryptedSubmitStatus = CryptoJS.AES.encrypt("true", secretKey).toString();
           sessionStorage.setItem(submitStatusKey, encryptedSubmitStatus);
+
+          setSuccessMessage("Code submitted successfully!");
+          setAdditionalMessage("");
+        } else {
+          setSuccessMessage("Submission failed");
+          setAdditionalMessage("Could not submit your answer please try again");
+        }
+      } else if (isTestFlowContext) {
+        // Test flow submission
+        const encryptedTestId = sessionStorage.getItem("TestId");
+        const testId = encryptedTestId ? CryptoJS.AES.decrypt(encryptedTestId, secretKey).toString(CryptoJS.enc.Utf8) : "";
+        const encryptedCourseId = sessionStorage.getItem('CourseId');
+        const decryptedCourseId = encryptedCourseId ? 
+          CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : 'course19';
+        
+        // Get max score from question data (e.g., "0/10" -> use 10 as max score)
+        const questionScore = question?.score || "0/10";
+        const maxScore = parseInt(questionScore.split('/')[1]);
+        
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/frontend/`;
+        
+        const postData = {
+          student_id: studentId,
+          test_id: testId,
+          question_id: question.Qn_name,
+          question_done_at: testId,
+          week_number: "0",
+          day_number: "0",
+          subject_id: decryptSessionValue("TestSubjectId"),
+          subject: sessionStorage.getItem("TestSubject") || "",
+          batch_id: decryptedBatchId,
+          course_id: decryptedCourseId,
+          score: maxScore,
+          HTML_Code: htmlCode,
+          HTML_Result: htmlResult,
+          CSS_Code: cssCode,
+          CSS_Result: cssResult,
+          JS_Code: jsCode,
+          JS_Result: jsResult
+        };
+
+        const response = await getApiClient().post(url, postData);
+        const responseData = response.data;
+        
+        if (responseData.status === true || responseData.message !== "Test Already Completed") {
+          setIsSubmitted(true);
+          
+          // Update question status in session storage
+          const sessionKey = `${testId}_questionStatus`;
+          const sessionStatus = sessionStorage.getItem(sessionKey);
+          
+          if (sessionStatus) {
+            try {
+              const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+              const statuses = JSON.parse(decryptedStatuses);
+              
+              statuses[`coding_${question.Qn_name}`] = "Submitted";
+              
+              const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
+              sessionStorage.setItem(sessionKey, encryptedStatuses);
+            } catch (error) {
+              console.error("Error updating session status:", error);
+            }
+          }
+
+          // Cleanup auto-saved code after successful submission
+          await cleanupAfterSubmission(question.Qn_name, studentId, testId);
 
           setSuccessMessage("Code submitted successfully!");
           setAdditionalMessage("");
