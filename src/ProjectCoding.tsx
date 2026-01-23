@@ -35,9 +35,10 @@ const ProjectComponent = () => {
       const firstQuestion = questionDataResponse.questions[0]
       const questionId = firstQuestion.Qn_name
       const masterRepoUrl = firstQuestion.master_repo_url
+      const templateRepoUrl = firstQuestion.template_repo_url
       const tag = firstQuestion.master_repo_tag
       
-      if (!questionId || !masterRepoUrl || !tag) {
+      if (!questionId || !masterRepoUrl || !templateRepoUrl || !tag) {
         throw new Error("Missing required question data")
       }
 
@@ -46,7 +47,7 @@ const ProjectComponent = () => {
       // Fork repository
       await apiClient.post(
         `${process.env.REACT_APP_BACKEND_URL}api/student/project/repository/fork/`,
-        { student_id: studentId, project_id: projectId, question_id: questionId, master_repo_url: masterRepoUrl, tag, organization: "exskilence-lms" }
+        { student_id: studentId, project_id: projectId, question_id: questionId, master_repo_url: masterRepoUrl, template_repo_url: templateRepoUrl, tag, organization: "exskilence-lms" }
       )
       // Create branch
       await apiClient.post(
