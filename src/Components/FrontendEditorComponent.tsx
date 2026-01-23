@@ -180,10 +180,20 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
               }
             });
             setFileContents(fileContents);
+            
+            // Set active tab to the first file after loading auto-saved code
+            if (question.Tabs.length > 0) {
+              setActiveTab(question.Tabs[0].name);
+            }
           })
           .catch(error => {
             console.error('Error loading auto-saved code from backend:', error);
             setFileContents(fileContents);
+            
+            // Set active tab to the first file even on error
+            if (question.Tabs.length > 0) {
+              setActiveTab(question.Tabs[0].name);
+            }
           });
         return;
       }
