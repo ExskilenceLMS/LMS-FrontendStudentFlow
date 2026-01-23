@@ -121,6 +121,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
   const projectId = getProjectId("projectId");
   const isProjectContext = !!projectId && window.location.pathname.includes('/coding-challenges-editor');
   const isTestingContext = window.location.pathname.includes('/testing/coding/');
+  const isTestFlowContext = window.location.pathname.includes('/test/coding');
 
   // Get subject data (for non-project context)
   const encryptedSubjectId = sessionStorage.getItem('SubjectId');
@@ -182,7 +183,67 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
     if (isProjectContext) {
       return `project_userCode_${qnName}`;
     }
+    if (isTestFlowContext) {
+      const encryptedTestId = sessionStorage.getItem("TestId");
+      const testId = encryptedTestId ? decryptData(encryptedTestId) : "";
+      return `userCode_${testId}_${qnName}`;
+    }
     return `userCode_${subject}_${weekNumber}_${dayNumber}_${qnName}`;
+  };
+
+  /**
+   * Store both code and question data together (like PythonCodeEditor)
+   */
+  const storeQuestionData = (qnName: string, code: string, questionData: any) => {
+    const key = getUserCodeKey(qnName);
+    const data = {
+      code: code,
+      entered_ans: code,
+      status: questionData.status || false,
+      score: questionData.score || ""
+    };
+    const encryptedData = encryptData(JSON.stringify(data));
+    sessionStorage.setItem(key, encryptedData);
+  };
+
+  /**
+   * Load question data from code storage (like PythonCodeEditor)
+   */
+  const loadQuestionData = (qnName: string) => {
+    const key = getUserCodeKey(qnName);
+    const encryptedData = sessionStorage.getItem(key);
+    
+    if (!encryptedData) {
+      return {
+        code: "",
+        entered_ans: "",
+        status: false,
+        score: ""
+      };
+    }
+    try {
+      const decryptedData = decryptData(encryptedData);
+      const parsedData = JSON.parse(decryptedData);
+      return parsedData;
+    } catch (error) {
+      // If decryption fails, try to read as plain string (backward compatibility)
+      try {
+        const decryptedData = decryptData(encryptedData);
+        return {
+          code: decryptedData,
+          entered_ans: decryptedData,
+          status: false,
+          score: ""
+        };
+      } catch (e) {
+        return {
+          code: "",
+          entered_ans: "",
+          status: false,
+          score: ""
+        };
+      }
+    }
   };
 
   const processTestCases = (testCases: TestCase[]) => {
@@ -206,10 +267,6 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
       // Reset UI state first (before any early returns)
       setRunResponseTestCases([]);
       setSuccessMessage("");
-      setAdditionalMessage("");
-      setSelectedTestCaseIndex(null);
-      setActiveSection('output');
-      setOutput('');
       setHasUserInteracted(false);
       setIsNextBtn(false);
       setProcessing(false);
@@ -218,30 +275,164 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
       const processedTestCases = processTestCases(question.TestCases || []);
       setTestCases(processedTestCases);
       setStatus(question.status || false);
+      
+      // Restore previous run response if available (like SQL editor)
+      const responseQuestionKey = `coding_${question.Qn_name}`;
+      const storedResponse = getStoredFastApiResponse(responseQuestionKey);
+      
+      if (storedResponse) {
+        setRunResponseTestCases(storedResponse.runResponseTestCases || []);
+        setOutput(storedResponse.output || '');
+        setSuccessMessage(storedResponse.successMessage || '');
+        setAdditionalMessage(storedResponse.additionalMessage || '');
+        setSelectedTestCaseIndex(storedResponse.selectedTestCaseIndex || null);
+        setActiveSection(storedResponse.activeSection || 'output');
+      } else {
+        // Clear previous results if no stored response
+        setRunResponseTestCases([]);
+        setOutput('');
+        setSuccessMessage('');
+        setAdditionalMessage('');
+        setSelectedTestCaseIndex(null);
+        setActiveSection('output');
+      }
 
-      // Check submission status
-      const submitStatusKey = isProjectContext
-        ? `project_submitStatus_${question.Qn_name}`
-        : `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
-      const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
-      const isSubmittedStatus = encryptedSubmitStatus ? decryptData(encryptedSubmitStatus) === 'true' : false;
-      setIsSubmitted(isSubmittedStatus || question.status);
+      // Check submission status (following HTMLCSSCodeEditor pattern for test flow)
+      let isSubmittedStatus = false;
+      
+      if (isTestFlowContext) {
+        // Reset submission status first (like HTMLCSSCodeEditor does)
+        setIsSubmitted(false);
+        setStatus(false);
+        
+        // Then check session storage
+        const testId = decryptData(sessionStorage.getItem("TestId") || "");
+        const questionStatusKey = `coding_${question.Qn_name}`;
+        const statusSessionKey = `${testId}_questionStatus`;
+        const sessionStatus = sessionStorage.getItem(statusSessionKey);
+        
+        if (sessionStatus) {
+          try {
+            const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+            const statuses = JSON.parse(decryptedStatuses);
+            isSubmittedStatus = statuses[questionStatusKey] === "Submitted";
+          } catch (error) {
+            console.error("Error checking submission status:", error);
+            isSubmittedStatus = false;
+          }
+        }
+        
+        // Set status based on session storage check (like HTMLCSSCodeEditor)
+        if (isSubmittedStatus || question.status === true) {
+          setIsSubmitted(true);
+          setStatus(true);
+        } else {
+          setIsSubmitted(false);
+          setStatus(false);
+        }
+      } else {
+        const submitStatusKey = isProjectContext
+          ? `project_submitStatus_${question.Qn_name}`
+          : `submitStatus_${studentId}_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+        const encryptedSubmitStatus = sessionStorage.getItem(submitStatusKey);
+        isSubmittedStatus = encryptedSubmitStatus ? decryptData(encryptedSubmitStatus) === 'true' : false;
+        setIsSubmitted(isSubmittedStatus || question.status);
+        setStatus(isSubmittedStatus || question.status);
+      }
 
-      // Load saved code
-      const questionKey = getUserCodeKey(question.Qn_name);
-      const savedCode = sessionStorage.getItem(questionKey);
-     if(isTestingContext) {
-      const codeToSet = question.FunctionCall 
-        ? question.Ans + "\n\n" + question.FunctionCall 
-        : question.Ans || '';
-      setEnteredAns(codeToSet);
-      setAns(codeToSet);
-      return;
-     }
+      // Load saved code (following PythonCodeEditor pattern)
+      if (isTestingContext) {
+        const codeToSet = question.FunctionCall 
+          ? question.Ans + "\n\n" + question.FunctionCall 
+          : question.Ans || '';
+        setEnteredAns(codeToSet);
+        setAns(codeToSet);
+        return;
+      }
+      
+      if (isTestFlowContext) {
+        // For test flow: use loadQuestionData pattern (like PythonCodeEditor)
+        const savedData = loadQuestionData(question.Qn_name);
+        const savedCode = savedData.code || question.entered_ans || '';
+        
+        if (savedCode) {
+          // Use locally saved code
+          setEnteredAns(savedCode);
+          setAns(savedCode);
+        } else if (!question.status) {
+          // If no local saved code and question is not submitted, try to retrieve auto-saved code from backend
+          const testId = decryptData(sessionStorage.getItem("TestId") || "");
+          getAutoSavedCode(question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!)
+            .then(autoSavedCode => {
+              if (autoSavedCode) {
+                setEnteredAns(autoSavedCode);
+                setAns(autoSavedCode);
+                // Also save to session storage for future use
+                const questionData = {
+                  status: question.status,
+                  score: question.score || ""
+                };
+                storeQuestionData(question.Qn_name, autoSavedCode, questionData);
+              } else {
+                // Fallback to question's entered_ans or template
+                const enteredAnswer = question.entered_ans || '';
+                if (enteredAnswer.trim() !== '') {
+                  setEnteredAns(enteredAnswer);
+                  setAns(enteredAnswer);
+                } else {
+                  // Initialize with template if no saved code
+                  const template = question.Template || "";
+                  const functionCall = question.FunctionCall || "";
+                  const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
+                  setEnteredAns(initialCode);
+                  setAns(initialCode);
+                }
+              }
+            })
+            .catch(() => {
+              // Fallback to question's entered_ans or template on error
+              const enteredAnswer = question.entered_ans || '';
+              if (enteredAnswer.trim() !== '') {
+                setEnteredAns(enteredAnswer);
+                setAns(enteredAnswer);
+              } else {
+                // Initialize with template if no saved code
+                const template = question.Template || "";
+                const functionCall = question.FunctionCall || "";
+                const initialCode = template && functionCall ? template + '\n\n\n\n\n' + functionCall : (template || '');
+                setEnteredAns(initialCode);
+                setAns(initialCode);
+              }
+            });
+        } else {
+          // Question is already submitted, use entered_ans
+          setEnteredAns(question.entered_ans || '');
+          setAns(question.entered_ans || '');
+        }
+        return;
+      }
+      
+      // For other contexts (practice/project)
+      const codeQuestionKey = getUserCodeKey(question.Qn_name);
+      const savedCode = sessionStorage.getItem(codeQuestionKey);
+      
       if (savedCode !== null) {
-        setEnteredAns(savedCode);
-        setAns(savedCode);
-      } else if (!question.status && !isTestingContext) {
+        try {
+          // Try to decrypt and parse (for new format) or use as plain string (old format)
+          const decryptedCode = decryptData(savedCode);
+          try {
+            const parsed = JSON.parse(decryptedCode);
+            setEnteredAns(parsed.code || parsed.entered_ans || '');
+            setAns(parsed.code || parsed.entered_ans || '');
+          } catch {
+            setEnteredAns(decryptedCode);
+            setAns(decryptedCode);
+          }
+        } catch {
+          setEnteredAns('');
+          setAns('');
+        }
+      } else if (!question.status && !isTestingContext && !isProjectContext) {
         // Try to get auto-saved code from backend (only for non-project context and non-testing mode)
         if (!isProjectContext) {
           getAutoSavedCode(question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
@@ -249,7 +440,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
               if (autoSavedCode) {
                 setEnteredAns(autoSavedCode);
                 setAns(autoSavedCode);
-                sessionStorage.setItem(questionKey, autoSavedCode);
+                sessionStorage.setItem(codeQuestionKey, autoSavedCode);
               } else {
                 // In practice mode, use entered_ans or Template as fallback
                 let codeToSet = question.entered_ans || question.Template || '';
@@ -279,7 +470,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
           setAns(codeToSet);
       }
     }
-  }, [question?.Qn_name, question?.question_id, question?.Ans, question?.entered_ans, question?.Template, question?.FunctionCall, questionIndex, isTestingContext, isProjectContext]);
+  }, [question?.Qn_name, question?.question_id, question?.Ans, question?.entered_ans, question?.Template, question?.FunctionCall, questionIndex, isTestingContext, isTestFlowContext, isProjectContext]);
 
   const generateEditorValue = () => {
     const template = question?.Template || "";
@@ -375,9 +566,26 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
     setAns(newCode);
     setHasUserInteracted(true);
     
+    // Save code to session storage for current question (following PythonCodeEditor pattern)
     if (question?.Qn_name) {
-      const codeKey = getUserCodeKey(question.Qn_name);
-      sessionStorage.setItem(codeKey, newCode);
+      if (isTestFlowContext) {
+        // For test flow: use storeQuestionData pattern
+        const questionData = {
+          status: question.status || false,
+          score: question.score || ""
+        };
+        if (newCode) {
+          storeQuestionData(question.Qn_name, newCode, questionData);
+        } else {
+          // If newCode is empty, remove from session storage
+          const key = getUserCodeKey(question.Qn_name);
+          sessionStorage.removeItem(key);
+        }
+      } else {
+        // For other contexts: simple storage
+        const codeKey = getUserCodeKey(question.Qn_name);
+        sessionStorage.setItem(codeKey, newCode);
+      }
     }
   };
 
@@ -468,8 +676,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
 
       const result = await pollExecutionStatus(submissionId, 15);
       
-      // Auto-save on run (only in practice mode, not in testing or project context)
-      if (!status) {
+      if (!status && !isTestFlowContext) {
         if (isProjectContext) {
           // For project context, save to session storage only
           const codeKey = getUserCodeKey(question.Qn_name);
@@ -519,12 +726,28 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
           }
         }
         
-        storeFastApiResponse(questionKey, responseData);
+        const responseDataToStore = {
+          ...responseData,
+          runResponseTestCases: responseData.runResponseTestCases || [],
+          output: responseData.output || '',
+          successMessage: responseData.successMessage || '',
+          additionalMessage: responseData.additionalMessage || '',
+          selectedTestCaseIndex: selectedTestCaseIndex,
+          activeSection: activeSection
+        };
+        storeFastApiResponse(questionKey, responseDataToStore);
         
+        // Store the code that was run
         setLastRunCode(prev => ({
           ...prev,
           [questionKey]: Ans
         }));
+        
+        // Trigger auto-save when code runs and not submitted
+        if (isTestFlowContext && !question.status) {
+          const testId = decryptData(sessionStorage.getItem("TestId") || "");
+          autoSaveCode(Ans, question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
+        }
         
         if (Array.isArray(result.result.parsed_results)) {
           const testCaseResults = result.result.parsed_results.map((testCase, index) => ({
@@ -545,6 +768,15 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
           setRunResponseTestCases([...testCaseResults, finalResult]);
           setSuccessMessage(responseData.successMessage);
           setAdditionalMessage(responseData.additionalMessage);
+          
+          // Update stored response with latest test case results
+          const updatedResponseData = {
+            ...responseDataToStore,
+            runResponseTestCases: [...testCaseResults, finalResult],
+            successMessage: responseData.successMessage,
+            additionalMessage: responseData.additionalMessage
+          };
+          storeFastApiResponse(questionKey, updatedResponseData);
         }
       } else {
         const errorMessage = result.result.error;
@@ -574,7 +806,9 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
           runResponseTestCases: errorTestCases,
           output: `Error: ${errorMessage}`,
           successMessage: "Execution failed",
-          additionalMessage: "Code has compilation or runtime errors"
+          additionalMessage: "Code has compilation or runtime errors",
+          selectedTestCaseIndex: selectedTestCaseIndex,
+          activeSection: activeSection
         };
         
         storeFastApiResponse(questionKey, errorResponseData);
@@ -631,14 +865,20 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
       
       storeFastApiResponse(questionKey, errorResponseData);
       
-      setLastRunCode(prev => ({
-        ...prev,
-        [questionKey]: Ans
-      }));
-    } finally {
-      setProcessing(false);
-    }
-  };
+        setLastRunCode(prev => ({
+          ...prev,
+          [questionKey]: Ans
+        }));
+        
+        // Auto-save code even when there are errors (if not submitted) - like PythonCodeEditor
+        if (isTestFlowContext && question && !question.status) {
+          const testId = decryptData(sessionStorage.getItem("TestId") || "");
+          autoSaveCode(Ans, question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
+        }
+      } finally {
+        setProcessing(false);
+      }
+    };
 
   const canSubmitCode = () => {
     if (!question?.Qn_name) {
@@ -718,6 +958,75 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
 
         const submitStatusKey = `project_submitStatus_${question.Qn_name}`;
         sessionStorage.setItem(submitStatusKey, encryptData("true"));
+      } else if (isTestFlowContext) {
+        // Test flow submission
+        const testId = decryptData(sessionStorage.getItem("TestId") || "");
+        const encryptedCourseId = sessionStorage.getItem('CourseId');
+        const courseId = encryptedCourseId ? CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : "course19";
+        
+        // Generate result from FastAPI response
+        const questionKey = `coding_${question.Qn_name}`;
+        const fastApiResponse = getStoredFastApiResponse(questionKey);
+        const result = fastApiResponse ? generateResultArray(fastApiResponse) : submissionTestCases;
+        
+        const url = `${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/coding/`;
+        
+        const postData = {
+          student_id: studentId,
+          test_id: testId,
+          question_id: question.Qn_name,
+          answer: Ans,
+          subject_id: decryptData(sessionStorage.getItem("TestSubjectId") || ""),
+          TestCases: question.TestCases || [],
+          subject: sessionStorage.getItem("TestSubject") || "",
+          final_score: "0/0",
+          course_id: courseId,
+          result: result,
+          batch_id: decryptData(sessionStorage.getItem("BatchId") || "")
+        };
+
+        const response = await getApiClient().put(url, postData);
+        const responseData = response.data;
+        
+        if(responseData.message == "Test Already Completed"){
+          return;
+        }
+        
+        // Update question status in session storage
+        const sessionKey = `${testId}_questionStatus`;
+        const sessionStatus = sessionStorage.getItem(sessionKey);
+        
+        if (sessionStatus) {
+          try {
+            const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+            const statuses = JSON.parse(decryptedStatuses);
+            
+            statuses[`coding_${question.Qn_name}`] = "Submitted";
+            
+            const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
+            sessionStorage.setItem(sessionKey, encryptedStatuses);
+          } catch (error) {
+            console.error("Error updating session status:", error);
+          }
+        }
+
+        setStatus(true);
+
+        // Save code to session storage (following PythonCodeEditor pattern)
+        if (isTestFlowContext) {
+          const questionData = {
+            status: true,
+            score: "0/0"
+          };
+          storeQuestionData(question.Qn_name, Ans, questionData);
+          
+          // Trigger auto-save after successful submission (like PythonCodeEditor)
+          const testId = decryptData(sessionStorage.getItem("TestId") || "");
+          autoSaveAfterSubmission(Ans, question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
+        } else {
+          const codeKey = getUserCodeKey(question.Qn_name);
+          sessionStorage.setItem(codeKey, Ans);
+        }
       } else {
         // Practice coding submission
         const url = `${process.env.REACT_APP_BACKEND_URL}api/student/coding/`;
@@ -751,7 +1060,7 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
         sessionStorage.setItem(submitStatusKey, encryptData("true"));
 
         // Trigger auto-save after successful submission
-        if (!isProjectContext && !isTestingContext) {
+        if (!isProjectContext && !isTestingContext && !isTestFlowContext) {
           autoSaveAfterSubmission(Ans, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
         }
       }
@@ -775,6 +1084,47 @@ const PythonEditorComponent: React.FC<PythonEditorComponentProps> = ({
 
   const getStoredFastApiResponse = (questionKey: string) => {
     return questionResponses[questionKey] || null;
+  };
+
+  const generateResultArray = (fastApiResponse: any) => {
+    const result = [];
+    
+    // Check if we have runResponseTestCases (for error cases) or parsed_results (for success cases)
+    if (fastApiResponse.runResponseTestCases && fastApiResponse.runResponseTestCases.length > 0) {
+      // Use the runResponseTestCases that we created for error cases
+      fastApiResponse.runResponseTestCases.forEach((testCase: any, index: number) => {
+        if (testCase.Result) {
+          // Final result
+          result.push({
+            "Result": testCase.Result === "Failed" ? "False" : "True"
+          });
+        } else {
+          // Individual test cases
+          const testCaseKey = Object.keys(testCase)[0];
+          result.push({
+            [testCaseKey]: testCase[testCaseKey]
+          });
+        }
+      });
+    } else if (fastApiResponse.result && fastApiResponse.result.parsed_results) {
+      // Extract parsed_results from FastAPI response (for success cases)
+      const parsedResults = fastApiResponse.result.parsed_results;
+      
+      // Generate TestCase entries
+      parsedResults.forEach((testCase: any, index: number) => {
+        result.push({
+          [`TestCase${index + 1}`]: testCase.passed ? "Passed" : "Failed"
+        });
+      });
+      
+      // Add final Result entry
+      const allPassed = parsedResults.every((testCase: any) => testCase.passed);
+      result.push({
+        "Result": allPassed ? "True" : "False"
+      });
+    }
+    
+    return result;
   };
 
   const mandatoryKeywords = extractMandatoryKeywords(question?.TestCases || []);

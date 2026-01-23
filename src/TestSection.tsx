@@ -249,8 +249,8 @@ import { secretKey } from "./constants";
         const encryptedTestData = CryptoJS.AES.encrypt(JSON.stringify(questionList), secretKey).toString();
         sessionStorage.setItem('testSectionData', encryptedTestData);
         
-        // Navigate to Dynamic Coding Editor with test data
-        navigate(`/dynamic-coding-editor`, { 
+        // Navigate to Test Coding Editor with test data
+        navigate(`/test/coding`, { 
           state: { 
             sectionData: questionList 
           },
