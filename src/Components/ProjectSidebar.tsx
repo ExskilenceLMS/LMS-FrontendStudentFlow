@@ -183,7 +183,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                           lineHeight: "1.4"
                         }}
                       >
-                        Phase {phaseIndex + 1} : {phase.phase_name}
+                        Phase {phaseIndex + 1}: {phase.phase_name}
                       </span>
                       {isExpanded ? (
                         <MdKeyboardArrowDown 
@@ -329,7 +329,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                               color: isPartSelected ? "#6C4DA2FF" : "#000",
                               lineHeight: "1.4"
                             }}>
-                              Part {partIndex + 1} : {part.part_name}
+                              Part {partIndex + 1}: {part.part_name}
                             </span>
                             <span 
                             className="text-muted"
