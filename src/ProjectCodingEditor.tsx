@@ -15,8 +15,9 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const navigate = useNavigate();
   const questionData = location.state?.questionData;
   const [vscodeUrl, setVscodeUrl] = useState(null);
-  const [vscodeLoading, setVscodeLoading] = useState(false);
-  const [isPolling, setIsPolling] = useState(false);
+  const [vscodeLoading, setVscodeLoading] = useState(true);
+  const [isPolling, setIsPolling] = useState(true);
+  const [containerStatusState, setContainerStatusState] = useState<'provisioning' | 'ready' | 'loading'>('provisioning');
   
   // Validation state - always run all tasks from JSON files
   const [isRunning, setIsRunning] = useState(false);
@@ -34,6 +35,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const isMountedRef = useRef(true);
   const iframeRef = useRef(null);
   const readinessPollingRef = useRef<NodeJS.Timeout | null>(null);
+  const iframeLoadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -68,8 +70,24 @@ function ProjectCodingEditor({ containerStatus = null }) {
   }, [validationOutput]);
 
 
+  // Show provisioning state when containerStatus is null or being provisioned
+  useEffect(() => {
+    if (!containerStatus || !(containerStatus as any)?.success) {
+      setVscodeLoading(true);
+      setIsPolling(true);
+      setContainerStatusState('provisioning');
+      setVscodeUrl(null);
+      return; 
+    }
+  }, [containerStatus]);
+
   // Poll container readiness and load VS Code only when pod is Ready
   useEffect(() => {
+    // Only run if containerStatus has success and containerUrl
+    if (!(containerStatus as any)?.success || !(containerStatus as any).containerUrl) {
+      return;
+    }
+    
     if ((containerStatus as any)?.success && (containerStatus as any).containerUrl) {
       const containerUrl = (containerStatus as any).containerUrl;
       const containerName = (containerStatus as any).containerName;
@@ -87,6 +105,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
       setVscodeLoading(true);
       setVscodeUrl(null); // Clear URL initially
       setIsPolling(true); // Start polling indicator
+      setContainerStatusState('provisioning'); // Start with provisioning state
       
       // Check container status - stop polling when pod is Running or has IP
       const checkReadiness = async (): Promise<boolean> => {
@@ -100,6 +119,17 @@ function ProjectCodingEditor({ containerStatus = null }) {
           const data = response.data;
           if (!data) return false; // Continue polling if no data
           
+          // Update status based on pod state
+          if (data.pod_status === "Pending") {
+            if (isMountedRef.current) {
+              setContainerStatusState('provisioning'); // Red pulse
+            }
+          } else if (data.is_ready === true && data.pod_status === "Running") {
+            if (isMountedRef.current) {
+              setContainerStatusState('ready'); // Dark yellow pulse
+            }
+          }
+          
           const shouldLoad = 
             data.is_ready === true &&
             data.pod_status === "Running"
@@ -110,21 +140,30 @@ function ProjectCodingEditor({ containerStatus = null }) {
             
             if (isMountedRef.current) {
               setVscodeUrl(containerUrl);
-              setIsPolling(false);
+              setContainerStatusState('loading'); // green polling indicator
+              setIsPolling(true);
+
+              if (iframeLoadTimeoutRef.current) {
+                clearTimeout(iframeLoadTimeoutRef.current);
+              }
+              iframeLoadTimeoutRef.current = setTimeout(() => {
+                if (isMountedRef.current) {
+                  setVscodeLoading(false);
+                  setIsPolling(false);
+                }
+                iframeLoadTimeoutRef.current = null;
+              }, 15000);
             }
-            return true;
+            return true; 
           }
           
           // Handle error states
           if (data.pod_status === "Failed" || data.pod_status === "Error") {
             setVscodeLoading(false);
             setIsPolling(false);
+            setContainerStatusState('provisioning');
             console.error("Container failed to start:", data.pod_status);
             return true;
-          }
-          
-          // Pod is still Pending - continue polling
-          if (data.pod_status === "Pending") {
           }
           
           return false;
@@ -141,9 +180,6 @@ function ProjectCodingEditor({ containerStatus = null }) {
         const shouldStop = await checkReadiness();
         if (shouldStop) {
           readinessPollingRef.current = null;
-          if (isMountedRef.current) {
-            setIsPolling(false); // Stop polling indicator
-          }
           return;
         }
         
@@ -176,22 +212,96 @@ function ProjectCodingEditor({ containerStatus = null }) {
           clearTimeout(readinessPollingRef.current);
           readinessPollingRef.current = null;
         }
+        if (iframeLoadTimeoutRef.current) {
+          clearTimeout(iframeLoadTimeoutRef.current);
+          iframeLoadTimeoutRef.current = null;
+        }
         clearTimeout(timeoutTimer);
       };
     } else {
       setVscodeUrl(null);
       setVscodeLoading(false);
       setIsPolling(false); // Stop polling indicator
+      setContainerStatusState('provisioning'); // Reset to initial state
       if (readinessPollingRef.current) {
         clearTimeout(readinessPollingRef.current);
         readinessPollingRef.current = null;
+      }
+      if (iframeLoadTimeoutRef.current) {
+        clearTimeout(iframeLoadTimeoutRef.current);
+        iframeLoadTimeoutRef.current = null;
       }
     }
   }, [containerStatus]);
 
   const handleIframeLoad = () => {
+    // onLoad event means iframe has loaded - stop the pulse immediately
     setVscodeLoading(false);
+    setIsPolling(false);
+    // Clear the fallback timeout since iframe loaded successfully
+    if (iframeLoadTimeoutRef.current) {
+      clearTimeout(iframeLoadTimeoutRef.current);
+      iframeLoadTimeoutRef.current = null;
+    }
   };
+  
+  // Also check iframe readiness periodically as fallback (in case onLoad doesn't fire)
+  useEffect(() => {
+    if (vscodeUrl && vscodeLoading && iframeRef.current) {
+      let checkCount = 0;
+      const maxChecks = 20;
+      
+      const checkIframeReady = setInterval(() => {
+        checkCount++;
+        const iframe = iframeRef.current as HTMLIFrameElement | null;
+        
+        if (!iframe) {
+          clearInterval(checkIframeReady);
+          return;
+        }
+        
+        // Check if iframe has loaded by checking if contentWindow exists
+        if (iframe.contentWindow) {
+          try {
+            // Try to access iframe content to verify it's loaded
+            const href = iframe.contentWindow.location.href;
+            if (href && href !== 'about:blank' && href !== window.location.href) {
+              // Iframe has loaded and navigated to a different URL
+              setVscodeLoading(false);
+              setIsPolling(false);
+              if (iframeLoadTimeoutRef.current) {
+                clearTimeout(iframeLoadTimeoutRef.current);
+                iframeLoadTimeoutRef.current = null;
+              }
+              clearInterval(checkIframeReady);
+              return;
+            }
+          } catch (e) {
+            // Cross-origin restriction - iframe is loaded but we can't access it
+            // This is actually a good sign - it means the iframe has loaded
+            // Wait a moment to ensure it's fully loaded, then stop
+            setTimeout(() => {
+              setVscodeLoading(false);
+              setIsPolling(false);
+              if (iframeLoadTimeoutRef.current) {
+                clearTimeout(iframeLoadTimeoutRef.current);
+                iframeLoadTimeoutRef.current = null;
+              }
+            }, 1000);
+            clearInterval(checkIframeReady);
+            return;
+          }
+        }
+        
+        // Stop checking after max attempts
+        if (checkCount >= maxChecks) {
+          clearInterval(checkIframeReady);
+        }
+      }, 500); // Check every 500ms
+      
+      return () => clearInterval(checkIframeReady);
+    }
+  }, [vscodeUrl, vscodeLoading]);
 
   const addValidationOutput = (message: string, type = 'info') => {
     setValidationOutput(prev => [...prev, { message, type, timestamp: new Date() }]);
@@ -234,20 +344,24 @@ function ProjectCodingEditor({ containerStatus = null }) {
             schema: taskResult.schema?.tests?.length || 0
           };
           const totalTaskTests = Object.values(taskTestCounts).reduce((a: number, b: number) => a + b, 0);
-          console.log(`Task ${taskIndex + 1} (${taskPrefix}): ${totalTaskTests} test case(s)`, taskTestCounts);
+          console.log(`Task ${taskIndex + 1} (${taskPrefix}): ${totalTaskTests} test case(s) found, ${taskResult.testsTotal || 0} expected`, taskTestCounts);
           
           let taskHasTests = false;
         
-        // Check for tests array directly in taskResult (flattened structure)
-        // This is the aggregated array from ValidationOrchestrator that contains all tests
+        // Process tests array directly in taskResult (flattened structure from ValidationOrchestrator)
+        // This is the aggregated array that contains all tests (executed and initialized)
+        // Use a consistent testId format based on test name to avoid duplicates
         if (taskResult.tests && Array.isArray(taskResult.tests) && taskResult.tests.length > 0) {
           taskHasTests = true;
           taskResult.tests.forEach((test: any) => {
-            const testId = `${taskPrefix}-${test.id || test.name || ''}`;
-            // Only add if not already present (incremental update)
+            // Use test name as the primary identifier (consistent across all sections)
+            const testName = test.name || test.id || '';
+            const testId = `${taskPrefix}-${testName}`;
+            
+            // Only add if not already present (check by name to avoid duplicates)
             if (!existingTestIds.has(testId)) {
               allTests.push({
-                name: `${test.name}`,
+                name: testName,
                 description: test.description || '',
                 passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
                 message: test.message || '',
@@ -255,8 +369,11 @@ function ProjectCodingEditor({ containerStatus = null }) {
               });
               existingTestIds.add(testId);
             } else {
-              // Update existing test if results changed
-              const existingIndex = allTests.findIndex(t => t.id === testId);
+              // Update existing test if results changed (e.g., test status updated)
+              const existingIndex = allTests.findIndex(t => {
+                const tName = t.name || '';
+                return tName === testName;
+              });
               if (existingIndex >= 0) {
                 allTests[existingIndex] = {
                   ...allTests[existingIndex],
@@ -267,20 +384,135 @@ function ProjectCodingEditor({ containerStatus = null }) {
               }
             }
           });
-        } else {
-          // Only process section-specific arrays if tests array doesn't exist
-          // (for backward compatibility with old result format)
+        }
+        
+        // Check section-specific arrays ONLY if flattened tests array is missing or incomplete
+        if (taskResult.schema && taskResult.schema.tests && Array.isArray(taskResult.schema.tests) && taskResult.schema.tests.length > 0) {
+          taskResult.schema.tests.forEach((test: any) => {
+            const testName = test.name || '';
+            const testId = `${taskPrefix}-${testName}`;
+            if (!existingTestIds.has(testId)) {
+              taskHasTests = true;
+              allTests.push({
+                name: testName,
+                description: test.description || '',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                message: test.message || '',
+                error: test.error || test.details || ''
+              });
+              existingTestIds.add(testId);
+            }
+          });
+        }
+        
+        // Static tests - only if not already in flattened array
+        if (taskResult.static && taskResult.static.tests && Array.isArray(taskResult.static.tests) && taskResult.static.tests.length > 0) {
+          taskResult.static.tests.forEach((test: any) => {
+            const testName = test.name || '';
+            const testId = `${taskPrefix}-${testName}`;
+            if (!existingTestIds.has(testId)) {
+              taskHasTests = true;
+              allTests.push({
+                name: testName,
+                description: test.description || '',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            }
+          });
+        }
+
+        // Pytest tests
+        if (taskResult.pytest && taskResult.pytest.tests && Array.isArray(taskResult.pytest.tests) && taskResult.pytest.tests.length > 0) {
+          taskResult.pytest.tests.forEach((test: any) => {
+            const testName = test.name || test.id || '';
+            const testId = `${taskPrefix}-${testName}`;
+            if (!existingTestIds.has(testId)) {
+              taskHasTests = true;
+              allTests.push({
+                name: testName,
+                description: test.description || '',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            } else {
+              // Update existing test
+              const existingIndex = allTests.findIndex(t => (t.name || '') === testName);
+              if (existingIndex >= 0) {
+                allTests[existingIndex] = {
+                  ...allTests[existingIndex],
+                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                  message: test.message || allTests[existingIndex].message,
+                  error: test.error || allTests[existingIndex].error
+                };
+              }
+            }
+          });
+        }
+        
+        // Dynamic/Playwright tests - only if not already in flattened array
+        if (taskResult.dynamic && taskResult.dynamic.tests && Array.isArray(taskResult.dynamic.tests) && taskResult.dynamic.tests.length > 0) {
+          taskResult.dynamic.tests.forEach((test: any) => {
+            const testName = test.name || '';
+            const testId = `${taskPrefix}-${testName}`;
+            if (!existingTestIds.has(testId)) {
+              taskHasTests = true;
+              allTests.push({
+                name: testName,
+                description: test.description || '',
+                passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                message: test.message || '',
+                error: test.error || ''
+              });
+              existingTestIds.add(testId);
+            } else {
+              // Update existing test
+              const existingIndex = allTests.findIndex(t => (t.name || '') === testName);
+              if (existingIndex >= 0) {
+                allTests[existingIndex] = {
+                  ...allTests[existingIndex],
+                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                  message: test.message || allTests[existingIndex].message,
+                  error: test.error || allTests[existingIndex].error
+                };
+              }
+            }
+          });
+        }
+        
+        // Check if we're missing tests (testsTotal indicates more tests than we found)
+        const expectedTestsTotal = taskResult.testsTotal || 0;
+        const currentTestsCount = allTests.length;
+        
+        // If we have fewer tests than expected, log a warning
+        if (expectedTestsTotal > 0 && currentTestsCount < expectedTestsTotal) {
+          console.warn(`Task ${taskPrefix}: Expected ${expectedTestsTotal} tests but only found ${currentTestsCount}. Missing ${expectedTestsTotal - currentTestsCount} test(s).`);
+          console.log('Available sections:', {
+            hasTestsArray: !!taskResult.tests,
+            testsArrayLength: taskResult.tests?.length || 0,
+            hasSchema: !!taskResult.schema?.tests,
+            schemaTestsLength: taskResult.schema?.tests?.length || 0,
+            hasStatic: !!taskResult.static?.tests,
+            staticTestsLength: taskResult.static?.tests?.length || 0,
+            hasPytest: !!taskResult.pytest?.tests,
+            pytestTestsLength: taskResult.pytest?.tests?.length || 0,
+            hasDynamic: !!taskResult.dynamic?.tests,
+            dynamicTestsLength: taskResult.dynamic?.tests?.length || 0,
+          });
           
-          // Schema tests
-          if (taskResult.schema && taskResult.schema.tests && Array.isArray(taskResult.schema.tests) && taskResult.schema.tests.length > 0) {
-            taskHasTests = true;
-            taskResult.schema.tests.forEach((test: any) => {
-              const testId = `${taskPrefix}-schema-${test.id || test.name || ''}`;
+          // Check pytest section - might have tests that weren't executed
+          if (taskResult.pytest && taskResult.pytest.tests && Array.isArray(taskResult.pytest.tests)) {
+            taskResult.pytest.tests.forEach((test: any) => {
+              const testId = `${taskPrefix}-pytest-${test.id || test.name || ''}`;
               if (!existingTestIds.has(testId)) {
                 allTests.push({
-                  name: `${taskPrefix} - ${test.name || 'Schema Test'}`,
+                  name: `${test.name || 'Pytest Test'}`,
                   description: test.description || '',
-                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
+                  passed: test.passed !== undefined ? test.passed : false,
                   message: test.message || '',
                   error: test.error || test.details || ''
                 });
@@ -289,80 +521,26 @@ function ProjectCodingEditor({ containerStatus = null }) {
             });
           }
           
-          // Static tests
-          if (taskResult.static && taskResult.static.tests && Array.isArray(taskResult.static.tests) && taskResult.static.tests.length > 0) {
-            taskHasTests = true;
-            taskResult.static.tests.forEach((test: any) => {
-              const testId = `${taskPrefix}-static-${test.id || test.name || ''}`;
-              if (!existingTestIds.has(testId)) {
-                allTests.push({
-                  name: `${test.name}`,
-                  description: test.description || '',
-                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-                  message: test.message || '',
-                  error: test.error || ''
-                });
-                existingTestIds.add(testId);
-              }
-            });
-          }
-          
-          // Pytest tests
-          if (taskResult.pytest && taskResult.pytest.tests && Array.isArray(taskResult.pytest.tests) && taskResult.pytest.tests.length > 0) {
-            taskHasTests = true;
-            taskResult.pytest.tests.forEach((test: any) => {
-              const testId = `${taskPrefix}-pytest-${test.id || test.name || ''}`;
-              if (!existingTestIds.has(testId)) {
-                allTests.push({
-                  name: `${test.name}`,
-                  description: test.description || '',
-                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-                  message: test.message || '',
-                  error: test.error || ''
-                });
-                existingTestIds.add(testId);
-              } else {
-                // Update existing test
-                const existingIndex = allTests.findIndex(t => t.id === testId);
-                if (existingIndex >= 0) {
-                  allTests[existingIndex] = {
-                    ...allTests[existingIndex],
-                    passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-                    message: test.message || allTests[existingIndex].message,
-                    error: test.error || allTests[existingIndex].error
-                  };
+          // Check if pytest section exists but has no tests (tests might not have been executed)
+          if (taskResult.pytest && (!taskResult.pytest.tests || taskResult.pytest.tests.length === 0)) {
+            // Check if pytest was supposed to run but didn't (indicated by pytest section existing)
+            const pytestTestCount = taskResult.pytest.testsTotal || 0;
+            if (pytestTestCount > 0) {
+              // Add placeholder for pytest tests that weren't executed
+              for (let i = 0; i < pytestTestCount; i++) {
+                const testId = `${taskPrefix}-pytest-placeholder-${i}`;
+                if (!existingTestIds.has(testId)) {
+                  allTests.push({
+                    name: `Pytest Test ${i + 1}`,
+                    description: 'Test not executed',
+                    passed: false,
+                    message: '',
+                    error: 'Test was not executed. Check validation errors.'
+                  });
+                  existingTestIds.add(testId);
                 }
               }
-            });
-          }
-          
-          // Dynamic/Playwright tests
-          if (taskResult.dynamic && taskResult.dynamic.tests && Array.isArray(taskResult.dynamic.tests) && taskResult.dynamic.tests.length > 0) {
-            taskHasTests = true;
-            taskResult.dynamic.tests.forEach((test: any) => {
-              const testId = `${taskPrefix}-dynamic-${test.id || test.name || ''}`;
-              if (!existingTestIds.has(testId)) {
-                allTests.push({
-                  name: `${test.name}`,
-                  description: test.description || '',
-                  passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-                  message: test.message || '',
-                  error: test.error || ''
-                });
-                existingTestIds.add(testId);
-              } else {
-                // Update existing test
-                const existingIndex = allTests.findIndex(t => t.id === testId);
-                if (existingIndex >= 0) {
-                  allTests[existingIndex] = {
-                    ...allTests[existingIndex],
-                    passed: test.passed !== undefined ? test.passed : (test.state === 'passed'),
-                    message: test.message || allTests[existingIndex].message,
-                    error: test.error || allTests[existingIndex].error
-                  };
-                }
-              }
-            });
+            }
           }
         }
         
@@ -377,8 +555,8 @@ function ProjectCodingEditor({ containerStatus = null }) {
               error: errorMsg || 'Validation failed'
             });
           });
-        } else if (!taskHasTests && !taskResult.passed) {
-          // Task failed but no specific errors - create a generic error entry
+        } else if (!taskHasTests && !taskResult.passed && expectedTestsTotal === 0) {
+          // Task failed but no specific errors and no expected tests - create a generic error entry
           allTests.push({
             name: `Validation Failed`,
             description: '',
@@ -743,58 +921,43 @@ function ProjectCodingEditor({ containerStatus = null }) {
       <div className="d-flex flex-column w-100 h-100" style={{ height: '100vh', minHeight: 0, overflow: 'hidden' }}>
       {/* VSCode Container */}
       <div className="position-relative" style={{ flex: '1 1 auto', minHeight: 0, height: showTerminal ? 'calc(50% - 60px)' : 'calc(100% - 60px)' }}>
-        {!vscodeUrl ? (
-          // Placeholder when container is not created
-          <div className="d-flex flex-column justify-content-center align-items-center h-100 bg-light">
-            <div className="text-center p-5">
-              <div className="mb-4">
-                <svg width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                </svg>
-              </div>
-              <h4 className="text-muted mb-3">VS Code Editor</h4>
+        {(!vscodeUrl || vscodeLoading) ? (
+          // Show loading state when provisioning, polling, or loading VS Code
+          <div className="d-flex flex-column justify-content-center align-items-center h-100 bg-white" style={{ zIndex: 10 }}>
+            <div className="d-flex align-items-center justify-content-center mb-3">
+              {(isPolling || vscodeLoading) && (
+                <div 
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    backgroundColor: 
+                      containerStatusState === 'provisioning' ? '#dc3545' :
+                      containerStatusState === 'ready' ? '#ffc107' :
+                      '#28a745',
+                    animation: 'pulse 1.5s ease-in-out infinite'
+                  }}
+                />
+              )}
+            </div>
+            <div className="text-center">
+              <h5 className="text-muted mb-2">Loading VS Code Editor...</h5>
+              <p className="text-muted small mb-0">
+                {containerStatusState === 'provisioning' ? 'Provisioning container...' :
+                 containerStatusState === 'ready' ? 'Container ready, initializing VS Code...' :
+                 'Loading VS Code interface...'}
+              </p>
             </div>
           </div>
         ) : (
-          <>
-            {vscodeLoading && (
-              <div className="d-flex flex-column justify-content-center align-items-center h-100 position-absolute top-0 start-0 w-100 bg-white" style={{ zIndex: 10 }}>
-                <div className="d-flex align-items-center justify-content-center mb-3">
-                  <div className="spinner-grow text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                  {isPolling && (
-                    <div 
-                      className="ms-3"
-                      style={{
-                        width: '12px',
-                        height: '12px',
-                        borderRadius: '50%',
-                        backgroundColor: '#0d6efd',
-                        animation: 'pulse 1.5s ease-in-out infinite'
-                      }}
-                    />
-                  )}
-                </div>
-                <div className="text-center">
-                  <h5 className="text-muted mb-2">Loading VS Code Editor...</h5>
-                  <p className="text-muted small mb-0">
-                    {isPolling ? 'Verifying container status...' : 'Please wait while the server initializes'}
-                  </p>
-                </div>
-              </div>
-            )}
-            {vscodeUrl && (
-              <iframe
-                ref={iframeRef}
-                src={vscodeUrl}
-                frameBorder="0"
-                className={`w-100 h-100 border-0 ${vscodeLoading ? "d-none" : "d-block"}`}
-                onLoad={handleIframeLoad}
-                title="VS Code Editor"
-              ></iframe>
-            )}
-          </>
+          <iframe
+            ref={iframeRef}
+            src={vscodeUrl}
+            frameBorder="0"
+            className="w-100 h-100 border-0"
+            onLoad={handleIframeLoad}
+            title="VS Code Editor"
+          ></iframe>
         )}
       </div>
 
