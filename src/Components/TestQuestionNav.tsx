@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from "react";
+import { TEST_QUESTION_NAV_COLORS } from "../constants";
 
 interface TestQuestionNavProps {
   totalQuestions: number;
@@ -75,12 +76,28 @@ const TestQuestionNav: React.FC<TestQuestionNavProps> = React.memo(({
     >
       {Array.from({ length: totalQuestions }).map((_, index) => {
         const questionStatus = questionStatuses[`coding_${questions[index]?.Qn_name}`];
-        const backgroundColor =
-          questionStatus === "Submitted" || questionStatus === "Attempted"
-            ? "#42FF58" // Green for submitted/attempted
-            : currentIndex === index
-            ? "grey" // Grey for current question
-            : "#fff"; // White for others
+        const isSubmitted = questionStatus === "Submitted" || questionStatus === "Attempted";
+        const isSelected = currentIndex === index;
+        let backgroundColor: string;
+        let textColor: string;
+        
+        if (isSelected && isSubmitted) {
+          // selected and Submitted - green bg and white text
+          backgroundColor = TEST_QUESTION_NAV_COLORS.GREEN_BG;
+          textColor = TEST_QUESTION_NAV_COLORS.WHITE_TEXT;
+        } else if (isSelected) {
+          // selected - gray bg and white text
+          backgroundColor = TEST_QUESTION_NAV_COLORS.GRAY_BG;
+          textColor = TEST_QUESTION_NAV_COLORS.WHITE_TEXT;
+        } else if (isSubmitted) {
+          // Submitted - green bg and black text
+          backgroundColor = TEST_QUESTION_NAV_COLORS.GREEN_BG;
+          textColor = TEST_QUESTION_NAV_COLORS.BLACK_TEXT;
+        } else {
+          // Not submitted - white bg and black text
+          backgroundColor = TEST_QUESTION_NAV_COLORS.WHITE_BG;
+          textColor = TEST_QUESTION_NAV_COLORS.BLACK_TEXT;
+        }
 
         return (
           <button
@@ -93,7 +110,7 @@ const TestQuestionNav: React.FC<TestQuestionNavProps> = React.memo(({
               width: "50px",
               height: "50px",
               backgroundColor,
-              color: currentIndex === index ? "#fff" : "#000",
+              color: textColor,
               cursor: "pointer",
               boxShadow: "#888 1px 2px 5px 0px",
             }}
