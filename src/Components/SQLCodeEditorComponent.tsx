@@ -913,7 +913,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
         </div>
 
         <div className="bg-white" style={{ height: "49%", backgroundColor: "#E5E5E533", position: "relative" }}>
-          <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
+          <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "auto" }}>
                         {runResponseTable.length > 0 && runResponseTable[0] && (
                           <>
                             {runResponseTable[0].error ? (
@@ -928,28 +928,30 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
                                 </div>
                               </div>
                             ) : (
-                              <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
-                                <thead>
-                                  <tr>
-                                    {Object.keys(runResponseTable[0] || {}).map((header) => (
-                                      <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(runResponseTable[0] || {}).length}vw` }}>
-                                        {header}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {runResponseTable.map((row, index) => (
-                                    <tr key={index}>
-                                      {Object.keys(row || {}).map((header) => (
-                                        <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
-                                          {row[header]}
-                                        </td>
+                              <div className="table-responsive" style={{ width: "100%", overflowX: "auto" }}>
+                                <table className="table table-bordered table-sm rounded" style={{ width: "auto", minWidth: "100%", fontSize: "12px" }}>
+                                  <thead>
+                                    <tr>
+                                      {Object.keys(runResponseTable[0] || {}).map((header) => (
+                                        <th key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                          {header}
+                                        </th>
                                       ))}
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                  </thead>
+                                  <tbody>
+                                    {runResponseTable.map((row, index) => (
+                                      <tr key={index}>
+                                        {Object.keys(row || {}).map((header) => (
+                                          <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                            {row[header]}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             )}
                           </>
                         )}
