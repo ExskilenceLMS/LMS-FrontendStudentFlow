@@ -22,6 +22,15 @@ export const DIFFICULTY_COLORS: { [key: string]: string } = {
   Hard: '#F44336',
 };
 
+// Test Question Navigation colors
+export const TEST_QUESTION_NAV_COLORS = {
+  GREEN_BG: '#42FF58',
+  GRAY_BG: '#808080',
+  WHITE_BG: '#fff',
+  WHITE_TEXT: '#fff',
+  BLACK_TEXT: '#000',
+} as const;
+
 // Get max length for question title based on window width
 export const getQuestionTitleMaxLength = (): number => {
   if (window.innerWidth < 600) {
