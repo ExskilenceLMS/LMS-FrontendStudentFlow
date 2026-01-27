@@ -9,6 +9,7 @@ import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 import { autoSaveCode, autoSaveAfterSubmission, getAutoSavedCode } from "../utils/autoSaveUtils";
+import { SUBJECT_ROADMAP } from "../constants/constants";
 import "../SQLEditor.css";
 
 interface Data {
@@ -277,6 +278,27 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
         } else {
           codeToSet = question.entered_ans || question.Query || "";
         }
+      } else if (!question.status && !isTestingContext) {
+        // Try to get auto-saved code from backend (only for practice-coding context)
+        getAutoSavedCode(question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
+          .then(autoSavedCode => {
+            if (autoSavedCode) {
+              setSqlQuery(autoSavedCode);
+              // Also save to session storage for future use
+              const codeKey = getUserCodeKey(question.Qn_name);
+              sessionStorage.setItem(codeKey, encryptData(autoSavedCode));
+            } else {
+              // Fallback to entered_ans or Query
+              const fallbackCode = question.entered_ans || "";
+              setSqlQuery(fallbackCode);
+            }
+          })
+          .catch(() => {
+            // Fallback to entered_ans or Query on error
+            const fallbackCode = question.entered_ans || question.Query || "";
+            setSqlQuery(fallbackCode);
+          });
+        return; // Return early since we're handling async loading
       } else {
         codeToSet = question.entered_ans || question.Query || "";
       }
@@ -465,8 +487,14 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
           [questionKey]: sqlQuery
         }));
         
-        // Auto-save code when it runs (for test flow)
-        if (isTestFlowContext && question && !question.status) {
+        // Auto-save code when it runs
+        if (!status && !isTestFlowContext) {
+          if (!isTestingContext) {
+            // Auto-save in practice mode when code runs and not submitted
+            autoSaveCode(sqlQuery, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+          }
+        } else if (isTestFlowContext && question && !question.status) {
+          // Auto-save for test flow
           const testId = decryptData(sessionStorage.getItem("TestId") || "");
           autoSaveCode(sqlQuery, question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
         }
@@ -593,6 +621,11 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
 
         const statusKey = `submissionStatus_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
         sessionStorage.setItem(statusKey, encryptData("submitted"));
+
+        // Trigger auto-save after successful submission (deletes autosave)
+        if (!isTestingContext && !isTestFlowContext) {
+          autoSaveAfterSubmission(sqlQuery, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+        }
       }
 
       // Save code to session storage
