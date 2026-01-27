@@ -935,7 +935,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
                               </div>
                             ) : (
                               <div className="table-responsive" style={{ width: "100%", overflowX: "auto" }}>
-                                <table className="table table-bordered table-sm rounded" style={{ width: "auto", minWidth: "100%", fontSize: "12px" }}>
+                                <table className="table table-bordered table-sm rounded" style={{ width: "auto", fontSize: "12px" }}>
                                   <thead>
                                     <tr>
                                       {Object.keys(runResponseTable[0] || {}).map((header) => (
