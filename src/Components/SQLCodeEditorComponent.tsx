@@ -75,6 +75,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
 }) => {
   const isTestingContext = window.location.pathname.includes('/testing/coding/');
   const isTestFlowContext = window.location.pathname.includes('/test/coding');
+  const isPracticeCodingContext = window.location.pathname.includes('/practice-coding/');
   
   // Session storage data
   const encryptedStudentId = sessionStorage.getItem('StudentId');
@@ -536,8 +537,8 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
   };
 
   const handleSubmit = async () => {
-    // For test flow context, check if code was run first and matches last run code
-    if (isTestFlowContext) {
+    // For test flow and practice coding contexts, check if code was run first and matches last run code
+    if (isTestFlowContext || isPracticeCodingContext) {
       if (!canSubmitCode()) {
         setSuccessMessage("Error");
         setAdditionalMessage("Please run your code before submitting.");
@@ -892,7 +893,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
                                 height: "30px"
                               }}
                               onClick={handleSubmit}
-                              disabled={isSubmitted || processing || status || (isTestFlowContext && !canSubmitCode())}
+                              disabled={isSubmitted || processing || status || ((isTestFlowContext || isPracticeCodingContext) && !canSubmitCode())}
                             >
                               {(isSubmitted || status) ? "SUBMITTED" : "SUBMIT CODE"}
                             </button>
