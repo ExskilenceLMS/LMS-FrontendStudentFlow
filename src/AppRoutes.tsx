@@ -8,13 +8,10 @@ import OnlineSession from './OnlineSession';
 import ReportProblem from './ReportProblem';
 import Profile from './Profile';
 import SubjectRoadMap from './SubjectRoadMap';
-import SQLEditor from './SQLEditor';
-import PyEditor from './PyEditor';
 import Test from './Test';
 import TestIntro from './TestIntroduction';
 import TestSection from './TestSection';
 import TestReport from './TestReport';
-import HTMLCSSEditor from './HTMLCSSEditor';
 import JSEditor from './JSEditor';
 import TestMcq from './TestMcq';
 import Reports from './Reports';
@@ -25,9 +22,13 @@ import Layout from './Components/Layout';
 import EditProfile from './Components/EditProfile';
 import TestSQLCoding from './TestSQLCoding';
 import TestingMCQS from './Components/TestingMCQS';
-import PythonContentTester from './PythonContentTester';
-import DynamicCodingEditorWrapper from './Components/DynamicCodingEditorWrapper';
+import TestEditorFlow from './Components/TestEditorFlow';
 import SubjectBasedCodingEditor from './Components/SubjectBasedCodingEditor';
+import CourseCoding from './Components/CourseCoding';
+import ProjectRoadmap from './ProjectRoadmap';
+import ProjectTasks from './Components/ProjectTasks';
+import UnifiedEditor from './Components/UnifiedEditor';
+import ProjectCoding from './ProjectCoding';
 
 const AppRoutes = () => {
   const showMaintenance = process.env.REACT_APP_SHOW_MAINTENANCE === 'true';
@@ -37,8 +38,6 @@ const AppRoutes = () => {
           <Routes>
         <Route path="/" element={showMaintenance ? <Maintenance /> : <Login />} />
         {showMaintenance && <Route path={`/${loginPath}/login`} element={<Login />} />}
-        {/* Public route for Python content testing - no login required */}
-        <Route path="/python-content-tester" element={<PythonContentTester />} />
         <Route element={<ProtectedRoute />}>
         <Route path="/Dashboard" element={<Layout><Dashboard /></Layout>} />
         <Route path="/SubjectOverview" element={<Layout><SubjectOverview /></Layout>} />
@@ -49,9 +48,6 @@ const AppRoutes = () => {
         <Route path="/Report-Problem" element={<Layout><ReportProblem /></Layout>} />
         <Route path="/Profile" element={<Layout><Profile /></Layout>} />
         <Route path="/Subject-Roadmap" element={<Layout><SubjectRoadMap /></Layout>} />
-        <Route path="/Sql-editor" element={<Layout><SQLEditor /></Layout>} />
-        <Route path="/py-editor" element={<Layout><PyEditor /></Layout>} />
-        <Route path="/html-css-editor" element={<Layout><HTMLCSSEditor /></Layout>} />
         <Route path="/js-editor" element={<Layout><JSEditor /></Layout>} />
         <Route path="/test" element={<Layout><Test /></Layout>} />
         <Route path="/test-introduction" element={<Layout><TestIntro /></Layout>} />
@@ -59,10 +55,15 @@ const AppRoutes = () => {
         <Route path="/test-report" element={<Layout><TestReport /></Layout>} />
         <Route path="/mcq-temp" element={<Layout><TestMcq /></Layout>} />
         <Route path="/coding-temp" element={<Layout><TestSQLCoding /></Layout>} />
-        <Route path="/dynamic-coding-editor" element={<Layout><DynamicCodingEditorWrapper /></Layout>} />
+        <Route path="/test/coding" element={<Layout><TestEditorFlow /></Layout>} />
         <Route path="/EditProfile" element={<Layout><EditProfile /></Layout>} />
         <Route path="/SQL-MCQ-Testing" element={<Layout><TestingMCQS /></Layout>} />
         <Route path="/testing/coding/:subject_id" element={<Layout><SubjectBasedCodingEditor /></Layout>} />
+        <Route path="/practice-coding/" element={<Layout><CourseCoding /></Layout>} />
+        <Route path="/project-roadmap" element={<Layout><ProjectRoadmap /></Layout>} />
+        <Route path="/project-tasks" element={<Layout><ProjectTasks /></Layout>} />
+        <Route path="/project-coding" element={<Layout><ProjectCoding /></Layout>} />
+        <Route path="/coding-challenges-editor" element={<Layout><UnifiedEditor /></Layout>} />
       </Route>
     </Routes>
   );

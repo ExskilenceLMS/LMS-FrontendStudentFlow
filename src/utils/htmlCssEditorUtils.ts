@@ -21,8 +21,9 @@ export interface Tab {
 
 export interface CodeValidation {
   [key: string]: {
-    template: string;
+    template?: string;
     structure?: any[];
+    Ans?: string;
   };
 }
 
@@ -47,6 +48,7 @@ export interface QuestionData {
   score?: string;
   entered_ans?: {[key: string]: string};
   image_urls?: Array<{actualUrl: string, expectedUrl: string}>;
+  question_id?: string;
 }
 
 // Session storage utilities
@@ -155,7 +157,10 @@ const validateJavaScriptWithTwoStageAPI = async (
   }
 
   // Build payload
-  const payload: any = { generated_testcases: {} };
+  const payload: any = { 
+    generated_testcases: {},
+    question_id: questionData.question_id || questionData?.Qn_name || ''
+  };
   Object.keys(allFileContents).forEach((fileName) => {
     payload.generated_testcases[fileName] = { Ans: allFileContents[fileName] || '' };
   });

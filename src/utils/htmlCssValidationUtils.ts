@@ -15,6 +15,11 @@ import {
   validateJSTestCases 
 } from './jsValidationUtils';
 
+// Constants for optimization
+const GRID_PROPERTIES_WITH_SLASHES = ['grid-column', 'grid-row', 'grid-area', 'grid-column-start', 'grid-column-end', 'grid-row-start', 'grid-row-end'];
+const MEDIA_QUERY_REGEX = /@media\s*[^{]*\{/gi;
+const URL_QUOTE_REGEX = /url\s*\(\s*(["'])([^"']+)\1\s*\)/gi;
+
 // Helper function to check if an attribute value matches in HTML
 const validateAttributeValue = (key: string, value: any, htmlContent: string): boolean => {
   let attributeFound = false;
@@ -309,40 +314,115 @@ export const validateScriptContent = (actualContent: string, expectedContent: st
          normalizedExpected.includes(normalizedActual);
 };
 
+// Helper function to remove media queries from CSS
+const removeMediaQueries = (cssCode: string): string => {
+  let output = '';
+  let i = 0;
+  
+  while (i < cssCode.length) {
+    // Check for @media keyword using indexOf for better performance
+    const mediaIndex = cssCode.indexOf('@media', i);
+    
+    if (mediaIndex === -1 || mediaIndex !== i) {
+      // No media query found or not at current position, copy character
+      if (mediaIndex === -1) {
+        // No more media queries, copy rest of string
+        output += cssCode.substring(i);
+        break;
+      } else {
+        // Copy up to next media query
+        output += cssCode.substring(i, mediaIndex);
+        i = mediaIndex;
+      }
+    }
+    
+    // Found @media, find the opening brace
+    let braceIndex = cssCode.indexOf('{', i);
+    if (braceIndex === -1) {
+      // No opening brace found, copy rest and exit
+      output += cssCode.substring(i);
+      break;
+    }
+    
+    // Skip past "@media ... {"
+    let depth = 1;
+    i = braceIndex + 1;
+    
+    // Find matching closing brace
+    while (i < cssCode.length && depth > 0) {
+      if (cssCode[i] === '{') {
+        depth++;
+      } else if (cssCode[i] === '}') {
+        depth--;
+      }
+      i++;
+    }
+  }
+  
+  return output;
+};
+
+// Helper function to remove CSS comments
+const removeComments = (cssCode: string): string => {
+  return cssCode.replace(/\/\*[\s\S]*?\*\//g, '');
+};
+
 // CSS Parser
 export const parseCSS = (cssCode: string) => {
   try {
     const result: any = {};
     
-    // Extract CSS rules using regex
-    const rules = cssCode.match(/([^{}]+)\s*\{([^{}]*)\}/g);
+    // Remove comments first
+    let cleanedCSS = removeComments(cssCode);
+    
+    // Remove media queries to only validate base selector values
+    cleanedCSS = removeMediaQueries(cleanedCSS);
+    
+    // Extract CSS rules using regex (now without media queries and comments)
+    const rules = cleanedCSS.match(/([^{}]+)\s*\{([^{}]*)\}/g);
     
     if (rules) {
       rules.forEach(rule => {
         const [selectorPart, properties] = rule.split('{');
         const cleanProperties = properties.replace('}', '').trim();
         
+        // Skip if no properties
+        if (!cleanProperties) return;
+        
         // Handle multiple selectors (comma-separated)
-        const selectors = selectorPart.split(',').map(s => s.trim());
+        const trimmedSelectorPart = selectorPart.trim();
+        const selectors = trimmedSelectorPart.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        
+        // Skip if no valid selectors
+        if (selectors.length === 0) return;
         
         // Parse properties
         const props: any = {};
         const propPairs = cleanProperties.split(';');
         
         propPairs.forEach(prop => {
-          const [key, value] = prop.split(':');
-          if (key && value) {
-            props[key.trim()] = value.trim();
+          const trimmedProp = prop.trim();
+          if (!trimmedProp) return;
+          
+          // Split only on the first colon to handle values with colons (e.g., URLs)
+          const colonIndex = trimmedProp.indexOf(':');
+          if (colonIndex !== -1) {
+            const key = trimmedProp.substring(0, colonIndex).trim();
+            const value = trimmedProp.substring(colonIndex + 1).trim();
+            if (key && value) {
+              props[key] = value;
+            }
           }
         });
         
-        // Apply properties to all selectors
+        // Store the combined selector (normalized: remove extra spaces around commas)
+        const combinedSelector = selectors.join(', ');
+        result[combinedSelector] = result[combinedSelector] ? { ...result[combinedSelector], ...props } : { ...props };
+        
+        // Also apply properties to individual selectors (for backward compatibility)
+        // Later rules override earlier ones, so merge properties
         selectors.forEach(selector => {
-          if (!result[selector]) {
-            result[selector] = {};
-          }
-          // Merge properties (later rules override earlier ones)
-          Object.assign(result[selector], props);
+          result[selector] = result[selector] ? { ...result[selector], ...props } : { ...props };
         });
       });
     }
@@ -443,6 +523,15 @@ const normalizeCSSValue = (value: string, property: string): string => {
   if (property === 'grid-template-areas') {
     return normalizeGridTemplateAreas(normalized);
   }
+  
+  // Normalize grid properties with slashes (grid-column, grid-row, grid-area, etc.)
+  // CSS allows spaces around slashes: "1 / 3" is equivalent to "1/3"
+  if (GRID_PROPERTIES_WITH_SLASHES.includes(property)) {
+    normalized = normalized.replace(/\s*\/\s*/g, '/');
+  }
+  
+  // Normalize URL quotes first (url('...') and url("...") -> url(...))
+  normalized = normalized.replace(URL_QUOTE_REGEX, 'url($2)');
   
   // Early exit: if value is already minimal (no functions, single spaces), return as-is
   // Check for functions with parentheses

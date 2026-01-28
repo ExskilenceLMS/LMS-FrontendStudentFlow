@@ -4,7 +4,8 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { HiOutlineClipboardDocumentList } from "react-icons/hi2";
 import CryptoJS from "crypto-js";
-import { secretKey } from './constants';
+import { secretKey, ACTIVITY_TYPE } from './constants';
+import { trackActivity } from './utils/activityApi';
 import { 
   Box, 
   Typography, 
@@ -121,6 +122,9 @@ const Test: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Track Test activity
+    trackActivity({ activityType: ACTIVITY_TYPE.TEST });
+
     const fetchTestDetails = async () => {
       const url = `${process.env.REACT_APP_BACKEND_URL}api/student/testdetails/${studentId}/`
       try {

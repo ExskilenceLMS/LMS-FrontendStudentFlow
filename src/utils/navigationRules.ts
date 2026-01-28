@@ -12,14 +12,13 @@ export const navigationRules: NavigationRule[] = [
   { currentPath: '/Dashboard', previousPath: '/Dashboard', description: 'Dashboard - no back navigation', allowBack: false },
   { currentPath: '/SubjectOverview', previousPath: '/Dashboard', description: 'SubjectOverview -> Dashboard', allowBack: true },
   { currentPath: '/Subject-Roadmap', previousPath: '/SubjectOverview', description: 'SubjectRoadmap -> SubjectOverview', allowBack: true },
-  { currentPath: '/py-editor', previousPath: '/Subject-Roadmap', description: 'PyEditor -> SubjectRoadmap', allowBack: true },
-  { currentPath: '/html-css-editor', previousPath: '/Subject-Roadmap', description: 'HTMLCSSEditor -> SubjectRoadmap', allowBack: true },
+  { currentPath: '/practice-coding/', previousPath: '/Subject-Roadmap', description: 'CourseCoding -> SubjectRoadmap', allowBack: true },
   { currentPath: '/test', previousPath: '/Dashboard', description: 'Test -> Dashboard', allowBack: true },
   { currentPath: '/test-introduction', previousPath: '/test', description: 'TestIntroduction -> Test', allowBack: true },
   { currentPath: '/test-section', previousPath: '/test-introduction', description: 'TestSection -> TestIntroduction', allowBack: true },
   { currentPath: '/mcq-temp', previousPath: '/test-section', description: 'MCQ Test -> TestSection', allowBack: true },
   { currentPath: '/coding-temp', previousPath: '/test-section', description: 'Coding Test -> TestSection', allowBack: true },
-  { currentPath: '/dynamic-coding-editor', previousPath: '/test-section', description: 'Dynamic Coding -> TestSection', allowBack: true },
+  { currentPath: '/test/coding', previousPath: '/test-section', description: 'Test Coding Editor -> TestSection', allowBack: true },
   { currentPath: '/test-report', previousPath: '/test', description: 'TestReport -> Test', allowBack: true },
   { currentPath: '/Report-Problem', previousPath: '/Dashboard', description: 'ReportProblem -> Dashboard', allowBack: true },
   { currentPath: '/Profile', previousPath: '/Dashboard', description: 'Profile -> Dashboard', allowBack: true },
@@ -28,7 +27,10 @@ export const navigationRules: NavigationRule[] = [
   { currentPath: '/Placement', previousPath: '/Dashboard', description: 'Placement -> Dashboard', allowBack: true },
   { currentPath: '/Reports', previousPath: '/Dashboard', description: 'Reports -> Dashboard', allowBack: true },
   { currentPath: '/Online-Session', previousPath: '/Dashboard', description: 'OnlineSession -> Dashboard', allowBack: true },
-  { currentPath: '/Sql-editor', previousPath: '/Dashboard', description: 'SQLEditor -> Dashboard', allowBack: true },
+  { currentPath: '/project-roadmap', previousPath: '/Dashboard', description: 'ProjectRoadmap -> Dashboard', allowBack: true },
+  { currentPath: '/project-tasks', previousPath: '/project-roadmap', description: 'ProjectTasks -> ProjectRoadmap', allowBack: true },
+  { currentPath: '/project-coding', previousPath: '/project-tasks', description: 'ProjectCoding -> ProjectTasks', allowBack: true },
+  { currentPath: '/coding-challenges-editor', previousPath: '/project-tasks', description: 'UnifiedEditor -> ProjectTasks', allowBack: true },
 ];
 
 export const getPreviousPath = (currentPath: string): string => {
