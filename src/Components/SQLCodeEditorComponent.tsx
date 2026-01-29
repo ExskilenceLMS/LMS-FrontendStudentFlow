@@ -9,6 +9,7 @@ import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
 import { autoSaveCode, autoSaveAfterSubmission, getAutoSavedCode } from "../utils/autoSaveUtils";
+import { SUBJECT_ROADMAP } from "../constants/constants";
 import "../SQLEditor.css";
 
 interface Data {
@@ -74,6 +75,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
 }) => {
   const isTestingContext = window.location.pathname.includes('/testing/coding/');
   const isTestFlowContext = window.location.pathname.includes('/test/coding');
+  const isPracticeCodingContext = window.location.pathname.includes('/practice-coding/');
   
   // Session storage data
   const encryptedStudentId = sessionStorage.getItem('StudentId');
@@ -277,6 +279,27 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
         } else {
           codeToSet = question.entered_ans || question.Query || "";
         }
+      } else if (!question.status && !isTestingContext) {
+        // Try to get auto-saved code from backend (only for practice-coding context)
+        getAutoSavedCode(question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
+          .then(autoSavedCode => {
+            if (autoSavedCode) {
+              setSqlQuery(autoSavedCode);
+              // Also save to session storage for future use
+              const codeKey = getUserCodeKey(question.Qn_name);
+              sessionStorage.setItem(codeKey, encryptData(autoSavedCode));
+            } else {
+              // Fallback to entered_ans or Query
+              const fallbackCode = question.entered_ans || "";
+              setSqlQuery(fallbackCode);
+            }
+          })
+          .catch(() => {
+            // Fallback to entered_ans or Query on error
+            const fallbackCode = question.entered_ans || question.Query || "";
+            setSqlQuery(fallbackCode);
+          });
+        return; // Return early since we're handling async loading
       } else {
         codeToSet = question.entered_ans || question.Query || "";
       }
@@ -465,8 +488,14 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
           [questionKey]: sqlQuery
         }));
         
-        // Auto-save code when it runs (for test flow)
-        if (isTestFlowContext && question && !question.status) {
+        // Auto-save code when it runs
+        if (!status && !isTestFlowContext) {
+          if (!isTestingContext) {
+            // Auto-save in practice mode when code runs and not submitted
+            autoSaveCode(sqlQuery, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+          }
+        } else if (isTestFlowContext && question && !question.status) {
+          // Auto-save for test flow
           const testId = decryptData(sessionStorage.getItem("TestId") || "");
           autoSaveCode(sqlQuery, question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
         }
@@ -508,8 +537,8 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
   };
 
   const handleSubmit = async () => {
-    // For test flow context, check if code was run first and matches last run code
-    if (isTestFlowContext) {
+    // For test flow and practice coding contexts, check if code was run first and matches last run code
+    if (isTestFlowContext || isPracticeCodingContext) {
       if (!canSubmitCode()) {
         setSuccessMessage("Error");
         setAdditionalMessage("Please run your code before submitting.");
@@ -548,7 +577,8 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
           return;
         }
         
-        // Update question status in session storage
+        // Update question status in session storage and notify TestEditorFlow
+        const questionKey = `coding_${question.Qn_name}`;
         const sessionKey = `${testId}_questionStatus`;
         const sessionStatus = sessionStorage.getItem(sessionKey);
         
@@ -557,10 +587,15 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
             const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
             const statuses = JSON.parse(decryptedStatuses);
             
-            statuses[`coding_${question.Qn_name}`] = "Submitted";
+            statuses[questionKey] = "Submitted";
             
             const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
             sessionStorage.setItem(sessionKey, encryptedStatuses);
+            
+            // Notify TestEditorFlow to update its local state
+            if ((window as any).updateQuestionStatusInTestEditor) {
+              (window as any).updateQuestionStatusInTestEditor(questionKey, "Submitted");
+            }
           } catch (error) {
             console.error("Error updating session status:", error);
           }
@@ -593,6 +628,11 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
 
         const statusKey = `submissionStatus_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
         sessionStorage.setItem(statusKey, encryptData("submitted"));
+
+        // Trigger auto-save after successful submission (deletes autosave)
+        if (!isTestingContext && !isTestFlowContext) {
+          autoSaveAfterSubmission(sqlQuery, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+        }
       }
 
       // Save code to session storage
@@ -853,7 +893,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
                                 height: "30px"
                               }}
                               onClick={handleSubmit}
-                              disabled={isSubmitted || processing || status || (isTestFlowContext && !canSubmitCode())}
+                              disabled={isSubmitted || processing || status || ((isTestFlowContext || isPracticeCodingContext) && !canSubmitCode())}
                             >
                               {(isSubmitted || status) ? "SUBMITTED" : "SUBMIT CODE"}
                             </button>
@@ -880,7 +920,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
         </div>
 
         <div className="bg-white" style={{ height: "49%", backgroundColor: "#E5E5E533", position: "relative" }}>
-          <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
+          <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "auto" }}>
                         {runResponseTable.length > 0 && runResponseTable[0] && (
                           <>
                             {runResponseTable[0].error ? (
@@ -895,28 +935,30 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
                                 </div>
                               </div>
                             ) : (
-                              <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
-                                <thead>
-                                  <tr>
-                                    {Object.keys(runResponseTable[0] || {}).map((header) => (
-                                      <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(runResponseTable[0] || {}).length}vw` }}>
-                                        {header}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {runResponseTable.map((row, index) => (
-                                    <tr key={index}>
-                                      {Object.keys(row || {}).map((header) => (
-                                        <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
-                                          {row[header]}
-                                        </td>
+                              <div className="table-responsive" style={{ width: "100%", overflowX: "auto" }}>
+                                <table className="table table-bordered table-sm rounded" style={{ width: "auto", fontSize: "12px" }}>
+                                  <thead>
+                                    <tr>
+                                      {Object.keys(runResponseTable[0] || {}).map((header) => (
+                                        <th key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                          {header}
+                                        </th>
                                       ))}
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                  </thead>
+                                  <tbody>
+                                    {runResponseTable.map((row, index) => (
+                                      <tr key={index}>
+                                        {Object.keys(row || {}).map((header) => (
+                                          <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                            {row[header]}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             )}
                           </>
                         )}

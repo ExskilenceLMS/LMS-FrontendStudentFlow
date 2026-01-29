@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getApiClient } from "../utils/apiAuth";
 import { secretKey } from "../constants";
@@ -176,7 +176,7 @@ const TestEditorFlow: React.FC = () => {
   /**
    * Update question status in session storage
    */
-  const updateQuestionStatus = (questionKey: string, status: string) => {
+  const updateQuestionStatus = useCallback((questionKey: string, status: string) => {
     const sessionKey = `${testId}_questionStatus`;
     const sessionStatus = sessionStorage.getItem(sessionKey);
     
@@ -196,7 +196,15 @@ const TestEditorFlow: React.FC = () => {
     } catch (error) {
       console.error("Error updating question status:", error);
     }
-  };
+  }, [testId]);
+
+  // Expose updateQuestionStatus globally for editor components to use
+  useEffect(() => {
+    (window as any).updateQuestionStatusInTestEditor = updateQuestionStatus;
+    return () => {
+      delete (window as any).updateQuestionStatusInTestEditor;
+    };
+  }, [testId, updateQuestionStatus]);
 
   /**
    * Determines if the Next button should be shown for the current question

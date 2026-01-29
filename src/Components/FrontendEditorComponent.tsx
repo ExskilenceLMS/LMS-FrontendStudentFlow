@@ -525,7 +525,8 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
         if (responseData.status === true || responseData.message !== "Test Already Completed") {
           setIsSubmitted(true);
           
-          // Update question status in session storage
+          // Update question status in session storage and notify TestEditorFlow
+          const questionKey = `coding_${question.Qn_name}`;
           const sessionKey = `${testId}_questionStatus`;
           const sessionStatus = sessionStorage.getItem(sessionKey);
           
@@ -534,10 +535,15 @@ const FrontendEditorComponent: React.FC<FrontendEditorComponentProps> = ({
               const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
               const statuses = JSON.parse(decryptedStatuses);
               
-              statuses[`coding_${question.Qn_name}`] = "Submitted";
+              statuses[questionKey] = "Submitted";
               
               const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
               sessionStorage.setItem(sessionKey, encryptedStatuses);
+              
+              // Notify TestEditorFlow to update its local state
+              if ((window as any).updateQuestionStatusInTestEditor) {
+                (window as any).updateQuestionStatusInTestEditor(questionKey, "Submitted");
+              }
             } catch (error) {
               console.error("Error updating session status:", error);
             }
