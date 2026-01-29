@@ -28,7 +28,7 @@ const ProjectComponent = () => {
     }
   }
 
-  const provisionContainer = async (questionDataResponse: any, studentId: string, projectId: string) => {
+  const provisionContainer = async (questionDataResponse: any, studentId: string, projectId: string, phaseId: string) => {
     try {
       if (!questionDataResponse?.questions?.length) throw new Error("No questions found in response")
 
@@ -49,7 +49,7 @@ const ProjectComponent = () => {
       // Fork repository
       await apiClient.post(
         `${process.env.REACT_APP_BACKEND_URL}api/student/project/repository/fork/`,
-        { student_id: studentId, project_id: projectId, question_id: questionId, master_repo_url: masterRepoUrl, template_repo_url: templateRepoUrl, tag, organization: "exskilence-lms" }
+        { student_id: studentId, project_id: projectId, question_id: questionId, master_repo_url: masterRepoUrl, template_repo_url: templateRepoUrl, tag, organization: "exskilence-lms", phase: phaseId}
       )
       // Create branch
       await apiClient.post(
@@ -109,14 +109,14 @@ const ProjectComponent = () => {
 
         // Check location state first (data passed via navigate)
         const questionDataFromState = (location.state as any)?.questionData
+        const phaseId = getProjectId("phaseId") || ""      
         if (questionDataFromState?.questions?.length) {
           setQuestionDataToSessionStorage(questionDataFromState.questions[0], questionDataFromState)
           setLoading(false)
-          await provisionContainer(questionDataFromState, studentId, projectId)
+          await provisionContainer(questionDataFromState, studentId, projectId, phaseId)
           return
         }
 
-        const phaseId = getProjectId("phaseId") || ""
         const partId = getProjectId("partId") || ""
         const taskId = getProjectId("taskId") || ""
         const subtaskId = sessionStorage.getItem("currentSubtaskId") || ""
@@ -131,7 +131,7 @@ const ProjectComponent = () => {
 
         if (response.data?.questions?.length) {
           setQuestionDataToSessionStorage(response.data.questions[0], response.data)
-          await provisionContainer(response.data, studentId, projectId)
+          await provisionContainer(response.data, studentId, projectId, phaseId)
         } else {
           throw new Error("Invalid response format")
         }
