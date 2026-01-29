@@ -3147,6 +3147,7 @@ const SubjectRoadMap: React.FC = () => {
                     marginBottom: "5px",
                   }}
                 >
+                <div style={{ display: "inline-block", cursor: (isPreviousButtonDisabled() || disablePreviousBtn) ? "not-allowed" : "pointer" }}>
                   <button
                     className="btn btn-sm btn-outline-light PN-button text-light px-3 py-1 mx-2 rounded-2"
                     style={{
@@ -3160,19 +3161,22 @@ const SubjectRoadMap: React.FC = () => {
                   >
                     Previous
                   </button>
-                  <button
-                    className="btn btn-sm btn-outline-light PN-button text-light px-3 py-1 mx-2 rounded-2"
-                    style={{
-                      fontSize: "13px",
-                      height: "35px",
-                      width: "80px",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
-                    }}
-                    onClick={handleNext}
-                    disabled={disableStatusNextBtn}
-                  >
-                    Next
-                  </button>
+                  </div>
+                  <div style={{ display: "inline-block", cursor: disableStatusNextBtn ? "not-allowed" : "pointer" }}>
+                    <button
+                      className="btn btn-sm btn-outline-light PN-button text-light px-3 py-1 mx-2 rounded-2"
+                      style={{
+                        fontSize: "13px",
+                        height: "35px",
+                        width: "80px",
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+                      }}
+                      onClick={handleNext}
+                      disabled={disableStatusNextBtn}
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
