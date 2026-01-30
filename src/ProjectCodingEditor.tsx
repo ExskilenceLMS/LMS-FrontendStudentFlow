@@ -815,12 +815,10 @@ function ProjectCodingEditor({ containerStatus = null }) {
             if (resultsResponse && resultsResponse.success && resultsResponse.results) {
               // Create a hash of the results to detect changes
               const resultsHash = JSON.stringify(resultsResponse.results);
-              
-              // Only update if results changed (to avoid unnecessary re-renders)
-              if (resultsHash !== lastResultsHash) {
+              // When status just became completed, always process so final results are shown
+              const shouldProcess = resultsHash !== lastResultsHash || status === 'completed' || status === 'failed';
+              if (shouldProcess) {
                 lastResultsHash = resultsHash;
-                
-                // Process results (this will update test cases incrementally)
                 processValidationResults(resultsResponse.results);
               }
             }
@@ -837,19 +835,36 @@ function ProjectCodingEditor({ containerStatus = null }) {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
             }
-            
-            // Get final results one more time
+
+            // Get final results one more time and ensure UI is updated
             try {
               const resultsResponse = await getValidationResults(jobId);
               if (resultsResponse && resultsResponse.success && resultsResponse.results) {
+                console.log('[Validation] Final results received:', status, resultsResponse.results?.tasks?.length ?? 0, 'task(s)');
                 processValidationResults(resultsResponse.results);
-              } else if (status === 'failed' && statusResponse.error) {
-                addValidationOutput(`Validation failed: ${statusResponse.error}`, 'error');
+                if (status === 'completed') {
+                  addValidationOutput('Validation completed.', 'info');
+                }
+              } else {
+                // Results missing or not in expected shape - still show completion state
+                if (status === 'completed') {
+                  addValidationOutput('Validation completed. (Results may still be processing; refresh or run again if test cases do not appear.)', 'info');
+                } else if (status === 'failed') {
+                  addValidationOutput(
+                    statusResponse.error ? `Validation failed: ${statusResponse.error}` : 'Validation failed.',
+                    'error'
+                  );
+                }
               }
             } catch (error: any) {
               console.error('Error fetching final validation results:', error);
+              if (status === 'completed') {
+                addValidationOutput('Validation completed. Could not load results; you may re-run validation.', 'info');
+              } else if (status === 'failed' && statusResponse?.error) {
+                addValidationOutput(`Validation failed: ${statusResponse.error}`, 'error');
+              }
             }
-            
+
             setIsRunning(false);
             setShowTerminal(true);
           }
