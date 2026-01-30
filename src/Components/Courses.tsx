@@ -11,6 +11,7 @@ import './Courses.css';
 import CourseImage from "../Components/images/CourseImage.png";
 import { useApiLoading } from "../Dashboard";
 import ProjectSelectionModal from "./ProjectSelectionModal";
+import { trackActivity } from "../utils/activityApi";
 
 interface Course {
   title: string;
@@ -102,6 +103,9 @@ const Courses: React.FC = () => {
   ];
 
   const handleCourseClick = (subject_id: string, subject: string, courseTitle: string) => {
+    // Track subject activity
+    trackActivity({ subjectId: subject_id });
+    
     const encryptedSubjectId = CryptoJS.AES.encrypt(subject_id, secretKey).toString();
     const encryptedSubject = CryptoJS.AES.encrypt(subject, secretKey).toString();
     sessionStorage.setItem('SubjectId', encryptedSubjectId);
@@ -120,6 +124,9 @@ const Courses: React.FC = () => {
     } else if (internship.status === "Open") {
       // Navigate to project roadmap if project_id is available
       if (internship.project_id) {
+        // Track project activity
+        trackActivity({ subjectId: internship.project_id.toString() });
+        
         // Store project_id and project_name in sessionStorage for API calls
         sessionStorage.setItem("currentProjectId", internship.project_id.toString());
         sessionStorage.setItem("currentProjectName", internship.title || "Project");
@@ -384,7 +391,7 @@ const Courses: React.FC = () => {
               renderLearningCard({
                 keyProp: `dummy-${i}`,
                 image: dummyCourse.image,
-                title: dummyCourse.subject,
+                title: dummyCourse.title,
                 titleTooltip: dummyCourse.title,
                 duration: dummyCourse.duration,
                 progress: dummyCourse.progress,
@@ -402,8 +409,7 @@ const Courses: React.FC = () => {
               const itemColor = availableColors[index % availableColors.length];
               const isInternship = item.project_id !== null || item.subject_id?.startsWith("project_") || item.status === "select";
               
-              const displayTitle = item.subject?.trim() ? item.subject : item.title;
-              const truncatedTitle = displayTitle.length > 20 ? `${displayTitle.slice(0, 20)}...` : displayTitle;
+              const displayTitle = item.title;
 
               if (isInternship) {
                 // Render as internship
@@ -451,7 +457,7 @@ const Courses: React.FC = () => {
                 return renderLearningCard({
                   keyProp: `item-${index}`,
                   image: item.image,
-                  title: truncatedTitle,
+                  title: displayTitle,
                   titleTooltip: item.title,
                   duration: item.duration,
                   progress: item.status === "select" ? undefined : item.progress,
@@ -467,7 +473,7 @@ const Courses: React.FC = () => {
                 return renderLearningCard({
                   keyProp: `item-${index}`,
                   image: item.image,
-                  title: truncatedTitle,
+                  title: displayTitle,
                   titleTooltip: item.title,
                   duration: item.duration,
                   progress: item.progress,

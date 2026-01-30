@@ -8,6 +8,8 @@ import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/theme-dreamweaver";
 import { secretKey } from "../constants";
 import CryptoJS from "crypto-js";
+import { autoSaveCode, autoSaveAfterSubmission, getAutoSavedCode } from "../utils/autoSaveUtils";
+import { SUBJECT_ROADMAP } from "../constants/constants";
 import "../SQLEditor.css";
 
 interface Data {
@@ -72,6 +74,8 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
   onQuestionChange,
 }) => {
   const isTestingContext = window.location.pathname.includes('/testing/coding/');
+  const isTestFlowContext = window.location.pathname.includes('/test/coding');
+  const isPracticeCodingContext = window.location.pathname.includes('/practice-coding/');
   
   // Session storage data
   const encryptedStudentId = sessionStorage.getItem('StudentId');
@@ -116,6 +120,8 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
   const [selectedTable, setSelectedTable] = useState<string>("");
   const [isRunBtnClicked, setIsRunBtnClicked] = useState<boolean>(false);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [questionResponses, setQuestionResponses] = useState<{[key: string]: any}>({});
+  const [lastRunCode, setLastRunCode] = useState<{[key: string]: string}>({});
   const editorRef = React.useRef<any>(null);
 
   const encryptData = (data: string) => {
@@ -128,6 +134,11 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
   };
 
   const getUserCodeKey = (qnName: string) => {
+    if (isTestFlowContext) {
+      const encryptedTestId = sessionStorage.getItem("TestId");
+      const testId = encryptedTestId ? decryptData(encryptedTestId) : "";
+      return `userCode_${testId}_${qnName}`;
+    }
     return `userCode_${subject}_${weekNumber}_${dayNumber}_${qnName}`;
   };
 
@@ -140,32 +151,157 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
       const rawExpectedOutput = question.ExpectedOutput || [];
       const reorderedOutput = reorderExpectedOutput(rawExpectedOutput, question.TestCases || []);
       setExpectedOutput(reorderedOutput);
-      setRunResponseTable([]);
-      setRunResponseTestCases([]);
-      setSuccessMessage("");
-      setAdditionalMessage("");
-      setActiveTab("table");
-      setIsRunBtnClicked(false);
+      
+      // Check if we have stored response data for this question
+      const questionKey = question.Qn_name;
+      const storedResponse = questionResponses[questionKey];
+      
+      if (storedResponse) {
+        // Restore the stored response data
+        setRunResponseTable(storedResponse.table || []);
+        setRunResponseTestCases(storedResponse.testCases || []);
+        setSuccessMessage(storedResponse.successMessage || "");
+        setAdditionalMessage(storedResponse.additionalMessage || "");
+        setActiveTab("output");
+        setIsRunBtnClicked(true);
+      } else {
+        // Clear response data for new question
+        setRunResponseTable([]);
+        setRunResponseTestCases([]);
+        setSuccessMessage("");
+        setAdditionalMessage("");
+        setActiveTab("table");
+        setIsRunBtnClicked(false);
+      }
+      
       setProcessing(false);
+      
+      // Check submission status for test flow (following HTMLCSSCodeEditor pattern)
+      if (isTestFlowContext) {
+        // Reset submission status first (like HTMLCSSCodeEditor does)
+        setIsSubmitted(false);
+        setStatus(false);
+        
+        // Then check session storage
+        const testId = decryptData(sessionStorage.getItem("TestId") || "");
+        const questionStatusKey = `coding_${question.Qn_name}`;
+        const statusSessionKey = `${testId}_questionStatus`;
+        const sessionStatus = sessionStorage.getItem(statusSessionKey);
+        
+        let isQuestionSubmitted = false;
+        if (sessionStatus) {
+          try {
+            const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+            const statuses = JSON.parse(decryptedStatuses);
+            isQuestionSubmitted = statuses[questionStatusKey] === "Submitted";
+          } catch (error) {
+            console.error("Error checking submission status:", error);
+            isQuestionSubmitted = false;
+          }
+        }
+        
+        // Set status based on session storage check (like HTMLCSSCodeEditor)
+        if (isQuestionSubmitted || question.status === true) {
+          setIsSubmitted(true);
+          setStatus(true);
+        } else {
+          setIsSubmitted(false);
+          setStatus(false);
+        }
+      }
       
       // Load saved code
       const codeKey = getUserCodeKey(question.Qn_name);
       const savedCode = sessionStorage.getItem(codeKey);
       let codeToSet = "";
-      if(isTestingContext) {
+      
+      if (isTestFlowContext) {
+        // For test flow: load saved user code, following PythonEditorComponent pattern
+        if (savedCode !== null) {
+          const decryptedCode = decryptData(savedCode);
+          if (decryptedCode) {
+            codeToSet = decryptedCode;
+            setSqlQuery(codeToSet);
+            return;
+          }
+        }
+        
+        // If no saved code in session and question is not submitted, try to retrieve auto-saved code from backend
+        if (!question.status) {
+          const testId = decryptData(sessionStorage.getItem("TestId") || "");
+          getAutoSavedCode(question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!)
+            .then(autoSavedCode => {
+              if (autoSavedCode) {
+                setSqlQuery(autoSavedCode);
+                // Also save to session storage for future use
+                const codeKey = getUserCodeKey(question.Qn_name);
+                sessionStorage.setItem(codeKey, encryptData(autoSavedCode));
+              } else {
+                // No autosave found: use entered_ans if it exists (user's previous answer), otherwise empty string
+                // Don't use Query or Ans as those are answer templates, not user code
+                const enteredAnswer = question.entered_ans || '';
+                if (enteredAnswer.trim() !== '') {
+                  setSqlQuery(enteredAnswer);
+                } else {
+                  // New question with no saved code: start with empty string
+                  setSqlQuery("");
+                }
+              }
+            })
+            .catch(() => {
+              // On error: use entered_ans if it exists, otherwise empty string
+              const enteredAnswer = question.entered_ans || '';
+              if (enteredAnswer.trim() !== '') {
+                setSqlQuery(enteredAnswer);
+              } else {
+                setSqlQuery("");
+              }
+            });
+        } else {
+          // Question is already submitted, use entered_ans
+          codeToSet = question.entered_ans || "";
+          setSqlQuery(codeToSet);
+        }
+        return;
+      }
+      
+      if (isTestingContext) {
+        // For testing context: load answer/template
         codeToSet = question.Ans || question.Query || "";
         setSqlQuery(codeToSet);
         return;
       }
+      
       if (savedCode !== null) {
         const decryptedCode = decryptData(savedCode);
         if (decryptedCode) {
           codeToSet = decryptedCode;
         } else {
-            codeToSet = question.entered_ans || question.Query || "";
-        }
-      } else {
           codeToSet = question.entered_ans || question.Query || "";
+        }
+      } else if (!question.status && !isTestingContext) {
+        // Try to get auto-saved code from backend (only for practice-coding context)
+        getAutoSavedCode(question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!)
+          .then(autoSavedCode => {
+            if (autoSavedCode) {
+              setSqlQuery(autoSavedCode);
+              // Also save to session storage for future use
+              const codeKey = getUserCodeKey(question.Qn_name);
+              sessionStorage.setItem(codeKey, encryptData(autoSavedCode));
+            } else {
+              // Fallback to entered_ans or Query
+              const fallbackCode = question.entered_ans || "";
+              setSqlQuery(fallbackCode);
+            }
+          })
+          .catch(() => {
+            // Fallback to entered_ans or Query on error
+            const fallbackCode = question.entered_ans || question.Query || "";
+            setSqlQuery(fallbackCode);
+          });
+        return; // Return early since we're handling async loading
+      } else {
+        codeToSet = question.entered_ans || question.Query || "";
       }
       setSqlQuery(codeToSet);
       
@@ -174,7 +310,19 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
       const submissionStatus = sessionStorage.getItem(statusKey);
       setIsSubmitted(submissionStatus ? decryptData(submissionStatus) === "submitted" : question.status);
     }
-  }, [question?.Qn_name, question?.Query, question?.entered_ans, question?.Ans, questionIndex, isTestingContext, subject, weekNumber, dayNumber]);
+  }, [question?.Qn_name, question?.Query, question?.entered_ans, question?.Ans, questionIndex, isTestingContext, isTestFlowContext, subject, weekNumber, dayNumber]);
+  
+  // Auto-save code when it changes
+  useEffect(() => {
+    if (question?.Qn_name && sqlQuery) {
+      const codeKey = getUserCodeKey(question.Qn_name);
+      sessionStorage.setItem(codeKey, encryptData(sqlQuery));
+    } else if (question?.Qn_name && sqlQuery === "") {
+      // Explicitly clear session storage if sqlQuery becomes empty for a question
+      const key = getUserCodeKey(question.Qn_name);
+      sessionStorage.removeItem(key);
+    }
+  }, [sqlQuery, question?.Qn_name]);
 
   // Initialize tables
   useEffect(() => {
@@ -270,7 +418,22 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
       
       const rawExpectedOutput = question.ExpectedOutput || [];
       const reorderedOutput = reorderExpectedOutput(rawExpectedOutput, question.TestCases || []);
-      const sendData = {
+      
+      // For test flow context, use test-specific API parameters
+      const sendData = isTestFlowContext ? {
+        student_id: studentId,
+        query: updatedSqlQuery,
+        ExpectedOutput: reorderedOutput,
+        TestCases: question.TestCases || [],
+        week_number: 0,
+        day_number: 0,
+        subject_id: decryptData(sessionStorage.getItem("TestSubjectId") || ""),
+        test_id: decryptData(sessionStorage.getItem("TestId") || ""),
+        subject: sessionStorage.getItem("TestSubject") || "",
+        call_function: "",
+        result: runResponseTestCases,
+        Qn: question.Qn_name,
+      } : {
         student_id: studentId,
         week_number: isTestingContext ? null : weekNumber,
         day_number: isTestingContext ? null : dayNumber,
@@ -291,14 +454,50 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
         setRunResponseTestCases(responseData.TestCases || []);
 
         const resultField = responseData.TestCases?.find((testCase: TestCase) => testCase.Result !== undefined);
+        let successMsg = "";
+        let additionalMsg = "";
         if (resultField) {
           if (resultField.Result === "True") {
-            setSuccessMessage("Congratulations!");
-            setAdditionalMessage("You have passed the test cases. Click the submit code button.");
+            successMsg = "Congratulations!";
+            additionalMsg = "You have passed the test cases. Click the submit code button.";
           } else if (resultField.Result === "False") {
-            setSuccessMessage("Wrong Answer");
-            setAdditionalMessage("You have not passed the test cases");
+            successMsg = "Wrong Answer";
+            additionalMsg = "You have not passed the test cases";
           }
+        }
+        setSuccessMessage(successMsg);
+        setAdditionalMessage(additionalMsg);
+        
+        // Store response for this question
+        const questionKey = question.Qn_name;
+        const responseDataToStore = {
+          table: responseData.data || [],
+          testCases: responseData.TestCases || [],
+          successMessage: successMsg,
+          additionalMessage: additionalMsg
+        };
+        
+        setQuestionResponses(prev => ({
+          ...prev,
+          [questionKey]: responseDataToStore
+        }));
+        
+        // Store the code that was run
+        setLastRunCode(prev => ({
+          ...prev,
+          [questionKey]: sqlQuery
+        }));
+        
+        // Auto-save code when it runs
+        if (!status && !isTestFlowContext) {
+          if (!isTestingContext) {
+            // Auto-save in practice mode when code runs and not submitted
+            autoSaveCode(sqlQuery, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+          }
+        } else if (isTestFlowContext && question && !question.status) {
+          // Auto-save for test flow
+          const testId = decryptData(sessionStorage.getItem("TestId") || "");
+          autoSaveCode(sqlQuery, question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
         }
       } else {
         console.error("SQL query is empty");
@@ -311,35 +510,134 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
       setProcessing(false);
     }
   };
+  
+  /**
+   * Check if submit button should be enabled
+   */
+  const canSubmitCode = () => {
+    if (!question?.Qn_name) {
+      return false;
+    }
+    
+    const questionKey = question.Qn_name;
+    const storedResponse = questionResponses[questionKey];
+    if (!storedResponse) {
+      return false; // No run response for this question
+    }
+    
+    const lastRunCodeForQuestion = lastRunCode[questionKey];
+    if (!lastRunCodeForQuestion) {
+      return false; // No code was run for this question
+    }
+    
+    const currentCode = sqlQuery.trim().replace(/\n/g, " ").replace(/;$/, "");
+    const lastRunCodeTrimmed = lastRunCodeForQuestion.trim().replace(/\n/g, " ").replace(/;$/, "");
+    
+    return currentCode === lastRunCodeTrimmed;
+  };
 
   const handleSubmit = async () => {
+    // For test flow and practice coding contexts, check if code was run first and matches last run code
+    if (isTestFlowContext || isPracticeCodingContext) {
+      if (!canSubmitCode()) {
+        setSuccessMessage("Error");
+        setAdditionalMessage("Please run your code before submitting.");
+        return;
+      }
+    }
+
     setProcessing(true);
     setIsSubmitted(true);
     
     try {
-      const postData = {
-        student_id: studentId,
-        week_number: weekNumber,
-        day_number: dayNumber,
-        subject: subject,
-        subject_id: subjectId,
-        Qn: question.Qn_name,
-        Ans: sqlQuery,
-        CallFunction: "",
-        Result: runResponseTestCases,
-        Attempt: 0,
-        final_score: "0/0",
-        course_id: courseId,
-        batch_id: decryptData(sessionStorage.getItem("BatchId") || "")
-      };
+      // For test flow context, use test-specific submit endpoint
+      if (isTestFlowContext) {
+        const testId = decryptData(sessionStorage.getItem("TestId") || "");
+        const encryptedCourseId = sessionStorage.getItem('CourseId');
+        const courseId = encryptedCourseId ? CryptoJS.AES.decrypt(encryptedCourseId, secretKey).toString(CryptoJS.enc.Utf8) : "course19";
+        
+        const postData = {
+          student_id: studentId,
+          test_id: testId,
+          question_id: question.Qn_name,
+          answer: sqlQuery,
+          subject_id: decryptData(sessionStorage.getItem("TestSubjectId") || ""),
+          TestCases: question.TestCases || [],
+          subject: sessionStorage.getItem("TestSubject") || "",
+          final_score: "0/0",
+          course_id: courseId,
+          result: runResponseTestCases,
+          batch_id: decryptData(sessionStorage.getItem("BatchId") || ""),
+        };
 
-      await getApiClient().put(`${process.env.REACT_APP_BACKEND_URL}api/student/coding/`, postData);
+        const response = await getApiClient().put(`${process.env.REACT_APP_BACKEND_URL}api/student/test/questions/submit/coding/`, postData);
+        const responseData = response.data;
+        
+        if(responseData.message == "Test Already Completed"){
+          return;
+        }
+        
+        // Update question status in session storage and notify TestEditorFlow
+        const questionKey = `coding_${question.Qn_name}`;
+        const sessionKey = `${testId}_questionStatus`;
+        const sessionStatus = sessionStorage.getItem(sessionKey);
+        
+        if (sessionStatus) {
+          try {
+            const decryptedStatuses = CryptoJS.AES.decrypt(sessionStatus, secretKey).toString(CryptoJS.enc.Utf8);
+            const statuses = JSON.parse(decryptedStatuses);
+            
+            statuses[questionKey] = "Submitted";
+            
+            const encryptedStatuses = CryptoJS.AES.encrypt(JSON.stringify(statuses), secretKey).toString();
+            sessionStorage.setItem(sessionKey, encryptedStatuses);
+            
+            // Notify TestEditorFlow to update its local state
+            if ((window as any).updateQuestionStatusInTestEditor) {
+              (window as any).updateQuestionStatusInTestEditor(questionKey, "Submitted");
+            }
+          } catch (error) {
+            console.error("Error updating session status:", error);
+          }
+        }
+        
+        // Cleanup auto-saved code after successful submission
+        if (isTestFlowContext) {
+          const testId = decryptData(sessionStorage.getItem("TestId") || "");
+          autoSaveAfterSubmission(sqlQuery, question.Qn_name, studentId, testId, process.env.REACT_APP_BACKEND_URL!);
+        }
+      } else {
+        // For practice/testing context, use regular submit endpoint
+        const postData = {
+          student_id: studentId,
+          week_number: weekNumber,
+          day_number: dayNumber,
+          subject: subject,
+          subject_id: subjectId,
+          Qn: question.Qn_name,
+          Ans: sqlQuery,
+          CallFunction: "",
+          Result: runResponseTestCases,
+          Attempt: 0,
+          final_score: "0/0",
+          course_id: courseId,
+          batch_id: decryptData(sessionStorage.getItem("BatchId") || "")
+        };
 
+        await getApiClient().put(`${process.env.REACT_APP_BACKEND_URL}api/student/coding/`, postData);
+
+        const statusKey = `submissionStatus_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
+        sessionStorage.setItem(statusKey, encryptData("submitted"));
+
+        // Trigger auto-save after successful submission (deletes autosave)
+        if (!isTestingContext && !isTestFlowContext) {
+          autoSaveAfterSubmission(sqlQuery, question.Qn_name, studentId, SUBJECT_ROADMAP.PRACTICE, process.env.REACT_APP_BACKEND_URL!);
+        }
+      }
+
+      // Save code to session storage
       const codeKey = getUserCodeKey(question.Qn_name);
       sessionStorage.setItem(codeKey, encryptData(sqlQuery));
-
-      const statusKey = `submissionStatus_${subject}_${weekNumber}_${dayNumber}_${question.Qn_name}`;
-      sessionStorage.setItem(statusKey, encryptData("submitted"));
 
       setStatus(true);
       setIsSubmitted(true);
@@ -552,8 +850,18 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
                             <h5 className="m-0 processingDivHeadingTag">Processing...</h5>
                           ) : (
                             <>
-                              {successMessage && <h5 className="m-0 ps-1" style={{ fontSize: '14px' }}>{successMessage}</h5>}
-                              {additionalMessage && <p className="processingDivParaTag m-0 ps-1" style={{ fontSize: "10px" }}>{additionalMessage}</p>}
+                              {(() => {
+                                const storedResponse = questionResponses[question?.Qn_name || ''];
+                                const displaySuccessMessage = storedResponse?.successMessage || successMessage;
+                                const displayAdditionalMessage = storedResponse?.additionalMessage || additionalMessage;
+                                
+                                return (
+                                  <>
+                                    {displaySuccessMessage && <h5 className="m-0 ps-1" style={{ fontSize: '14px' }}>{displaySuccessMessage}</h5>}
+                                    {displayAdditionalMessage && <p className="processingDivParaTag m-0 ps-1" style={{ fontSize: "10px" }}>{displayAdditionalMessage}</p>}
+                                  </>
+                                );
+                              })()}
                             </>
                           )}
                         </div>
@@ -585,7 +893,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
                                 height: "30px"
                               }}
                               onClick={handleSubmit}
-                              disabled={isSubmitted || processing || status || !isRunBtnClicked}
+                              disabled={isSubmitted || processing || status || ((isTestFlowContext || isPracticeCodingContext) && !canSubmitCode())}
                             >
                               {(isSubmitted || status) ? "SUBMITTED" : "SUBMIT CODE"}
                             </button>
@@ -612,7 +920,7 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
         </div>
 
         <div className="bg-white" style={{ height: "49%", backgroundColor: "#E5E5E533", position: "relative" }}>
-          <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "hidden" }}>
+          <div className="p-3" style={{ height: "100%", overflowY: "auto", overflowX: "auto" }}>
                         {runResponseTable.length > 0 && runResponseTable[0] && (
                           <>
                             {runResponseTable[0].error ? (
@@ -627,28 +935,30 @@ const SQLCodeEditorComponent: React.FC<SQLCodeEditorComponentProps> = ({
                                 </div>
                               </div>
                             ) : (
-                              <table className="table table-bordered table-sm rounded" style={{ maxWidth: "100vw", width: "20vw", fontSize: "12px" }}>
-                                <thead>
-                                  <tr>
-                                    {Object.keys(runResponseTable[0] || {}).map((header) => (
-                                      <th key={header} className="text-center" style={{ maxWidth: `${100 / Object.keys(runResponseTable[0] || {}).length}vw` }}>
-                                        {header}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {runResponseTable.map((row, index) => (
-                                    <tr key={index}>
-                                      {Object.keys(row || {}).map((header) => (
-                                        <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
-                                          {row[header]}
-                                        </td>
+                              <div className="table-responsive" style={{ width: "100%", overflowX: "auto" }}>
+                                <table className="table table-bordered table-sm rounded" style={{ width: "auto", fontSize: "12px" }}>
+                                  <thead>
+                                    <tr>
+                                      {Object.keys(runResponseTable[0] || {}).map((header) => (
+                                        <th key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                          {header}
+                                        </th>
                                       ))}
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                  </thead>
+                                  <tbody>
+                                    {runResponseTable.map((row, index) => (
+                                      <tr key={index}>
+                                        {Object.keys(row || {}).map((header) => (
+                                          <td key={header} className="text-center" style={{ whiteSpace: "nowrap", padding: "5px" }}>
+                                            {row[header]}
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             )}
                           </>
                         )}

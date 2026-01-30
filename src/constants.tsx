@@ -1,5 +1,13 @@
 export const secretKey: string = process.env.REACT_APP_SECRET_KEY || '';
 
+// Activity Types
+export const ACTIVITY_TYPE = {
+  TICKET: 'ticket',
+  DASHBOARD: 'dashboard',
+  TEST: 'test',
+  LIVE_SESSION: 'live_session',
+} as const;
+
 // Level to Difficulty mapping
 export const LEVEL_TO_DIFFICULTY: { [key: string]: string } = {
   level1: 'Easy',
@@ -13,6 +21,15 @@ export const DIFFICULTY_COLORS: { [key: string]: string } = {
   Medium: '#FF9800',
   Hard: '#F44336',
 };
+
+// Test Question Navigation colors
+export const TEST_QUESTION_NAV_COLORS = {
+  GREEN_BG: '#42FF58',
+  GRAY_BG: '#808080',
+  WHITE_BG: '#fff',
+  WHITE_TEXT: '#fff',
+  BLACK_TEXT: '#000',
+} as const;
 
 // Get max length for question title based on window width
 export const getQuestionTitleMaxLength = (): number => {

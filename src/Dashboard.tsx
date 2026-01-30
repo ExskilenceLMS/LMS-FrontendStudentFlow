@@ -7,7 +7,8 @@ import Upcoming from "./Components/Upcoming";
 import Calendar from "./Components/Calendar";
 import { useAPISWR } from "./utils/swrConfig";
 import CryptoJS from "crypto-js";
-import { secretKey } from "./constants";
+import { secretKey, ACTIVITY_TYPE } from "./constants";
+import { trackActivity } from "./utils/activityApi";
 
 interface SkeletonProps {
   width: string;
@@ -41,6 +42,11 @@ const Dashboard: React.FC = () => {
 
   // Call the courses API first - this is the primary API
   const { data: coursesData, error: coursesError } = useAPISWR<any>(`${process.env.REACT_APP_BACKEND_URL}api/studentdashboard/mycourses/${studentId}`);
+
+  // Track Dashboard activity when component mounts
+  useEffect(() => {
+    trackActivity({ activityType: ACTIVITY_TYPE.DASHBOARD });
+  }, []);
 
   // Only set courses as loaded when the API response is received
   useEffect(() => {

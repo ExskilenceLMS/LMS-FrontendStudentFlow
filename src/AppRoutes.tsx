@@ -22,12 +22,13 @@ import Layout from './Components/Layout';
 import EditProfile from './Components/EditProfile';
 import TestSQLCoding from './TestSQLCoding';
 import TestingMCQS from './Components/TestingMCQS';
-import DynamicCodingEditorWrapper from './Components/DynamicCodingEditorWrapper';
+import TestEditorFlow from './Components/TestEditorFlow';
 import SubjectBasedCodingEditor from './Components/SubjectBasedCodingEditor';
 import CourseCoding from './Components/CourseCoding';
 import ProjectRoadmap from './ProjectRoadmap';
 import ProjectTasks from './Components/ProjectTasks';
 import UnifiedEditor from './Components/UnifiedEditor';
+import ProjectCoding from './ProjectCoding';
 
 const AppRoutes = () => {
   const showMaintenance = process.env.REACT_APP_SHOW_MAINTENANCE === 'true';
@@ -54,13 +55,14 @@ const AppRoutes = () => {
         <Route path="/test-report" element={<Layout><TestReport /></Layout>} />
         <Route path="/mcq-temp" element={<Layout><TestMcq /></Layout>} />
         <Route path="/coding-temp" element={<Layout><TestSQLCoding /></Layout>} />
-        <Route path="/dynamic-coding-editor" element={<Layout><DynamicCodingEditorWrapper /></Layout>} />
+        <Route path="/test/coding" element={<Layout><TestEditorFlow /></Layout>} />
         <Route path="/EditProfile" element={<Layout><EditProfile /></Layout>} />
         <Route path="/SQL-MCQ-Testing" element={<Layout><TestingMCQS /></Layout>} />
         <Route path="/testing/coding/:subject_id" element={<Layout><SubjectBasedCodingEditor /></Layout>} />
         <Route path="/practice-coding/" element={<Layout><CourseCoding /></Layout>} />
         <Route path="/project-roadmap" element={<Layout><ProjectRoadmap /></Layout>} />
         <Route path="/project-tasks" element={<Layout><ProjectTasks /></Layout>} />
+        <Route path="/project-coding" element={<Layout><ProjectCoding /></Layout>} />
         <Route path="/coding-challenges-editor" element={<Layout><UnifiedEditor /></Layout>} />
       </Route>
     </Routes>
