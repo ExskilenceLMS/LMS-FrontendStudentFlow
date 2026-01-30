@@ -46,6 +46,11 @@ const ProjectComponent = () => {
 
       const apiClient = getApiClient()
 
+      // Get or create project DB credentials
+      await apiClient.get(
+        `${process.env.REACT_APP_BACKEND_URL}api/student/project-db-credentials/${studentId}/${projectId}/get-or-create`
+      )
+
       // Fork repository
       await apiClient.post(
         `${process.env.REACT_APP_BACKEND_URL}api/student/project/repository/fork/`,

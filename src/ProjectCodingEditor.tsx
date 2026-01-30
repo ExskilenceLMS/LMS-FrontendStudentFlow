@@ -18,6 +18,12 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const [vscodeLoading, setVscodeLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(true);
   const [containerStatusState, setContainerStatusState] = useState<'provisioning' | 'ready' | 'loading'>('provisioning');
+  // Branch switching state
+  const [isSwitchingBranch, setIsSwitchingBranch] = useState(false);
+  const [branchSwitchError, setBranchSwitchError] = useState<string | null>(null);
+  const [currentBranch, setCurrentBranch] = useState<string | null>(null);
+  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
+  const previousQuestionIdRef = useRef<string | null>(null);
   
   // Validation state - always run all tasks from JSON files
   const [isRunning, setIsRunning] = useState(false);
@@ -28,7 +34,6 @@ function ProjectCodingEditor({ containerStatus = null }) {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [pollingJobId, setPollingJobId] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const outputRef = useRef(null);
@@ -69,6 +74,105 @@ function ProjectCodingEditor({ containerStatus = null }) {
     }
   }, [validationOutput]);
 
+
+
+  // Detect task/question change and trigger branch switch
+  useEffect(() => {
+    // Only run if we have containerStatus (container exists) and questionData
+    if (!(containerStatus as any)?.success || !questionData?.questions?.length) {
+      return;
+    }
+
+    const currentQuestion = questionData.questions[0];
+    const currentQnId = currentQuestion?.Qn_name || currentQuestion?.question_id;
+    
+    if (!currentQnId) {
+      return;
+    }
+
+    // Check if question changed
+    if (previousQuestionIdRef.current && previousQuestionIdRef.current !== currentQnId) {
+      // Question changed - need to switch branch
+      const encryptedStudentId = sessionStorage.getItem("StudentId") || "";
+      if (!encryptedStudentId) {
+        console.warn("Student ID not found - cannot switch branch");
+        return;
+      }
+
+      const studentId = CryptoJS.AES.decrypt(encryptedStudentId, secretKey).toString(CryptoJS.enc.Utf8);
+      const projectId = getProjectId("projectId") || "";
+
+      if (!projectId) {
+        console.warn("Project ID not found - cannot switch branch");
+        return;
+      }
+
+      // Trigger branch switch inline (to avoid dependency issues)
+      const performBranchSwitch = async () => {
+        try {
+          setIsSwitchingBranch(true);
+          setBranchSwitchError(null);
+          setVscodeLoading(true);
+          setIsPolling(true);
+          setContainerStatusState('provisioning');
+
+          const apiClient = getApiClient();
+          const response = await apiClient.post(
+            `${process.env.REACT_APP_BACKEND_URL}api/student/vscode/switch-branch`,
+            {
+              student_id: studentId,
+              project_id: projectId,
+              branch: undefined,
+              question_id: currentQnId
+            }
+          );
+
+          if (response.data) {
+            setCurrentBranch(response.data.current_branch);
+            setCurrentQuestionId(response.data.question_id);
+            addValidationOutput(`Branch switched to: ${response.data.current_branch}`, 'success');
+            
+            // Reload VS Code iframe after branch switch
+            if (vscodeUrl) {
+              setVscodeUrl(null);
+              setTimeout(() => {
+                if ((containerStatus as any)?.containerUrl) {
+                  setVscodeUrl((containerStatus as any).containerUrl);
+                }
+              }, 2000);
+            }
+          }
+        } catch (error: any) {
+          const errorMsg = error.response?.data?.detail || error.message || 'Failed to switch branch';
+          setBranchSwitchError(errorMsg);
+          addValidationOutput(`Branch switch error: ${errorMsg}`, 'error');
+          console.error('Branch switch error:', error);
+        } finally {
+          setIsSwitchingBranch(false);
+          setVscodeLoading(false);
+          setIsPolling(false);
+        }
+      };
+
+      performBranchSwitch();
+    }
+
+    // Update previous question ID
+    previousQuestionIdRef.current = currentQnId;
+    setCurrentQuestionId(currentQnId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionData, containerStatus]);
+
+  // Update current branch from containerStatus if available
+  useEffect(() => {
+    if ((containerStatus as any)?.current_branch) {
+      setCurrentBranch((containerStatus as any).current_branch);
+    }
+    if ((containerStatus as any)?.current_question_id) {
+      setCurrentQuestionId((containerStatus as any).current_question_id);
+      previousQuestionIdRef.current = (containerStatus as any).current_question_id;
+    }
+  }, [containerStatus]);
 
   // Show provisioning state when containerStatus is null or being provisioned
   useEffect(() => {
@@ -118,15 +222,23 @@ function ProjectCodingEditor({ containerStatus = null }) {
           
           const data = response.data;
           if (!data) return false; // Continue polling if no data
+
+          // Update current branch from status response
+          if (data.current_branch) {
+            setCurrentBranch(data.current_branch);
+          }
+          if (data.current_question_id) {
+            setCurrentQuestionId(data.current_question_id);
+          }
           
           // Update status based on pod state
           if (data.pod_status === "Pending") {
             if (isMountedRef.current) {
-              setContainerStatusState('provisioning'); // Red pulse
+              setContainerStatusState('provisioning');
             }
           } else if (data.is_ready === true && data.pod_status === "Running") {
             if (isMountedRef.current) {
-              setContainerStatusState('ready'); // Dark yellow pulse
+              setContainerStatusState('ready');
             }
           }
           
@@ -135,12 +247,11 @@ function ProjectCodingEditor({ containerStatus = null }) {
             data.pod_status === "Running"
           
           if (shouldLoad) {
-            // Add 5 second delay to allow VS Code server to fully initialize
             await new Promise(resolve => setTimeout(resolve, 5000));
             
             if (isMountedRef.current) {
               setVscodeUrl(containerUrl);
-              setContainerStatusState('loading'); // green polling indicator
+              setContainerStatusState('loading');
               setIsPolling(true);
 
               if (iframeLoadTimeoutRef.current) {
@@ -152,7 +263,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
                   setIsPolling(false);
                 }
                 iframeLoadTimeoutRef.current = null;
-              }, 15000);
+              }, 1000);
             }
             return true; 
           }
@@ -232,6 +343,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
         iframeLoadTimeoutRef.current = null;
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerStatus]);
 
   const handleIframeLoad = () => {
@@ -301,6 +413,7 @@ function ProjectCodingEditor({ containerStatus = null }) {
       
       return () => clearInterval(checkIframeReady);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vscodeUrl, vscodeLoading]);
 
   const addValidationOutput = (message: string, type = 'info') => {
@@ -702,12 +815,10 @@ function ProjectCodingEditor({ containerStatus = null }) {
             if (resultsResponse && resultsResponse.success && resultsResponse.results) {
               // Create a hash of the results to detect changes
               const resultsHash = JSON.stringify(resultsResponse.results);
-              
-              // Only update if results changed (to avoid unnecessary re-renders)
-              if (resultsHash !== lastResultsHash) {
+              // When status just became completed, always process so final results are shown
+              const shouldProcess = resultsHash !== lastResultsHash || status === 'completed' || status === 'failed';
+              if (shouldProcess) {
                 lastResultsHash = resultsHash;
-                
-                // Process results (this will update test cases incrementally)
                 processValidationResults(resultsResponse.results);
               }
             }
@@ -724,19 +835,36 @@ function ProjectCodingEditor({ containerStatus = null }) {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
             }
-            
-            // Get final results one more time
+
+            // Get final results one more time and ensure UI is updated
             try {
               const resultsResponse = await getValidationResults(jobId);
               if (resultsResponse && resultsResponse.success && resultsResponse.results) {
+                console.log('[Validation] Final results received:', status, resultsResponse.results?.tasks?.length ?? 0, 'task(s)');
                 processValidationResults(resultsResponse.results);
-              } else if (status === 'failed' && statusResponse.error) {
-                addValidationOutput(`Validation failed: ${statusResponse.error}`, 'error');
+                if (status === 'completed') {
+                  addValidationOutput('Validation completed.', 'info');
+                }
+              } else {
+                // Results missing or not in expected shape - still show completion state
+                if (status === 'completed') {
+                  addValidationOutput('Validation completed. (Results may still be processing; refresh or run again if test cases do not appear.)', 'info');
+                } else if (status === 'failed') {
+                  addValidationOutput(
+                    statusResponse.error ? `Validation failed: ${statusResponse.error}` : 'Validation failed.',
+                    'error'
+                  );
+                }
               }
             } catch (error: any) {
               console.error('Error fetching final validation results:', error);
+              if (status === 'completed') {
+                addValidationOutput('Validation completed. Could not load results; you may re-run validation.', 'info');
+              } else if (status === 'failed' && statusResponse?.error) {
+                addValidationOutput(`Validation failed: ${statusResponse.error}`, 'error');
+              }
             }
-            
+
             setIsRunning(false);
             setShowTerminal(true);
           }
@@ -941,12 +1069,29 @@ function ProjectCodingEditor({ containerStatus = null }) {
               )}
             </div>
             <div className="text-center">
-              <h5 className="text-muted mb-2">Loading VS Code Editor...</h5>
+              <h5 className="text-muted mb-2">
+                {isSwitchingBranch ? 'Switching Branch...' : 'Loading VS Code Editor...'}
+              </h5>
               <p className="text-muted small mb-0">
-                {containerStatusState === 'provisioning' ? 'Provisioning container...' :
+                {isSwitchingBranch ? 'Switching to new task branch...' :
+                 containerStatusState === 'provisioning' ? 'Provisioning container...' :
                  containerStatusState === 'ready' ? 'Container ready, initializing VS Code...' :
                  'Loading VS Code interface...'}
               </p>
+              {branchSwitchError && (
+                <div className="alert alert-danger mt-2 mb-0" style={{ fontSize: '0.875rem' }}>
+                  {branchSwitchError}
+                </div>
+              )}
+              {/* Show current branch/task info */}
+              {currentBranch && (
+                <p className="text-muted small mt-2 mb-0">
+                  Current Branch: <code>{currentBranch}</code>
+                  {currentQuestionId && (
+                    <span className="ms-2">Task: <code>{currentQuestionId}</code></span>
+                  )}
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -963,14 +1108,29 @@ function ProjectCodingEditor({ containerStatus = null }) {
 
       {/* Run and Submit Buttons */}
       <div className="d-flex justify-content-between gap-2 p-2 border-top bg-light" style={{ flexShrink: 0 }}>
-        <button
-          className="btn btn-outline-secondary btn-sm"
-          style={{ minWidth: '100px' }}
-          onClick={handleCollapse}
-        >
-          <FontAwesomeIcon icon={showTerminal ? faChevronDown : faChevronUp} style={{ marginRight: '4px' }} />
-          {showTerminal ? 'Collapse' : 'Expand'}
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            style={{ minWidth: '100px' }}
+            onClick={handleCollapse}
+          >
+            <FontAwesomeIcon icon={showTerminal ? faChevronDown : faChevronUp} style={{ marginRight: '4px' }} />
+            {showTerminal ? 'Collapse' : 'Expand'}
+          </button>
+          {/* Show current branch/task info in UI */}
+          {currentBranch && (
+            <div className="text-muted small d-flex align-items-center gap-2">
+              <span>Branch:</span>
+              <code className="bg-light px-2 py-1 rounded">{currentBranch}</code>
+              {currentQuestionId && (
+                <>
+                  <span className="ms-2">Task:</span>
+                  <code className="bg-light px-2 py-1 rounded">{currentQuestionId}</code>
+                </>
+              )}
+            </div>
+          )}
+        </div>
         <div className="d-flex gap-2">
           <button
             id="run-validation-btn"
