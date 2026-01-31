@@ -183,7 +183,7 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                           lineHeight: "1.4"
                         }}
                       >
-                        Phase {phaseIndex + 1}: {phase.phase_name}
+                        {phase.phase_name}
                       </span>
                       {isExpanded ? (
                         <MdKeyboardArrowDown 
@@ -322,28 +322,30 @@ const ProjectSidebar: React.FC<ProjectSidebarProps> = ({ projectId, projectName 
                           }}
                           role="button"
                         >
-                          <div className="d-flex justify-content-between align-items-center" style={{ marginBottom: "6px" }}>
-                            <span
+                          <div>
+                            <div
                             style={{ 
                               fontSize: "14px",
                               color: isPartSelected ? "#6C4DA2FF" : "#000",
-                              lineHeight: "1.4"
+                              lineHeight: "1.4",
+                              textAlign: "left"
                             }}>
-                              Part {partIndex + 1}: {part.part_name}
-                            </span>
-                            <span 
+                              {part.part_name}
+                            </div>
+                            <div 
                             className="text-muted"
                             style={{ 
                               fontSize: "12px",
                               color: "#666",
-                              lineHeight: "1.4"
+                              lineHeight: "1.4",
+                              textAlign: "right"
                             }}>
                               {daysLeft} Days Left
-                            </span>
+                            </div>
                           </div>
                           {/* Progress Bar */}
                           <div
-                            className="mt-4"
+                            className="mt-2"
                             style={{
                               width: "100%",
                               height: "4px",

@@ -95,9 +95,7 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
     );
   }
 
-  const displayTaskName = taskNumber
-    ? `Task ${taskNumber}: ${task.task_name}`
-    : task.task_name;
+  const displayTaskName = `${task.task_name}`;
 
   return (
     <div
@@ -159,7 +157,6 @@ const TaskSidebar: React.FC<TaskSidebarProps> = ({
                         lineHeight: "1.4"
                       }}
                     >
-                      Sub Task {index+1}: {" "}
                       {getSubTaskLabel(subTask, index)}
                       {subTask.is_mandatory && (
                     <span

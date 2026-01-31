@@ -714,7 +714,7 @@ const ProjectRoadmapContent: React.FC = () => {
               >
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
-                    <h6 className="mb-1 fw-semibold">Task {taskIndex + 1}: {task.task_name}</h6>
+                    <h6 className="mb-1 fw-semibold">{task.task_name}</h6>
                     <div className="text-muted small">
                       {task.data.length} item{task.data.length !== 1 ? "s" : ""}
                     </div>
